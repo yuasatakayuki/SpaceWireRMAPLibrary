@@ -778,28 +778,8 @@ private:
 		//Instruction
 		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) instruction
 				<< endl;
-		//packet type (Command or Reply)
-		ss << " ------------------------------" << endl;
-		ss << " |Reserved    : 0" << endl;
-		ss << " |Packet Type : " << (isCommand() ? 1 : 0);
-		ss << " " << (isCommand() ? "(Command)" : "(Reply)") << endl;
-		//Write or Read
-		ss << " |Write/Read  : " << (isWrite() ? 1 : 0);
-		ss << " " << (isWrite() ? "(Write)" : "(Read)") << endl;
-		//Verify mode
-		ss << " |Verify Mode : " << (isVerifyFlagSet() ? 1 : 0);
-		ss << " " << (isVerifyFlagSet() ? "(Verify)" : "(No Verify)") << endl;
-		//Ack mode
-		ss << " |Reply Mode  : " << (isReplyFlagSet() ? 1 : 0);
-		ss << " " << (isReplyFlagSet() ? "(Reply)" : "(No Reply)") << endl;
-		//Increment
-		ss << " |Increment   : " << (isIncrementFlagSet() ? 1 : 0);
-		ss << " " << (isIncrementFlagSet() ? "(Increment)" : "(No Increment)") << endl;
-		//SPAL
-		ss << " |R.A.L.      : " << setw(1) << setfill('0') << hex << (uint32_t) (instruction
-				& BitMaskForReplyPathAddressLength) << endl;
-		ss << " |(R.A.L. = Reply Address Length)" << endl;
-		ss << " ------------------------------" << endl;
+		toStringInstructionField(ss);
+		//Key
 		ss << "Key                       : 0x" << setw(2) << setfill('0') << hex << (unsigned int) key << endl;
 		//Reply Address
 		if (replyAddress.size() != 0) {
@@ -866,29 +846,8 @@ private:
 		//Instruction
 		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) instruction
 				<< endl;
-		//packet type (Command or Reply)
-		ss << " ------------------------------" << endl;
-		ss << " |Reserved    : 0" << endl;
-		ss << " |Packet Type : " << (isCommand() ? 1 : 0);
-		ss << " " << (isCommand() ? "(Command)" : "(Reply)") << endl;
-		//Write or Read
-		ss << " |Write/Read  : " << (isWrite() ? 1 : 0);
-		ss << " " << (isWrite() ? "(Write)" : "(Read)") << endl;
-		//Verify mode
-		ss << " |Verify Mode : " << (isVerifyFlagSet() ? 1 : 0);
-		ss << " " << (isVerifyFlagSet() ? "(Verify)" : "(No Verify)") << endl;
-		//Ack mode
-		ss << " |  Reply Mode  : " << (isReplyFlagSet() ? 1 : 0);
-		ss << " " << (isReplyFlagSet() ? "(Reply)" : "(No Reply)") << endl;
-		//Increment
-		ss << " | Increment  : " << (isIncrementFlagSet() ? 1 : 0);
-		ss << " " << (isIncrementFlagSet() ? "(Increment)" : "(No Increment)") << endl;
-		//SPAL
-		ss << " | R.A.L.   : " << setw(1) << setfill('0') << hex << (uint32_t) (instruction
-				& BitMaskForReplyPathAddressLength) << endl;
-		ss << " | R.A.L. = Reply Address Length" << endl;
-		ss << " ------------------------------" << endl;
-
+		toStringInstructionField(ss);
+		//Status
 		string statusstring;
 		switch (status) {
 		case 0x00:
@@ -960,5 +919,31 @@ private:
 		return ss.str();
 	}
 
+public:
+	void toStringInstructionField(std::stringstream& ss){
+		using namespace std;
+		//packet type (Command or Reply)
+		ss << " ------------------------------" << endl;
+		ss << " |Reserved    : 0" << endl;
+		ss << " |Packet Type : " << (isCommand() ? 1 : 0);
+		ss << " " << (isCommand() ? "(Command)" : "(Reply)") << endl;
+		//Write or Read
+		ss << " |Write/Read  : " << (isWrite() ? 1 : 0);
+		ss << " " << (isWrite() ? "(Write)" : "(Read)") << endl;
+		//Verify mode
+		ss << " |Verify Mode : " << (isVerifyFlagSet() ? 1 : 0);
+		ss << " " << (isVerifyFlagSet() ? "(Verify)" : "(No Verify)") << endl;
+		//Ack mode
+		ss << " |Reply Mode  : " << (isReplyFlagSet() ? 1 : 0);
+		ss << " " << (isReplyFlagSet() ? "(Reply)" : "(No Reply)") << endl;
+		//Increment
+		ss << " |Increment   : " << (isIncrementFlagSet() ? 1 : 0);
+		ss << " " << (isIncrementFlagSet() ? "(Increment)" : "(No Increment)") << endl;
+		//SPAL
+		ss << " |R.A.L.      : " << setw(1) << setfill('0') << hex << (uint32_t) (instruction
+				& BitMaskForReplyPathAddressLength) << endl;
+		ss << " |(R.A.L. = Reply Address Length)" << endl;
+		ss << " ------------------------------" << endl;
+	}
 };
 #endif /* RMAPPACKET_HH_ */
