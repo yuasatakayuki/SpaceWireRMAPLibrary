@@ -15,12 +15,22 @@
 #include "RMAPReplyStatus.hh"
 #include "RMAPReplyException.hh"
 #include "RMAPProtocol.hh"
+#include "RMAPMemoryObject.hh"
 
 class RMAPInitiatorException: public CxxUtilities::Exception {
 public:
 	enum {
-		Timeout = 0x100, Aborted = 0x200, ReadReplyWithInsufficientData, ReadReplyWithTooMuchData, UnexpectedWriteReplyReceived
+		Timeout = 0x100,
+		Aborted = 0x200,
+		ReadReplyWithInsufficientData,
+		ReadReplyWithTooMuchData,
+		UnexpectedWriteReplyReceived,
+		NoSuchRMAPMemoryObject,
+		SpecifiedRMAPMemoryObjectIsNotReadable,
+		SpecifiedRMAPMemoryObjectIsNotWritable,
+		SpecifiedRMAPMemoryObjectIsNotRMWable
 	};
+
 public:
 	RMAPInitiatorException(uint32_t status) :
 		CxxUtilities::Exception(status) {
@@ -70,7 +80,22 @@ public:
 	}
 
 public:
-	void read(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
+	void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPMemoryObject* memoryObject;
+		try {
+			memoryObject = rmapTargetNode->getMemoryObjects(memoryObjectID);
+		} catch (RMAPTargetNodeException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		//check if the memory is readable.
+		if (!memoryObject->isReadable()) {
+			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
+		}
+		read(rmapTargetNode, memoryObject->getMemoryAddress(), memoryObject->getLength(), buffer, timeoutDuration);
+	}
+
+	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		using namespace std;
 		lock();
@@ -118,6 +143,21 @@ public:
 	}
 
 public:
+	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data,
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPMemoryObject* memoryObject;
+		try {
+			memoryObject = rmapTargetNode->getMemoryObjects(memoryObjectID);
+		} catch (RMAPTargetNodeException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		//check if the memory is readable.
+		if (!memoryObject->isWritable()) {
+			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotWritable);
+		}
+		write(rmapTargetNode, memoryObject->getMemoryAddress(), data, memoryObject->getLength(), timeoutDuration);
+	}
+
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		lock();

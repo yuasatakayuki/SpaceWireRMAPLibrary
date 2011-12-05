@@ -1,0 +1,18 @@
+<root>
+
+<RMAPMemoryObject id="EssentialHK">
+	<ExtendedAddress>0x00</ExtendedAddress>
+	<MemoryAddress>0xFF801100</MemoryAddress>
+	<Length>0x08</Length>
+	<Key>0x20</Key>
+</RMAPMemoryObject>
+
+<RMAPMemoryObject id="CommandHK">
+	<ExtendedAddress>0x00</ExtendedAddress>
+	<MemoryAddress>0xFF803800</MemoryAddress>
+	<Length>0x100</Length>
+	<Key>0x20</Key>
+</RMAPMemoryObject>
+
+</root>
+

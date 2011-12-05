@@ -1,0 +1,49 @@
+<root>
+
+<RMAPTargetNode id="ShimafujiDIO">
+	<TargetLogicalAddress>0x30</TargetLogicalAddress>
+	<TargetSpaceWireAddress></TargetSpaceWireAddress>
+	<ReplyAddress></ReplyAddress>
+	<Key>0x02</Key>
+	
+	<RMAPMemoryObject id="Command">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF803800</MemoryAddress>
+		<Length>0x10</Length>
+		<Key>0x25</Key>
+		<AccessMode>WriteOnly</AccessMode>
+	</RMAPMemoryObject>
+
+	<RMAPMemoryObject id="EssentialHK">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF801100</MemoryAddress>
+		<Length>0x08</Length>
+		<Key>0x20</Key>
+		<AccessMode>ReadOnly</AccessMode>
+	</RMAPMemoryObject>
+</RMAPTargetNode>
+
+<RMAPTargetNode id="ShimafujiDIO2">
+	<TargetLogicalAddress>0x31</TargetLogicalAddress>
+	<TargetSpaceWireAddress></TargetSpaceWireAddress>
+	<ReplyAddress></ReplyAddress>
+	<Key>0x02</Key>
+	
+	<RMAPMemoryObject id="Command">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF803800</MemoryAddress>
+		<Length>0x10</Length>
+		<Key>0x25</Key>
+		<AccessMode>WriteOnly</AccessMode>
+	</RMAPMemoryObject>
+
+	<RMAPMemoryObject id="EssentialHK">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF801100</MemoryAddress>
+		<Length>0x08</Length>
+		<Key>0x20</Key>
+		<AccessMode>ReadOnly</AccessMode>
+	</RMAPMemoryObject>
+</RMAPTargetNode>
+
+</root>

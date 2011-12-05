@@ -1,0 +1,34 @@
+<root>
+
+<RMAPTargetNode id="SpaceWireToGigabitEther_ConfigurationPort">
+	<TargetLogicalAddress>0xFE</TargetLogicalAddress>
+	<TargetSpaceWireAddress>0x00</TargetSpaceWireAddress>
+	<ReplyAddress></ReplyAddress>
+	<Key>0x20</Key>
+	
+	<RMAPMemoryObject id="Command">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF803800</MemoryAddress>
+		<Length>0x10</Length>
+		<Key>0x25</Key>
+		<AccessMode>WriteOnly</AccessMode>
+	</RMAPMemoryObject>
+
+	<RMAPMemoryObject id="EssentialHK">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<MemoryAddress>0xFF801100</MemoryAddress>
+		<Length>0x08</Length>
+		<Key>0x20</Key>
+		<AccessMode>ReadOnly</AccessMode>
+	</RMAPMemoryObject>
+</RMAPTargetNode>
+
+<RMAPTargetNode id="SpaceWireToGigabitEther_InternalRegisterPort">
+	<TargetLogicalAddress>0xFE</TargetLogicalAddress>
+	<TargetSpaceWireAddress>0x06</TargetSpaceWireAddress>
+	<ReplyAddress>0x04</ReplyAddress>
+	<Key>0x20</Key>
+	
+</RMAPTargetNode>
+
+</root>

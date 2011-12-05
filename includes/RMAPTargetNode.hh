@@ -10,13 +10,26 @@
 
 #include <CxxUtilities/CommonHeader.hh>
 #include "SpaceWireUtilities.hh"
+#include "RMAPNode.hh"
 #ifndef NO_XMLLODER
 #include "XMLLoader.hpp"
 #endif
 
-class RMAPTargetNode {
+class RMAPTargetNodeException: CxxUtilities::Exception {
+public:
+	enum {
+		FileNotFound, InvalidXMLEntry, NoSuchRMAPMemoryObject
+	};
+
+public:
+	RMAPTargetNodeException(int status) :
+		CxxUtilities::Exception(status) {
+
+	}
+};
+
+class RMAPTargetNode: RMAPNode {
 private:
-	std::string id;
 	std::vector<uint8_t> targetSpaceWireAddress;
 	std::vector<uint8_t> replyAddress;
 	uint8_t targetLogicalAddress;
@@ -29,22 +42,40 @@ public:
 	static const uint8_t DefaultLogicalAddress = 0xFE;
 	static const uint8_t DefaultKey = 0x20;
 
+private:
+	std::map<std::string,RMAPMemoryObject*> memoryObjects;
+
 public:
 	RMAPTargetNode() {
 		targetLogicalAddress = 0xFE;
-		initiatorLogicalAddress=0xFE;
+		initiatorLogicalAddress = 0xFE;
 		defaultKey = DefaultKey;
 		isInitiatorLogicalAddressSet_ = false;
 	}
 
 #ifndef NO_XMLLODER
 public:
-	static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException) {
+	static std::vector<RMAPTargetNode*> constructFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException) {
+		using namespace std;
+		ifstream ifs(filename.c_str());
+		if(!ifs.is_open()) {
+			throw RMAPTargetNodeException(RMAPTargetNodeException::FileNotFound);
+		}
+		ifs.close();
+		XMLLoader xmlLoader(filename.c_str());
+		return constructFromXMLFile(xmlLoader.getTopNode());
+	}
+
+	static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException) {
 		using namespace std;
 		vector<XMLNode*> nodes = topNode->getChildren("RMAPTargetNode");
 		vector<RMAPTargetNode*> result;
 		for (unsigned int i = 0; i < nodes.size(); i++) {
-			result.push_back(RMAPTargetNode::constructFromXMLNode(nodes[i]));
+			try {
+				result.push_back(RMAPTargetNode::constructFromXMLNode(nodes[i]));
+			} catch(...) {
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
+			}
 		}
 		return result;
 	}
@@ -53,8 +84,9 @@ public:
 		using namespace std;
 		using namespace CxxUtilities;
 
-		const char* tagNames[] = { "TargetLogicalAddress", "TargetSpaceWireAddress", "ReplyAddress", "Key" };
-		for (size_t i = 0; i < 4; i++) {
+		const char* tagNames[] = {"TargetLogicalAddress", "TargetSpaceWireAddress", "ReplyAddress", "Key"};
+		const size_t nTagNames=4;
+		for (size_t i = 0; i < nTagNames; i++) {
 			if (node->getChild(string(tagNames[i])) == NULL) {
 				//not all of necessary tags are defined in the node configration part
 				return NULL;
@@ -65,7 +97,7 @@ public:
 		targetNode->setID(node->getAttribute("id"));
 		targetNode->setTargetLogicalAddress(String::toInteger(node->getChild("TargetLogicalAddress")->getValue()));
 		vector<unsigned char> targetSpaceWireAddress = String::toUnsignedCharArray(node->getChild(
-				"TargetSpaceWireAddress")->getValue());
+						"TargetSpaceWireAddress")->getValue());
 		targetNode->setTargetSpaceWireAddress(targetSpaceWireAddress);
 		vector<unsigned char> replyAddress = String::toUnsignedCharArray(node->getChild("ReplyAddress")->getValue());
 		targetNode->setReplyAddress(replyAddress);
@@ -74,11 +106,24 @@ public:
 		//optional
 		if (node->getChild("InitiatorLogicalAddress") != NULL) {
 			using namespace std;
-			cout << "##InitiatorLogicalAddress is found" << endl;
 			targetNode->setInitiatorLogicalAddress(node->getChild("InitiatorLogicalAddress")->getValueAsUInt8());
 		}
+		constructRMAPMemoryObjectFromXMLFile(node,targetNode);
 
 		return targetNode;
+	}
+
+private:
+	static void constructRMAPMemoryObjectFromXMLFile(XMLNode* node,RMAPTargetNode* targetNode) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException,RMAPMemoryObjectException) {
+		using namespace std;
+		vector<XMLNode*> nodes = node->getChildren("RMAPMemoryObject");
+		for (unsigned int i = 0; i < nodes.size(); i++) {
+			try {
+				targetNode->addMemoryObject(RMAPMemoryObject::constructFromXMLNode(nodes[i]));
+			} catch(...) {
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
+			}
+		}
 	}
 #endif
 
@@ -115,14 +160,6 @@ public:
 		this->targetSpaceWireAddress = targetSpaceWireAddress;
 	}
 
-	std::string getID() const {
-		return id;
-	}
-
-	void setID(std::string id) {
-		this->id = id;
-	}
-
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->isInitiatorLogicalAddressSet_ = true;
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
@@ -141,18 +178,78 @@ public:
 		return initiatorLogicalAddress;
 	}
 
+public:
+	void addMemoryObject(RMAPMemoryObject* memoryObject){
+		memoryObjects[memoryObject->getID()]=memoryObject;
+	}
+
+	std::map<std::string,RMAPMemoryObject*>* getMemoryObjects(){
+		return &memoryObjects;
+	}
+
+	RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException){
+		std::map<std::string,RMAPMemoryObject*>::iterator it=memoryObjects.find(memoryObjectID);
+		if(it!=memoryObjects.end()){
+			it->second;
+		}else{
+			throw RMAPTargetNodeException(RMAPTargetNodeException::NoSuchRMAPMemoryObject);
+		}
+	}
+
+public:
 	std::string toString() {
 		using namespace std;
 		stringstream ss;
-		ss << "Initiator Logical Address : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t)initiatorLogicalAddress
-				<< endl;
-		ss << "Target Logical Address    : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t)targetLogicalAddress
-				<< endl;
+		if (isInitiatorLogicalAddressSet()) {
+			ss << "Initiator Logical Address : 0x" << right << hex << setw(2) << setfill('0')
+					<< (uint32_t) initiatorLogicalAddress << endl;
+		}
+		ss << "Target Logical Address    : 0x" << right << hex << setw(2) << setfill('0')
+				<< (uint32_t) targetLogicalAddress << endl;
 		ss << "Target SpaceWire Address  : " << SpaceWireUtilities::packetToString(&targetSpaceWireAddress) << endl;
 		ss << "Reply Address             : " << SpaceWireUtilities::packetToString(&replyAddress) << endl;
-		ss << "Default Key               : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t)defaultKey << endl;
+		ss << "Default Key               : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t) defaultKey
+				<< endl;
+		std::map<std::string,RMAPMemoryObject*>::iterator it=memoryObjects.begin();
+		for(;it!=memoryObjects.end();it++){
+			ss << it->second->toString();
+		}
 		return ss.str();
 	}
+
+	std::string toXMLString(int nTabs=0) {
+		using namespace std;
+		stringstream ss;
+		ss << "<RMAPTargetNode>" << endl;
+		if (isInitiatorLogicalAddressSet()) {
+			ss << "	<InitiatorLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) initiatorLogicalAddress << "</InitiatorLogicalAddress>" << endl;
+		}
+		ss << "	<TargetLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (uint32_t) targetLogicalAddress << "</TargetLogicalAddress>" << endl;
+		ss << "	<TargetSpaceWireAddress>" << SpaceWireUtilities::packetToString(&targetSpaceWireAddress)
+				<< "</TargetSpaceWireAddress>" << endl;
+		ss << "	<ReplyAddress>" << SpaceWireUtilities::packetToString(&replyAddress) << "</ReplyAddress>" << endl;
+		ss << "	<DefaultKey>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) defaultKey
+				<< "</DefaultKey>" << endl;
+		std::map<std::string,RMAPMemoryObject*>::iterator it=memoryObjects.begin();
+		for(;it!=memoryObjects.end();it++){
+			ss << it->second->toXMLString(nTabs+1);
+		}
+		ss << "</RMAPTargetNode>";
+
+		stringstream ss2;
+		while (!ss.eof()) {
+			string line;
+			getline(ss, line);
+			for (int i = 0; i < nTabs; i++) {
+				ss2 << "	";
+			}
+			ss2 << line << endl;
+		}
+		return ss2.str();
+	}
+
 };
 
 #endif /* RMAPTARGETNODE_HH_ */
