@@ -65,7 +65,7 @@ public:
 
 public:
 	virtual void
-	send(uint8_t* data, uint32_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
+	send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
 
 	virtual void send(std::vector<uint8_t>& data, uint32_t eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
@@ -86,7 +86,7 @@ public:
 	}
 
 public:
-	virtual void receive(uint8_t* buffer, uint8_t& eopType, uint32_t maxLength, size_t& length)
+	virtual void receive(uint8_t* buffer, uint8_t& eopType, size_t maxLength, size_t& length)
 			throw (SpaceWireIFException) {
 		std::vector<uint8_t>* packet = this->receive();
 		size_t packetSize = packet->size();

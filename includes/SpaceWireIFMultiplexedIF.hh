@@ -28,7 +28,7 @@ public:
 	}
 
 public:
-	void send(uint8_t* data, uint32_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
+	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		parent->send(data,length,eopType);
 	}
 

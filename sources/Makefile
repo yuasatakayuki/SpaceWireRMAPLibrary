@@ -27,7 +27,7 @@ TARGETS_SOURCES = $(addsuffix .cc, $(basename $(TARGETS)))
 all : $(TARGETS)
 
 $(TARGETS) : $(TARGETS_SOURCES)
-	$(CXX) $(CXXFLAGS) -o $@ $@.cc $(LDFLAGS)
+	$(CXX) -g $(CXXFLAGS) -o $@ $@.cc $(LDFLAGS)
         
 clean :
 	rm -rf $(TARGETS) $(addsuffix .o, $(TARGETS))

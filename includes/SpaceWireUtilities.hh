@@ -125,9 +125,9 @@ public:
 	static void printVectorWithAddress2bytes(uint32_t address, std::vector<uint8_t>* data) {
 		using namespace std;
 		cout << "Address    Data" << endl;
-		uint32_t size = data->size();
+		size_t size = data->size();
 		if (size % 2 == 0 && size != 0) {
-			for (uint32_t i = 0; i < (size + 1) / 2; i++) {
+			for (size_t i = 0; i < (size + 1) / 2; i++) {
 				cout << setfill('0') << setw(4) << hex << (address + i * 2) / 0x00010000;
 				cout << "-" << setfill('0') << setw(4) << hex << (address + i * 2) % 0x00010000;
 				cout << "  ";
@@ -135,7 +135,7 @@ public:
 						* 2)) << endl;
 			}
 		} else if (size != 0) {
-			uint32_t i;
+			size_t i;
 			for (i = 0; i < size / 2; i++) {
 				cout << setfill('0') << setw(4) << hex << (address + i * 2) / 0x00010000;
 				cout << "-" << setfill('0') << setw(4) << hex << (address + i * 2) % 0x00010000;

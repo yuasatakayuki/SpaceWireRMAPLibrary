@@ -14,7 +14,7 @@
 #include "RMAPTransaction.hh"
 #include "SpaceWireIF.hh"
 
-class RMAPEngineException: CxxUtilities::Exception {
+class RMAPEngineException: public CxxUtilities::Exception {
 public:
 	enum {
 		TransactionIDIsNotAvailable,

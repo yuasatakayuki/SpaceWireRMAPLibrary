@@ -84,7 +84,7 @@ public:
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
 		try {
-			memoryObject = rmapTargetNode->getMemoryObjects(memoryObjectID);
+			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
 		} catch (RMAPTargetNodeException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
@@ -92,7 +92,7 @@ public:
 		if (!memoryObject->isReadable()) {
 			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
 		}
-		read(rmapTargetNode, memoryObject->getMemoryAddress(), memoryObject->getLength(), buffer, timeoutDuration);
+		read(rmapTargetNode, memoryObject->getAddress(), memoryObject->getLength(), buffer, timeoutDuration);
 	}
 
 	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
@@ -147,7 +147,7 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
 		try {
-			memoryObject = rmapTargetNode->getMemoryObjects(memoryObjectID);
+			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
 		} catch (RMAPTargetNodeException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
@@ -155,7 +155,7 @@ public:
 		if (!memoryObject->isWritable()) {
 			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotWritable);
 		}
-		write(rmapTargetNode, memoryObject->getMemoryAddress(), data, memoryObject->getLength(), timeoutDuration);
+		write(rmapTargetNode, memoryObject->getAddress(), data, memoryObject->getLength(), timeoutDuration);
 	}
 
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
@@ -258,6 +258,15 @@ public:
 
 	void setVerifyMode(bool verifyMode) {
 		this->verifyMode = verifyMode;
+	}
+
+public:
+	RMAPPacket* getCommandPacketPointer(){
+		return commandPacket;
+	}
+
+	RMAPPacket* getReplyPacketPointer(){
+		return replyPacket;
 	}
 
 };

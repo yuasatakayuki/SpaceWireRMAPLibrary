@@ -139,7 +139,7 @@ public:
 	}
 
 public:
-	void send(uint8_t* data, uint32_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
+	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		sendMutex.lock();
 		realSpaceWireIF->send(data, length, eopType);
 		sendMutex.unlock();

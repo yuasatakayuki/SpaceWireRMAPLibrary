@@ -21,9 +21,9 @@ int main(int argc,char* argv[]){
 	replyAddress.push_back(3);
 
 	//construct
-	uint32_t dataLength=0x20;
+	uint32_t dataLength=0x31;
 	RMAPPacket rmapPacket1;
-	/*
+
 	rmapPacket1.setTargetSpaceWireAddress(targetSpaceWireAddress);
 	rmapPacket1.setReplyAddress(replyAddress);
 	rmapPacket1.setWrite();
@@ -39,7 +39,14 @@ int main(int argc,char* argv[]){
 	rmapPacket1.constructPacket();
 	cout << "RMAPPacket1" << endl;
 	SpaceWireUtilities::dumpPacket(rmapPacket1.getPacketBufferPointer());
-*/
+	cout << "----------------------------" << endl;
+	rmapPacket1.setHeaderCRCMode(RMAPPacket::AutoCRC);
+	rmapPacket1.constructHeader();
+	cout << rmapPacket1.toString() << endl;
+	cout << rmapPacket1.toXMLString() << endl;
+
+
+
 	//interpret
 	RMAPPacket rmapPacket2;
 	
@@ -61,4 +68,5 @@ int main(int argc,char* argv[]){
 	rmapPacket2.setHeaderCRCMode(RMAPPacket::AutoCRC);
 	rmapPacket2.constructHeader();
 	cout << rmapPacket2.toString() << endl;
+	cout << rmapPacket2.toXMLString() << endl;
 }

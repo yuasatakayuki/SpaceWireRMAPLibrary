@@ -2,14 +2,14 @@
 
 <RMAPMemoryObject id="EssentialHK">
 	<ExtendedAddress>0x00</ExtendedAddress>
-	<MemoryAddress>0xFF801100</MemoryAddress>
+	<Address>0xFF801100</Address>
 	<Length>0x08</Length>
 	<Key>0x20</Key>
 </RMAPMemoryObject>
 
 <RMAPMemoryObject id="CommandHK">
 	<ExtendedAddress>0x00</ExtendedAddress>
-	<MemoryAddress>0xFF803800</MemoryAddress>
+	<Address>0xFF803800</Address>
 	<Length>0x100</Length>
 	<Key>0x20</Key>
 </RMAPMemoryObject>

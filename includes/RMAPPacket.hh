@@ -148,7 +148,7 @@ public:
 		using namespace std;
 
 		header.clear();
-		if (isCommand()) {
+		if (isCommand()) {//if command packet
 			header.push_back(targetLogicalAddress);
 			header.push_back(protocolID);
 			header.push_back(instruction);
@@ -174,7 +174,7 @@ public:
 			header.push_back((uint8_t) (((((dataLength & 0x00ff0000) >> 16)))));
 			header.push_back((uint8_t) (((((dataLength & 0x0000ff00) >> 8)))));
 			header.push_back((uint8_t) (((((dataLength & 0x000000ff) >> 0)))));
-		} else {
+		} else {//if reply packet
 			header.push_back(initiatorLogicalAddress);
 			header.push_back(protocolID);
 			header.push_back(instruction);
@@ -228,15 +228,15 @@ public:
 	}
 
 public:
-	void interpretAsAnRMAPPacket(uint8_t *packet, uint32_t length) throw (RMAPPacketException) {
+	void interpretAsAnRMAPPacket(uint8_t *packet, size_t length) throw (RMAPPacketException) {
 		using namespace std;
 
 		std::vector<uint8_t> temporaryPathAddress;
 		try {
-			int i = 0;
-			int rmapIndex = 0;
-			int rmapIndexAfterSourcePathAddress = 0;
-			int dataIndex = 0;
+			size_t i = 0;
+			size_t rmapIndex = 0;
+			size_t rmapIndexAfterSourcePathAddress = 0;
+			size_t dataIndex = 0;
 			temporaryPathAddress.clear();
 			while (packet[i] < 0x20) {
 				temporaryPathAddress.push_back(packet[i]);
@@ -249,7 +249,7 @@ public:
 			using namespace std;
 			instruction = packet[rmapIndex + 2];
 			uint8_t replyPathAddressLength = getReplyPathAddressLength();
-			if (isCommand()) {
+			if (isCommand()) { //if command packet
 				setTargetSpaceWireAddress(temporaryPathAddress);
 				setTargetLogicalAddress(packet[rmapIndex]);
 				setKey(packet[rmapIndex + 3]);
@@ -315,13 +315,8 @@ public:
 						dataCRC = temporaryDataCRC;
 					}
 				}
-			} else {
-				temporaryPathAddress.clear();
-				uint32_t replyPathAddressLength = getReplyPathAddressLength();
-				for (int i = 0; i < replyPathAddressLength * 4; i++) {
-					temporaryPathAddress.push_back(0);
-				}
-				setReplyAddress(temporaryPathAddress);
+			} else {//if reply packet
+				setReplyAddress(temporaryPathAddress, false);
 				setInitiatorLogicalAddress(packet[rmapIndex]);
 				setStatus(packet[rmapIndex + 3]);
 				setTargetLogicalAddress(packet[rmapIndex + 4]);
@@ -367,12 +362,20 @@ public:
 							throw RMAPPacketException(RMAPPacketException::DataLengthMismatch);
 						}
 					}
-					uint8_t temporaryDataCRC = packet[dataIndex + getDataLength()];
+					//length check for DataCRC
+					uint8_t temporaryDataCRC = 0x00;
+					if ((dataIndex + getDataLength()) == (length - 1)) {
+						temporaryDataCRC = packet[dataIndex + getDataLength()];
+					} else {
+						throw(RMAPPacketException(RMAPPacketException::DataLengthMismatch));
+					}
 					calculateDataCRC();
 					if (dataCRCIsChecked == true) {
 						if (dataCRC != temporaryDataCRC) {
 							throw(RMAPPacketException(RMAPPacketException::InvalidDataCRC));
 						}
+					} else {
+						dataCRC = temporaryDataCRC;
 					}
 				}
 			}
@@ -438,7 +441,7 @@ public:
 		}
 	}
 
-	inline bool setReply() {
+	inline void setReply() {
 		instruction = instruction & (~RMAPPacket::BitMaskForCommandReply);
 	}
 
@@ -569,8 +572,8 @@ public:
 		return data;
 	}
 
-	void getData(uint8_t* buffer, uint32_t maxLength) throw (RMAPPacketException) {
-		uint32_t length = data.size();
+	void getData(uint8_t* buffer, size_t maxLength) throw (RMAPPacketException) {
+		size_t length = data.size();
 		if (maxLength < length) {
 			throw RMAPPacketException(RMAPPacketException::InsufficientBufferSize);
 		}
@@ -580,13 +583,13 @@ public:
 	}
 
 	void getData(std::vector<uint8_t>& buffer) {
-		uint32_t length = data.size();
+		size_t length = data.size();
 		buffer.resize(length);
 		getData(&(buffer[0]), length);
 	}
 
 	void getData(std::vector<uint8_t>* buffer) {
-		uint32_t length = data.size();
+		size_t length = data.size();
 		buffer->resize(length);
 		getData(&(buffer->at(0)), length);
 	}
@@ -683,12 +686,15 @@ public:
 		this->protocolID = protocolID;
 	}
 
-	void setReplyAddress(std::vector<uint8_t> replyAddress) {
+	void setReplyAddress(std::vector<uint8_t> replyAddress, //
+			bool automaticallySetPathAddressLengthToInstructionField = true) {
 		this->replyAddress = replyAddress;
-		if (replyAddress.size() % 4 == 0) {
-			instruction = (instruction & (~BitMaskForReplyPathAddressLength)) + replyAddress.size() / 4;
-		} else {
-			instruction = (instruction & (~BitMaskForReplyPathAddressLength)) + (replyAddress.size() + 4) / 4;
+		if (automaticallySetPathAddressLengthToInstructionField) {
+			if (replyAddress.size() % 4 == 0) {
+				instruction = (instruction & (~BitMaskForReplyPathAddressLength)) + replyAddress.size() / 4;
+			} else {
+				instruction = (instruction & (~BitMaskForReplyPathAddressLength)) + (replyAddress.size() + 4) / 4;
+			}
 		}
 	}
 
@@ -752,6 +758,14 @@ public:
 		}
 	}
 
+	std::string toXMLString() {
+		if (isCommand()) {
+			return toXMLStringCommandPacket();
+		} else {
+			return toXMLStringReplyPacket();
+		}
+	}
+
 private:
 	std::string toStringCommandPacket() {
 		using namespace std;
@@ -788,15 +802,14 @@ private:
 		} else {
 			ss << "Reply Address         : --none--" << endl;
 		}
-		ss << "Transaction Identifier    : 0x" << right << setw(2) << setfill('0') << hex
-				<< ((unsigned int) transactionID) / 0x100 << " 0x" << right << setw(2) << setfill('0') << hex
-				<< ((unsigned int) transactionID) % 0x100 << endl;
+		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex
+				<< (unsigned int) transactionID << endl;
 		ss << "Extended Address          : 0x" << right << setw(2) << setfill('0') << hex
 				<< (unsigned int) extendedAddress << endl;
 		ss << "Address                   : 0x" << right << setw(8) << setfill('0') << hex << (unsigned int) address
 				<< endl;
 		ss << "Data Length (bytes)       : 0x" << right << setw(6) << setfill('0') << hex << (unsigned int) dataLength
-				<< endl;
+				<< " (" << dec << dataLength << "dec)" << endl;
 		ss << "Header CRC                : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) headerCRC
 				<< endl;
 
@@ -892,12 +905,11 @@ private:
 		}
 		ss << "Status                    : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) status
 				<< " (" << statusstring << ")" << endl;
-		ss << "Transaction Identifier    : 0x" << right << setw(2) << setfill('0') << hex
-				<< ((unsigned int) transactionID) / 0x100 << " 0x" << setw(2) << setfill('0') << hex
-				<< ((unsigned int) transactionID) % 0x100 << endl;
+		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex
+				<< (unsigned int) transactionID << endl;
 		if (isRead()) {
 			ss << "Data Length (bytes)       : 0x" << right << setw(6) << setfill('0') << hex
-					<< (unsigned int) dataLength << endl;
+					<< (unsigned int) dataLength << " (" << dec << dataLength << "dec)" << endl;
 		}
 		ss << "Header CRC                : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) headerCRC
 				<< endl;
@@ -920,7 +932,7 @@ private:
 	}
 
 public:
-	void toStringInstructionField(std::stringstream& ss){
+	void toStringInstructionField(std::stringstream& ss) {
 		using namespace std;
 		//packet type (Command or Reply)
 		ss << " ------------------------------" << endl;
@@ -945,5 +957,217 @@ public:
 		ss << " |(R.A.L. = Reply Address Length)" << endl;
 		ss << " ------------------------------" << endl;
 	}
+
+public:
+	std::string toXMLStringCommandPacket(int nTabs = 0) {
+		this->constructPacket();
+		using namespace std;
+		stringstream ss;
+		ss << "<RMAPPacket>" << endl;
+		///////////////////////////////
+		//Command
+		///////////////////////////////
+		//Protocol Identifier
+		ss << "	<ProtocolID>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) 1 << "</ProtocolID>"
+				<< endl;
+
+		//SpaceWire Addresses
+		ss << "	<InitiatorLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (uint32_t) initiatorLogicalAddress << "</InitiatorLogicalAddress>" << endl;
+		ss << "	<TargetLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (uint32_t) targetLogicalAddress << "</TargetLogicalAddress>" << endl;
+		ss << "	<TargetSpaceWireAddress>" << SpaceWireUtilities::packetToString(&targetSpaceWireAddress)
+				<< "</TargetSpaceWireAddress>" << endl;
+		ss << "	<ReplyAddress>" << SpaceWireUtilities::packetToString(&replyAddress) << "</ReplyAddress>" << endl;
+
+		//Instruction
+		ss << "	<Instruction>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) instruction
+				<< "</Instruction>" << endl;
+
+		//key
+		ss << "	<Key>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) key << "</Key>" << endl;
+
+		ss << "	<TransactionIdentifier>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (unsigned int) transactionID << "</TransactionIdentifier>" << endl;
+		ss << "	<ExtendedAddress>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) extendedAddress
+				<< "</ExtendedAddress>" << endl;
+		ss << "	<Address>" << "0x" << hex << right << setw(8) << setfill('0') << (uint32_t) address << "</Address>"
+				<< endl;
+		ss << "	<Length>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataLength << "</Length>"
+				<< endl;
+		if (headerCRCMode == AutoCRC) {
+			ss << "	<HeaderCRC>Auto</HeaderCRC>" << endl;
+			ss << "	<!-- HeaderCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) headerCRC
+					<< " (as long as the header is intact) -->" << endl;
+		} else {
+			ss << "	<HeaderCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) headerCRC
+					<< "</HeaderCRC>" << endl;
+		}
+
+		//Data Part
+		if (isWrite()) {
+			ss << "	<Data>" << endl;
+			stringstream ssData;
+			SpaceWireUtilities::dumpPacket(&ssData, &data, 1, 16);
+			while (!ssData.eof()) {
+				string line;
+				getline(ssData, line);
+				ss << "		" << line << endl;
+			}
+			ss << "	</Data>" << endl;
+			if (dataCRCMode == AutoCRC) {
+				ss << "	<DataCRC>Auto</DataCRC>" << endl;
+				ss << "	<!-- DataCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataCRC
+						<< " (as long as the data part is intact) -->" << endl;
+			} else {
+				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataCRC
+						<< "</DataCRC>" << endl;
+			}
+		}
+
+		ss << "</RMAPPacket>" << endl;
+
+		//indent
+		stringstream ss2;
+
+		while (!ss.eof()) {
+			string line;
+			getline(ss, line);
+			for (int i = 0; i < nTabs; i++) {
+				ss2 << "	";
+			}
+			ss2 << line << endl;
+		}
+		return ss2.str();
+	}
+
+	std::string toXMLStringReplyPacket(int nTabs = 0) {
+		this->constructPacket();
+		using namespace std;
+		stringstream ss;
+		ss << "<RMAPPacket>" << endl;
+
+		///////////////////////////////
+		//Reply
+		///////////////////////////////
+		//Protocol Identifier
+		ss << "	<ProtocolID>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) 1 << "</ProtocolID>"
+				<< endl;
+
+		//SpaceWire Addresses
+		ss << "	<InitiatorLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (uint32_t) initiatorLogicalAddress << "</InitiatorLogicalAddress>" << endl;
+		ss << "	<TargetLogicalAddress>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (uint32_t) targetLogicalAddress << "</TargetLogicalAddress>" << endl;
+		ss << "	<TargetSpaceWireAddress>" << SpaceWireUtilities::packetToString(&targetSpaceWireAddress)
+				<< "</TargetSpaceWireAddress>" << endl;
+		ss << "	<ReplyAddress>" << SpaceWireUtilities::packetToString(&replyAddress) << "</ReplyAddress>" << endl;
+
+		//Instruction
+		ss << "	<Instruction>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) instruction
+				<< "</Instruction>" << endl;
+
+		//Status
+		ss << "	<Status>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) status << "</Status>"
+				<< endl;
+
+		string statusstring;
+		switch (status) {
+		case 0x00:
+			statusstring = "Successfully Executed";
+			break;
+		case 0x01:
+			statusstring = "General Error";
+			break;
+		case 0x02:
+			statusstring = "Unused RMAP Packet Type or Command Code";
+			break;
+		case 0x03:
+			statusstring = "Invalid Target Key";
+			break;
+		case 0x04:
+			statusstring = "Invalid Data CRC";
+			break;
+		case 0x05:
+			statusstring = "Early EOP";
+			break;
+		case 0x06:
+			statusstring = "Cargo Too Large";
+			break;
+		case 0x07:
+			statusstring = "EEP";
+			break;
+		case 0x08:
+			statusstring = "Reserved";
+			break;
+		case 0x09:
+			statusstring = "Verify Buffer Overrun";
+			break;
+		case 0x0a:
+			statusstring = "RMAP Command Not Implemented or Not Authorized";
+			break;
+		case 0x0b:
+			statusstring = "Invalid Target Logical Address";
+			break;
+		default:
+			statusstring = "Reserved";
+			break;
+		}
+		ss << "	<!--" << "Status 0x" << hex << right << setw(2) << setfill('0') << (uint32_t) status << "="
+				<< statusstring << "-->" << endl;
+
+		ss << "	<TransactionIdentifier>" << "0x" << hex << right << setw(2) << setfill('0')
+				<< (unsigned int) transactionID << "</TransactionIdentifier>" << endl;
+		ss << "	<ExtendedAddress>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) extendedAddress
+				<< "</ExtendedAddress>" << endl;
+		ss << "	<Address>" << "0x" << hex << right << setw(8) << setfill('0') << (uint32_t) address << "</Address>"
+				<< endl;
+		ss << "	<Length>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataLength << "</Length>"
+				<< endl;
+		if (headerCRCMode == AutoCRC) {
+			ss << "	<HeaderCRC>Auto</HeaderCRC>" << endl;
+			ss << "	<!-- HeaderCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) headerCRC
+					<< " (as long as the header is intact) -->" << endl;
+		} else {
+			ss << "	<HeaderCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) headerCRC
+					<< "</HeaderCRC>" << endl;
+		}
+
+		//Data Part
+		if (isRead()) {
+			ss << "	<Data>" << endl;
+			stringstream ssData;
+			SpaceWireUtilities::dumpPacket(&ssData, &data, 1, 16);
+			while (!ssData.eof()) {
+				string line;
+				getline(ssData, line);
+				ss << "		" << line << endl;
+			}
+			ss << "	</Data>" << endl;
+			if (dataCRCMode == AutoCRC) {
+				ss << "	<DataCRC>Auto</DataCRC>" << endl;
+				ss << "	<!-- DataCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataCRC
+						<< " (as long as the data part is intact) -->" << endl;
+			} else {
+				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) dataCRC
+						<< "</DataCRC>" << endl;
+			}
+		}
+
+		ss << "</RMAPPacket>" << endl;
+
+		//indent
+		stringstream ss2;
+		while (!ss.eof()) {
+			string line;
+			getline(ss, line);
+			for (int i = 0; i < nTabs; i++) {
+				ss2 << "	";
+			}
+			ss2 << line << endl;
+		}
+		return ss2.str();
+	}
+
 };
 #endif /* RMAPPACKET_HH_ */

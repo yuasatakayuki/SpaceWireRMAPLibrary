@@ -5,10 +5,10 @@
 	<TargetSpaceWireAddress>0x00</TargetSpaceWireAddress>
 	<ReplyAddress></ReplyAddress>
 	<Key>0x20</Key>
-	
+
 	<RMAPMemoryObject id="Command">
 		<ExtendedAddress>0x00</ExtendedAddress>
-		<MemoryAddress>0xFF803800</MemoryAddress>
+		<Address>0xFF803800</Address>
 		<Length>0x10</Length>
 		<Key>0x25</Key>
 		<AccessMode>WriteOnly</AccessMode>
@@ -16,11 +16,22 @@
 
 	<RMAPMemoryObject id="EssentialHK">
 		<ExtendedAddress>0x00</ExtendedAddress>
-		<MemoryAddress>0xFF801100</MemoryAddress>
+		<Address>0xFF801100</Address>
 		<Length>0x08</Length>
 		<Key>0x20</Key>
 		<AccessMode>ReadOnly</AccessMode>
+		<IncrementMode>No Increment</IncrementMode>
 	</RMAPMemoryObject>
+
+<!--	
+	<PredefinedRMAPCommands>
+		<Command id="ChangeLinkRate">
+			<TimecodeConstraint>
+				<CanBeInitiatatedIf>
+					timecode==
+		</Command>
+	</PredefinedRMAPCommands>
+	-->
 </RMAPTargetNode>
 
 <RMAPTargetNode id="SpaceWireToGigabitEther_InternalRegisterPort">

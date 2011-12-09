@@ -14,13 +14,13 @@ int main(int argc, char* argv[]) {
 		exit(-1);
 	}
 
-	vector<RMAPMemoryObject> memoryObjects = RMAPMemoryObject::constructFromXMLFile(argv[1]);
+	vector<RMAPMemoryObject*> memoryObjects = RMAPMemoryObject::constructFromXMLFile(argv[1]);
 	for (size_t i = 0; i < memoryObjects.size(); i++) {
-		cout << memoryObjects[i].toString() << endl;
+		cout << memoryObjects[i]->toString() << endl;
 	}
 	cout << "------------" << endl;
 	for (size_t i = 0; i < memoryObjects.size(); i++) {
-		cout << memoryObjects[i].toXMLString() << endl;
+		cout << memoryObjects[i]->toXMLString() << endl;
 	}
 
 }

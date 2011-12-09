@@ -87,7 +87,7 @@ public:
 
 	void send(std::vector<uint8_t>* data, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
-		uint32_t size = data->size();
+		size_t size = data->size();
 		if (eopType == SpaceWireEOPMarker::EOP) {
 			sheader[0] = 0x00;
 		} else {
@@ -108,7 +108,7 @@ public:
 		sendmutex.unlock();
 	}
 
-	void send(uint8_t* data, uint32_t size, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
+	void send(uint8_t* data, size_t size, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		if (eopType == SpaceWireEOPMarker::EOP) {
 			sheader[0] = 0x00;
@@ -116,8 +116,8 @@ public:
 			sheader[0] = 0x01;
 		}
 		sheader[1] = 0x00;
-		uint32_t asize = size;
-		for (uint32_t i = 11; i > 1; i--) {
+		size_t asize = size;
+		for (size_t i = 11; i > 1; i--) {
 			sheader[i] = asize % 0x100;
 			asize = asize / 0x100;
 		}
@@ -144,10 +144,10 @@ public:
 	int receive(std::vector<uint8_t>* data, uint32_t& eopType) throw (SpaceWireSSDTPException) {
 		using namespace std;
 		//		cout << "#1" << endl;
-		uint32_t size = 0;
-		uint32_t hsize = 0;
-		uint32_t flagment_size = 0;
-		uint32_t received_size = 0;
+		size_t size = 0;
+		size_t hsize = 0;
+		size_t flagment_size = 0;
+		size_t received_size = 0;
 		//header
 		receive_header: rheader[0] = 0xFF;
 		rheader[1] = 0x00;
@@ -163,7 +163,7 @@ public:
 //				cout << "#2-2" << endl;
 				while (hsize != 12) {
 //					cout << "#2-3" << endl;
-					int result = datasocket->receive(rheader + hsize, 12 - hsize);
+					long result = datasocket->receive(rheader + hsize, 12 - hsize);
 					hsize += result;
 //					cout << "#2-4" << endl;
 				}
@@ -196,7 +196,7 @@ public:
 //				cout << "#5" << endl;
 				while (received_size != flagment_size) {
 //					cout << "#6" << endl;
-					int result;
+					long result;
 					try {
 						result
 								= datasocket->receive(data_pointer + size + received_size, flagment_size
@@ -351,7 +351,7 @@ public:
 
 
 public:
-	void sendRawData(uint8_t* data,size_t length) throw (SpaceWireSSDTPException){
+	void sendRawData(uint8_t* data, size_t length) throw (SpaceWireSSDTPException){
 		sendmutex.lock();
 		try {
 			datasocket->send(data, length);
