@@ -38,14 +38,17 @@ public:
 
 public:
 	enum {
-		NotInitiated, Initiated, CommandSent, ReplyReceived, Timeout
+		//for RMAPInitiator-related transaction
+		NotInitiated, Initiated, CommandSent, ReplyReceived, Timeout,
+		//for RMAPTarget-related transaction
+		CommandPacketReceived, ReplySet, ReplySent, Aborted, ReplyCompleted
 	};
 
 public:
 	static const double DefaultTimeoutDuration = 1000;
 
 public:
-	RMAPPacket *getCommandPacket() const {
+	RMAPPacket* getCommandPacket() const {
 		return commandPacket;
 	}
 
@@ -61,7 +64,7 @@ public:
 		return initiatorLogicalAddress;
 	}
 
-	RMAPPacket *getReplyPacket() const {
+	RMAPPacket* getReplyPacket() const {
 		return replyPacket;
 	}
 
@@ -81,7 +84,7 @@ public:
 		return transactionID;
 	}
 
-	void setCommandPacket(RMAPPacket *commandPacket) {
+	void setCommandPacket(RMAPPacket* commandPacket) {
 		this->commandPacket = commandPacket;
 	}
 
@@ -89,7 +92,7 @@ public:
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
 	}
 
-	void setReplyPacket(RMAPPacket *replyPacket) {
+	void setReplyPacket(RMAPPacket* replyPacket) {
 		this->replyPacket = replyPacket;
 	}
 
