@@ -251,15 +251,25 @@ public:
 		return &memoryObjects;
 	}
 
+	/** This method does not return NULL even when not found, but throws an exception. */
 	RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.find(memoryObjectID);
 		if (it != memoryObjects.end()) {
-			it->second;
+			return it->second;
 		} else {
 			throw RMAPTargetNodeException(RMAPTargetNodeException::NoSuchRMAPMemoryObject);
 		}
 	}
 
+	/** This method can return NULL when not found.*/
+	RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
+		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.find(memoryObjectID);
+		if (it != memoryObjects.end()) {
+			return it->second;
+		} else {
+			return NULL;
+		}
+	}
 public:
 	std::string toString() {
 		using namespace std;
@@ -313,7 +323,84 @@ public:
 		}
 		return ss2.str();
 	}
+};
 
+class RMAPTargetNodeDBException : public CxxUtilities::Exception {
+public:
+	enum{
+		NoSuchRMAPTargetNode
+	};
+public:
+	RMAPTargetNodeDBException(int status) : CxxUtilities::Exception(status){
+
+	}
+};
+
+class RMAPTargetNodeDB {
+private:
+	std::map<std::string, RMAPTargetNode*> db;
+
+public:
+	RMAPTargetNodeDB() {
+
+	}
+
+	RMAPTargetNodeDB(std::vector<RMAPTargetNoe*> rmapTargetNodes) {
+		addRMAPTargetNodes(rmapTargetNodes);
+	}
+
+	RMAPTargetNodeDB(std::string filename) {
+		try {
+			addRMAPTargetNodes(RMAPTargetNode::constructFromXMLFile(filename));
+		} catch (...) {
+			//empty DB will be constructed if the specified xml file contains any error.
+		}
+	}
+
+	~RMAPTargetNodeDB() {
+		//deletion of RMAPTargetNode* will be done outside this class.
+	}
+
+public:
+	void addRMAPTargetNode(std::vector<RMAPTargetNoe*> rmapTargetNode) {
+		db[rmapTargetNode->getID()] = rmapTargetNode;
+	}
+
+	void addRMAPTargetNodes(std::vector<RMAPTargetNoe*> rmapTargetNodes) {
+		for (size_t i = 0; i < rmapTargetNodes.size(); i++) {
+			addRMAPTargetNode(rmapTargetNodes[i]);
+		}
+	}
+
+public:
+	void loadRMAPTargetNodesFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException,
+			RMAPTargetNodeException, RMAPMemoryObjectException) {
+		addRMAPTargetNodes(RMAPTargetNode::constructFromXMLFile(filename));
+	}
+
+public:
+	/** This method does not return NULL when not found, but throws an exception.
+	 *
+	 */
+	RMAPTargetNode* findRMAPTargetNode(std::string id) throw (RMAPTargetNodeDBException){
+		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
+		if (it != this->end()) {
+			return it->second;
+		} else {
+			throw RMAPTargetNodeDBException(RMAPTargetNodeDBException::NoSuchRMAPTargetNode);
+		}
+	}
+
+	/** This method can return NULL when an RMAPTargetNode with an specified ID is not found.
+	 */
+	RMAPTargetNode* findRMAPTargetNode(std::string id) {
+		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
+		if (it != this->end()) {
+			return it->second;
+		} else {
+			return NULL;
+		}
+	}
 };
 
 #endif /* RMAPTARGETNODE_HH_ */

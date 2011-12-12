@@ -11,20 +11,182 @@
 #include "RMAPTransaction.hh"
 #include "RMAPEngine.hh"
 
+class RMAPAddressRange {
+public:
+	uint32_t addressFrom;
+	uint32_t addressTo;
+
+public:
+	uint32_t getAddressFrom() const {
+		return addressFrom;
+	}
+
+	uint32_t getAddressTo() const {
+		return addressTo;
+	}
+
+	void setAddressFrom(uint32_t addressFrom) {
+		this->addressFrom = addressFrom;
+	}
+
+	void setAddressTo(uint32_t addressTo) {
+		this->addressTo = addressTo;
+	}
+
+public:
+	void setByLength(uint32_t addressFrom, uint32_t lengthInBytes) {
+		this->addressFrom = addressFrom;
+		this->addressTo = addressFrom + lengthInBytes;
+	}
+
+public:
+	RMAPAddressRange(uint32_t addressFrom, uint32_t addressTo) :
+		addressFrom(addressFrom), addressTo(addressTo) {
+
+	}
+
+	RMAPAddressRange() {
+		addressFrom = 0;
+		addressTo = 0;
+	}
+
+public:
+	bool contains(RMAPAddressRange& addressRange) {
+		if (addressRange.addressTo < addressFrom || addressTo < addressRange.addressFrom) {
+			return false;
+		}
+		if (addressFrom <= addressFrom.addressFrom && addressRange.addressTo <= addressTo) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
+class RMAPTargetAccessActionException: public CxxUtilities::Exception {
+public:
+	enum {
+		AccessToUndefinedAddressRange
+	};
+
+public:
+	RMAPTargetAccessActionException(int status) :
+		CxxUtilities::Exception(status) {
+
+	}
+};
+
+class RMAPTargetAccessAction {
+public:
+	virtual void processTransaction(RMAPTransaction* rmapTransaction) throw (RMAPTargetAccessActionException)= 0;
+
+	virtual void transactionWillComplete(RMAPTransaction* rmapTransaction) throw (RMAPTargetAccessActionException) {
+		delete rmapTransaction->replyPacket;
+	}
+
+	virtual void transactionReplyCouldNotBeSent(RMAPTransaction* rmapTransaction)
+			throw (RMAPTargetAccessActionException) {
+		delete rmapTransaction->replyPacket;
+	}
+
+public:
+	void setReplyWithDataWithStatus(RMAPTransaction* rmapTransaction, std::vector<uint8_t>* data, uint8_t status) {
+
+	}
+
+	void setReplyWithStatus(RMAPTransaction* rmapTransaction, std::vector<uint8_t>* data, uint8_t status) {
+
+	}
+
+public:
+	virtual std::vector<uint8_t> readAccess() throw (RMAPTargetAccessActionException) = 0;
+
+	virtual void writeAccess(std::vector<uint8_t>* data) throw (RMAPTargetAccessActionException) = 0;
+
+	void writeAccess(std::vector<uint8_t>& data) throw (RMAPTargetAccessActionException) {
+		writeAccess(&data);
+	}
+
+};
+
 class RMAPTarget {
 private:
 	RMAPEngine* rmapEngine;
+	std::map<RMAPAddressRange*, RMAPTargetAccessAction> actions;
+	std::vector<RMAPAddressRange*> addressRanges;
 
 public:
-	RMAPTarget(){
+	RMAPTarget() {
 
 	}
 
-	RMAPTarget(RMAPEngine* rmapEngine){
+	~RMAPTarget() {
 
 	}
 
 public:
+	void addAddressRangeAndAssociatedAction(RMAPAddressRange* addressRange, RMAPTargetAccessAction* action) {
+		actions[addressRange] = action;
+		addressRanges.push_back(addressRange);
+	}
+
+	bool doesAcceptAddressRange(RMAPAddressRange addressRange) {
+		for (size_t i = 0; i < addressRanges.size(); i++) {
+			if (addressRanges[i].contains(addressRange) == true) {
+				return true;
+			}
+		}
+	}
+
+	bool doesAcceptTransaction(RMAPTransaction* rmapTransaction) {
+		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
+		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength();
+		RMAPAddressRange addressRange(addressFrom, addressTo);
+		for (size_t i = 0; i < addressRanges.size(); i++) {
+			if (addressRanges[i].contains(addressRange) == true) {
+				return true;
+			}
+		}
+	}
+
+	void processTransaction(RMAPTransaction* rmapTransaction) throw (RMAPTargetException) {
+		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
+		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength();
+		RMAPAddressRange addressRange(addressFrom, addressTo);
+		for (size_t i = 0; i < addressRanges.size(); i++) {
+			if (addressRanges[i].contains(addressRange) == true) {
+				try {
+					actions[addressRanges[i]].processTransaction(rmapTransaction);
+					return;
+				} catch (...) {
+					throw RMAPTargetException(RMAPTargetException::AccessToUndefinedAddressRange);
+				}
+			}
+		}
+		throw RMAPTargetException(RMAPTargetException::AccessToUndefinedAddressRange);
+	}
+
+	/** Can return NULL. */
+	RMAPTargetAccessAction* getCorrespondingRMAPTargetAccessAction(RMAPTransaction* rmapTransaction) {
+		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
+		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength();
+		RMAPAddressRange addressRange(addressFrom, addressTo);
+		for (size_t i = 0; i < addressRanges.size(); i++) {
+			if (addressRanges[i].contains(addressRange) == true) {
+				return addressRanges[i];
+			}
+		}
+		return NULL;
+	}
+
+public:
+	RMAPEngine *getRmapEngine() const {
+		return rmapEngine;
+	}
+
+	void setRmapEngine(RMAPEngine *rmapEngine) {
+		this->rmapEngine = rmapEngine;
+	}
 
 };
 
