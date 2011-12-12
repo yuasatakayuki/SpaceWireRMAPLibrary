@@ -30,7 +30,6 @@ public:
 		CxxUtilities::Exception(status) {
 		isErrorFilenameSet_ = false;
 		using namespace std;
-		cerr << "##3" << endl;
 	}
 
 	RMAPMemoryObjectException(int status, std::string errorFilename) :
