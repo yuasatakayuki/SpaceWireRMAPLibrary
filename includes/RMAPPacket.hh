@@ -606,6 +606,10 @@ public:
 		return dataLength;
 	}
 
+	uint32_t getLength() const {
+		return dataLength;
+	}
+
 	uint8_t getExtendedAddress() const {
 		return extendedAddress;
 	}
@@ -659,6 +663,10 @@ public:
 	}
 
 	void setDataLength(uint32_t dataLength) {
+		this->dataLength = dataLength;
+	}
+
+	void setLength(uint32_t dataLength) {
 		this->dataLength = dataLength;
 	}
 
