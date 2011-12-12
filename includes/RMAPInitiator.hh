@@ -45,6 +45,10 @@ private:
 	CxxUtilities::Mutex mutex;
 
 private:
+	//optional DB
+	RMAPTargetNodeDB* targetNodeDB;
+
+private:
 	uint8_t initiatorLogicalAddress;
 
 private:
@@ -80,6 +84,52 @@ public:
 	}
 
 public:
+	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer,
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		read(targetNode, memoryAddress, length, buffer, timeoutDuration);
+	}
+
+	/** easy to use, but somewhat slow due to data copy. */
+	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		RMAPMemoryObject* memoryObject;
+		try {
+			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
+		} catch (RMAPTargetNodeException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		//check if the memory is readable.
+		if (!memoryObject->isReadable()) {
+			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
+		}
+		std::vector<uint8_t>* buffer=new std::vector<uint8_t>(memoryObject->getLength());
+		read(rmapTargetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
+		return buffer;
+	}
+
+	void read(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		read(targetNode, memoryObjectID, buffer, timeoutDuration);
+	}
+
 	void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer, double timeoutDuration =
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
@@ -126,25 +176,51 @@ public:
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				unlock();
+				delete replyPacket;
 				throw RMAPReplyException(replyPacket->getStatus());
 			}
 			if (replyPacket->getDataBuffer()->size() != length) {
 				unlock();
+				delete replyPacket;
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}
 			replyPacket->getData(buffer, length);
 			unlock();
+			delete replyPacket;
 			return;
 		} else {
 			transaction.state = RMAPTransaction::Timeout;
 			unlock();
+			delete replyPacket;
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}
 
 public:
-	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data,
+	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPTargetNode *rmapTargetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		write(targetNode, memoryAddress, data, length, timeoutDuration);
+	}
+
+	void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		RMAPTargetNode *rmapTargetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		write(targetNode, memoryObjectID, buffer, timeoutDuration);
+	}
+
+	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
@@ -204,21 +280,26 @@ public:
 			if (replyMode) {
 				if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
+					delete replyPacket;
 					throw RMAPReplyException(replyPacket->getStatus());
 				}
 				if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
+					delete replyPacket;
 					return;
 				} else {
 					unlock();
+					delete replyPacket;
 					throw RMAPReplyException(replyPacket->getStatus());
 				}
 			} else {//no reply was expected
 				unlock();
+				delete replyPacket;
 				throw RMAPInitiatorException(RMAPInitiatorException::UnexpectedWriteReplyReceived);
 			}
 		} else if (transaction.state == RMAPTransaction::Timeout) {
 			unlock();
+			delete replyPacket;
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}
@@ -261,13 +342,24 @@ public:
 	}
 
 public:
-	RMAPPacket* getCommandPacketPointer(){
+	RMAPPacket* getCommandPacketPointer() {
 		return commandPacket;
 	}
 
-	RMAPPacket* getReplyPacketPointer(){
+	RMAPPacket* getReplyPacketPointer() {
 		return replyPacket;
 	}
+
+public:
+	void setRMAPTargetNodeDB(RMAPTargetNodeDB* targetNodeDB) {
+		this->targetNodeDB = targetNodeDB;
+	}
+
+	RMAPTargetNodeDB* getRMAPTargetNodeDB() {
+		return targetNodeDB;
+	}
+
+public:
 
 };
 #endif /* RMAPINITIATOR_HH_ */
