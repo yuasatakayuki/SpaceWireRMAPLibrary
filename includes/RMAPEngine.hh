@@ -55,6 +55,62 @@ public:
 };
 
 class RMAPEngine: public CxxUtilities::Thread {
+public:
+	class RMAPTargetProcessThread: public CxxUtilities::Thread {
+	private:
+		RMAPAddressRange addressRange;
+		RMAPTargetAccessAction* rmapTargetAcessAction;
+		RMAPTransaction rmapTransaction;
+		RMAPEngine* rmapEngine;
+
+	private:
+		bool isCompleted_;
+
+	public:
+		RMAPTargetProcessThread(RMAPEngine* rmapEngine, RMAPTransaction rmapTransaction,
+				RMAPTargetAccessAction* rmapTargetAcessAction) :
+			CxxUtilities::Thread() {
+			this->rmapEngine = rmapEngine;
+			this->rmapTargetAcessAction = rmapTargetAcessAction;
+			this->addressRange = addressRange;
+			this->rmapTransaction = rmapTransaction;
+			isCompleted_=false;
+		}
+
+	public:
+		void run() {
+			isCompleted_ = false;
+			try {
+				rmapTargetAcessAction->processTransaction(&rmapTransaction);
+				rmapTransaction.setState(RMAPTransaction::ReplySet);
+			} catch (...) {
+				delete rmapTransaction.commandPacket;
+				rmapEngine->receivedCommandPacketDiscarded();
+				isCompleted_ = true;
+				return;
+			}
+			try {
+				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
+				rmapTransaction.setState(RMAPTransaction::ReplySent);
+			} catch (...) {
+				rmapTargetAcessAction->transactionReplyCouldNotBeSent(&rmapTransaction);
+				rmapEngine->replyToReceivedCommandPacketCouldNotBeSent();
+				delete rmapTransaction.commandPacket;
+				isCompleted_ = true;
+				return;
+			}
+			rmapTargetAcessAction->transactionWillComplete(&rmapTransaction);
+			rmapTransaction.setState(RMAPTransaction::ReplyCompleted);
+			delete rmapTransaction.commandPacket;
+			isCompleted_ = true;
+		}
+
+	public:
+		bool isCompleted() {
+			return isCompleted_;
+		}
+	};
+
 private:
 	std::map<uint16_t, RMAPTransaction*> transactions;
 	CxxUtilities::Mutex transactionIDMutex;
@@ -154,61 +210,6 @@ public:
 		}
 	}
 
-public:
-	class RMAPTargetProcessThread: public CxxUtilities::Thread {
-	private:
-		RMAPAddressRange addressRange;
-		RMAPTargetAccessAction* rmapTargetAcessAction;
-		RMAPTransaction rmapTransaction;
-		RMAPEngine* rmapEngine;
-
-	private:
-		bool isCompleted;
-
-	public:
-		RMAPTargetProcessThread(RMAPEngine* rmapEngine, RMAPTransaction rmapTransaction,
-				RMAPTargetAccessAction* rmapTargetAcessAction) :
-			CxxUtilities::Thread() {
-			this->rmapEngine = rmapEngine;
-			this->rmapTargetAcessAction = rmapTargetAcessAction;
-			this->addressRange = addressRange;
-			this->rmapTransaction = rmapTransaction;
-			isCompleted=false;
-		}
-
-	public:
-		void run() {
-			isCompleted = false;
-			try {
-				rmapTargetAcessAction->processTransaction(&rmapTransaction);
-				rmapTransaction.setState(RMAPTransaction::ReplySet);
-			} catch (...) {
-				delete rmapTransaction.commandPacket;
-				rmapEngine->receivedCommandPacketDiscarded();
-				isCompleted = true;
-				return;
-			}
-			try {
-				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
-				rmapTransaction.setState(RMAPTransaction::ReplySent);
-			} catch (...) {
-				rmapTargetAcessAction->transactionReplyCouldNotBeSent(&rmapTransaction);
-				rmapEngine->replyToReceivedCommandPacketCouldNotBeSent();
-				delete rmapTransaction.commandPacket;
-				isCompleted = true;
-				return;
-			}
-			rmapTargetAcessAction->transactionWillComplete(&rmapTransaction);
-			rmapTransaction.setState(RMAPTransaction::ReplyCompleted);
-			delete rmapTransaction.commandPacket;
-			isCompleted = true;
-		}
-
-	public:
-		bool isCompleted() {
-			return isCompleted;
-		}
-	};
 
 private:
 	void rmapCommandPacketReceived(RMAPPacket* comamndPacket) throw (RMAPEngineException) {
@@ -218,7 +219,7 @@ private:
 			if (rmapTargetProcessThreads[i]->isCompleted()) {
 				delete rmapTargetProcessThreads[i];
 			} else {
-				newRMAPTargetProcessThreads = rmapTargetProcessThreads[i];
+				newRMAPTargetProcessThreads.push_back(rmapTargetProcessThreads[i]);
 			}
 		}
 		rmapTargetProcessThreads = newRMAPTargetProcessThreads;

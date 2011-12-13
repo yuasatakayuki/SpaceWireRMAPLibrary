@@ -262,7 +262,7 @@ public:
 	}
 
 	/** This method can return NULL when not found.*/
-	RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
+	RMAPMemoryObject* findMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.find(memoryObjectID);
 		if (it != memoryObjects.end()) {
 			return it->second;
@@ -345,7 +345,7 @@ public:
 
 	}
 
-	RMAPTargetNodeDB(std::vector<RMAPTargetNoe*> rmapTargetNodes) {
+	RMAPTargetNodeDB(std::vector<RMAPTargetNode*> rmapTargetNodes) {
 		addRMAPTargetNodes(rmapTargetNodes);
 	}
 
@@ -362,11 +362,11 @@ public:
 	}
 
 public:
-	void addRMAPTargetNode(std::vector<RMAPTargetNoe*> rmapTargetNode) {
+	void addRMAPTargetNode(RMAPTargetNode* rmapTargetNode) {
 		db[rmapTargetNode->getID()] = rmapTargetNode;
 	}
 
-	void addRMAPTargetNodes(std::vector<RMAPTargetNoe*> rmapTargetNodes) {
+	void addRMAPTargetNodes(std::vector<RMAPTargetNode*> rmapTargetNodes) {
 		for (size_t i = 0; i < rmapTargetNodes.size(); i++) {
 			addRMAPTargetNode(rmapTargetNodes[i]);
 		}
@@ -382,9 +382,9 @@ public:
 	/** This method does not return NULL when not found, but throws an exception.
 	 *
 	 */
-	RMAPTargetNode* findRMAPTargetNode(std::string id) throw (RMAPTargetNodeDBException){
+	RMAPTargetNode* getRMAPTargetNode(std::string id) throw (RMAPTargetNodeDBException){
 		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
-		if (it != this->end()) {
+		if (it != db.end()) {
 			return it->second;
 		} else {
 			throw RMAPTargetNodeDBException(RMAPTargetNodeDBException::NoSuchRMAPTargetNode);
@@ -395,7 +395,7 @@ public:
 	 */
 	RMAPTargetNode* findRMAPTargetNode(std::string id) {
 		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
-		if (it != this->end()) {
+		if (it != db.end()) {
 			return it->second;
 		} else {
 			return NULL;

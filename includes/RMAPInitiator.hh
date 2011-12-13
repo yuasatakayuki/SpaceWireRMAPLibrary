@@ -96,7 +96,7 @@ public:
 	}
 
 	/** easy to use, but somewhat slow due to data copy. */
-	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration =
+	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID, double timeoutDuration =
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPTargetNode* targetNode;
 		try {
@@ -106,7 +106,7 @@ public:
 		}
 		RMAPMemoryObject* memoryObject;
 		try {
-			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
+			memoryObject = targetNode->getMemoryObject(memoryObjectID);
 		} catch (RMAPTargetNodeException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
@@ -115,7 +115,7 @@ public:
 			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
 		}
 		std::vector<uint8_t>* buffer=new std::vector<uint8_t>(memoryObject->getLength());
-		read(rmapTargetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
+		read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
 		return buffer;
 	}
 
@@ -199,7 +199,7 @@ public:
 public:
 	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		RMAPTargetNode *rmapTargetNode;
+		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
 		} catch (RMAPTargetNodeDBException e) {
@@ -210,13 +210,13 @@ public:
 
 	void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		RMAPTargetNode *rmapTargetNode;
+		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
 		} catch (RMAPTargetNodeDBException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
-		write(targetNode, memoryObjectID, buffer, timeoutDuration);
+		write(targetNode, memoryObjectID, data, timeoutDuration);
 	}
 
 	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
