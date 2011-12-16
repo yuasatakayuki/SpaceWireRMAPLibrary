@@ -26,6 +26,7 @@ public:
 		ReadReplyWithTooMuchData,
 		UnexpectedWriteReplyReceived,
 		NoSuchRMAPMemoryObject,
+		RMAPTransactionCouldNotBeInitiated,
 		SpecifiedRMAPMemoryObjectIsNotReadable,
 		SpecifiedRMAPMemoryObjectIsNotWritable,
 		SpecifiedRMAPMemoryObjectIsNotRMWable
@@ -96,8 +97,8 @@ public:
 	}
 
 	/** easy to use, but somewhat slow due to data copy. */
-	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID, double timeoutDuration =
-			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID,
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
@@ -114,7 +115,7 @@ public:
 		if (!memoryObject->isReadable()) {
 			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
 		}
-		std::vector<uint8_t>* buffer=new std::vector<uint8_t>(memoryObject->getLength());
+		std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
 		read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
 		return buffer;
 	}
@@ -170,7 +171,13 @@ public:
 		commandPacket->setRMAPTargetInformation(rmapTargetNode);
 		RMAPTransaction transaction;
 		transaction.commandPacket = this->commandPacket;
-		rmapEngine->initiateTransaction(transaction);
+		try {
+			rmapEngine->initiateTransaction(transaction);
+		} catch (RMAPEngineException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
+		} catch (...) {
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
+		}
 		transaction.condition.wait(timeoutDuration);
 		if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
