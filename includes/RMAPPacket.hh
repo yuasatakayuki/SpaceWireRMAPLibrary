@@ -16,6 +16,7 @@
 #include "RMAPProtocol.hh"
 #include "RMAPUtilities.hh"
 #include "RMAPTargetNode.hh"
+#include "RMAPReplyStatus.hh"
 
 class RMAPPacketException: public CxxUtilities::Exception {
 public:
@@ -656,6 +657,7 @@ public:
 
 	void setData(std::vector<uint8_t>& data) {
 		this->data = data;
+		this->dataLength = data.size();
 	}
 
 	void setDataCRC(uint8_t dataCRC) {
@@ -1177,5 +1179,14 @@ public:
 		return ss2.str();
 	}
 
+public:
+	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status=RMAPReplyStatus::CommandExcecutedSuccessfully) {
+		RMAPPacket* replyPacket = new RMAPPacket();
+		*replyPacket = *commandPacket;
+		replyPacket->setReply();
+		replyPacket->clearData();
+		replyPacket->setStatus(status);
+		return replyPacket;
+	}
 };
 #endif /* RMAPPACKET_HH_ */
