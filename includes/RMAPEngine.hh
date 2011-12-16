@@ -10,18 +10,26 @@
 
 #include "CxxUtilities/CommonHeader.hh"
 #include "CxxUtilities/Mutex.hh"
+#include "CxxUtilities/Action.hh"
 
 #include "RMAPTransaction.hh"
 #include "RMAPTarget.hh"
 #include "SpaceWireIF.hh"
+#include "SpaceWireUtilities.hh"
+
+class RMAPEngineStoppedAction : public CxxUtilities::Action {
+public:
+	virtual void doAction(void* rmapEngine) = 0;
+};
 
 class RMAPEngineException: public CxxUtilities::Exception {
 public:
 	enum {
+		RMAPEngineIsNotStarted,
 		TransactionIDIsNotAvailable,
 		TooManyConcurrentTransactions,
 		SpecifiedTransactionIDIsAlreadyInUse,
-		CommandPacketWasNotSentCorrectly,
+		PacketWasNotSentCorrectly,
 		SpaceWireIFDisconnected,
 		UnexpectedRMAPReplyPacketWasReceived
 	};
@@ -58,7 +66,6 @@ class RMAPEngine: public CxxUtilities::Thread {
 public:
 	class RMAPTargetProcessThread: public CxxUtilities::Thread {
 	private:
-		RMAPAddressRange addressRange;
 		RMAPTargetAccessAction* rmapTargetAcessAction;
 		RMAPTransaction rmapTransaction;
 		RMAPEngine* rmapEngine;
@@ -72,13 +79,13 @@ public:
 			CxxUtilities::Thread() {
 			this->rmapEngine = rmapEngine;
 			this->rmapTargetAcessAction = rmapTargetAcessAction;
-			this->addressRange = addressRange;
 			this->rmapTransaction = rmapTransaction;
-			isCompleted_=false;
+			isCompleted_ = false;
 		}
 
 	public:
 		void run() {
+			using namespace std;
 			isCompleted_ = false;
 			try {
 				rmapTargetAcessAction->processTransaction(&rmapTransaction);
@@ -90,6 +97,9 @@ public:
 				return;
 			}
 			try {
+				SpaceWireUtilities::dumpPacket(&cout,rmapTransaction.replyPacket->getPacketBufferPointer());
+				rmapTransaction.replyPacket->constructPacket();
+				cout << "$2 size=" << rmapTransaction.replyPacket->getPacketBufferPointer()->size() << endl;
 				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.setState(RMAPTransaction::ReplySent);
 			} catch (...) {
@@ -130,6 +140,7 @@ private:
 
 public:
 	bool stopped;
+	CxxUtilities::Actions rmapEngineStoppedActions;
 
 private:
 	size_t nDiscardedReceivedPackets;
@@ -191,6 +202,7 @@ public:
 			}
 		}
 		stopped = true;
+		invokeRegisteredStopActions();
 	}
 
 public:
@@ -210,9 +222,9 @@ public:
 		}
 	}
 
-
 private:
-	void rmapCommandPacketReceived(RMAPPacket* comamndPacket) throw (RMAPEngineException) {
+	void rmapCommandPacketReceived(RMAPPacket* commandPacket) throw (RMAPEngineException) {
+		using namespace std;
 		//first cleanup completed threads
 		std::vector<RMAPTargetProcessThread*> newRMAPTargetProcessThreads;
 		for (size_t i = 0; i < rmapTargetProcessThreads.size(); i++) {
@@ -226,7 +238,7 @@ private:
 
 		//find an RMAPTarget instance which can accept the accessed address range
 		RMAPTransaction rmapTransaction;
-		rmapTransaction.commandPacket = comamndPacket;
+		rmapTransaction.commandPacket = commandPacket;
 		rmapTransaction.setState(RMAPTransaction::CommandPacketReceived);
 		for (size_t i = 0; i < rmapTargets.size(); i++) {
 			RMAPTargetAccessAction* rmapTargetAcessAction = rmapTargets[i]->getCorrespondingRMAPTargetAccessAction(
@@ -239,7 +251,7 @@ private:
 				return;
 			}
 		}
-		delete comamndPacket;
+		delete commandPacket;
 		receivedCommandPacketDiscarded();
 	}
 
@@ -279,17 +291,16 @@ private:
 			spwif->receive(buffer);
 		} catch (SpaceWireIFException e) {
 			if (e.status == SpaceWireIFException::Disconnected) {
-				//stop RMAPEngine
-				this->stop();
-				//tell user application that SpaceWireIF is disconnected
+				//tell run() that SpaceWireIF is disconnected
 				throw RMAPEngineException(RMAPEngineException::SpaceWireIFDisconnected);
 			} else {
 				if (e.status == SpaceWireIFException::Timeout) {
 					//cout << "#receive timeout" << endl;
+					return NULL;
 				} else {
-					//cout << "#receive failed" << endl;
+					//tell run() that SpaceWireIF is disconnected
+					throw RMAPEngineException(RMAPEngineException::SpaceWireIFDisconnected);
 				}
-				return NULL;
 			}
 		}
 		RMAPPacket* packet = new RMAPPacket();
@@ -323,7 +334,7 @@ private:
 	}
 
 public:
-	inline void initiateTransaction(RMAPTransaction& transaction) {
+	inline void initiateTransaction(RMAPTransaction& transaction) throw (RMAPEngineException) {
 		initiateTransaction(&transaction);
 	}
 
@@ -349,18 +360,23 @@ public:
 		transactionIDMutex.unlock();
 		//send a command packet
 		commandPacket->constructPacket();
-		sendPacket(commandPacket->getPacketBufferPointer());
-		transaction->state = RMAPTransaction::Initiated;
+		if (isStarted()) {
+			sendPacket(commandPacket->getPacketBufferPointer());
+			transaction->state = RMAPTransaction::Initiated;
+		} else {
+			throw RMAPEngineException(RMAPEngineException::RMAPEngineIsNotStarted);
+		}
 	}
 
 public:
 	void sendPacket(std::vector<uint8_t>* bytes) {
+		using namespace std;
 		spwSendMutex.lock();
 		try {
 			spwif->send(bytes);
 		} catch (...) {
 			spwSendMutex.unlock();
-			throw RMAPEngineException(RMAPEngineException::CommandPacketWasNotSentCorrectly);
+			throw RMAPEngineException(RMAPEngineException::PacketWasNotSentCorrectly);
 		}
 		spwSendMutex.unlock();
 
@@ -423,6 +439,26 @@ public:
 		}
 		rmapTargets = aVector;
 	}
+
+public:
+	void addRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction){
+		rmapEngineStoppedActions.addAction(rmapEngineStoppedAction);
+	}
+
+	void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction){
+		rmapEngineStoppedActions.removeAction(rmapEngineStoppedAction);
+	}
+
+	CxxUtilities::Actions* getRMAPEngineStoppedActions(){
+		return &rmapEngineStoppedActions;
+	}
+
+private:
+	void invokeRegisteredStopActions(){
+		rmapEngineStoppedActions.doEachAction(this);
+	}
+
 };
+
 
 #endif /* RMAPENGINE_HH_ */
