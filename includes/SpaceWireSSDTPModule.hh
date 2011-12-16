@@ -76,7 +76,12 @@ public:
 	}
 
 	~SpaceWireSSDTPModule() {
-		free(sendbuffer);
+		if(sendbuffer!=NULL){
+			free(sendbuffer);
+		}
+		if(receivebuffer!=NULL){
+			free(receivebuffer);
+		}
 	}
 
 	void send(std::vector<uint8_t>& data, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
