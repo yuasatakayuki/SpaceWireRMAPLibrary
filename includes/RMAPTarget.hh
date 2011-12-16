@@ -96,15 +96,6 @@ public:
 	void setReplyWithStatus(RMAPTransaction* rmapTransaction, std::vector<uint8_t>* data, uint8_t status) {
 
 	}
-
-public:
-	virtual std::vector<uint8_t> readAccess() throw (RMAPTargetAccessActionException) = 0;
-
-	virtual void writeAccess(std::vector<uint8_t>* data) throw (RMAPTargetAccessActionException) = 0;
-
-	void writeAccess(std::vector<uint8_t>& data) throw (RMAPTargetAccessActionException) {
-		writeAccess(&data);
-	}
 };
 
 class RMAPTargetException: public CxxUtilities::Exception {
@@ -178,8 +169,11 @@ public:
 
 	/** Can return NULL. */
 	RMAPTargetAccessAction* getCorrespondingRMAPTargetAccessAction(RMAPTransaction* rmapTransaction) {
+		using namespace std;
 		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
-		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength();
+		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength() - 1;
+		cout << "%1 " << "0x" << hex << right << setw(4) << setfill('0') << (uint32_t) addressFrom << " " << "0x"
+				<< hex << right << setw(2) << setfill('0') << (uint32_t) addressTo << endl;
 		RMAPAddressRange addressRange(addressFrom, addressTo);
 		for (size_t i = 0; i < addressRanges.size(); i++) {
 			if (addressRanges[i]->contains(addressRange) == true) {

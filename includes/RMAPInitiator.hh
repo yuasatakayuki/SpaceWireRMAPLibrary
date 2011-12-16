@@ -67,8 +67,14 @@ public:
 	~RMAPInitiator() {
 		delete commandPacket;
 		if (replyPacket != NULL) {
-			delete replyPacket;
+			deleteReplyPacket();
 		}
+	}
+
+public:
+	void deleteReplyPacket(){
+		delete replyPacket;
+		replyPacket=NULL;
 	}
 
 public:
@@ -151,8 +157,7 @@ public:
 		using namespace std;
 		lock();
 		if (replyPacket != NULL) {
-			delete replyPacket;
-			replyPacket = NULL;
+			deleteReplyPacket();
 		}
 		commandPacket->setInitiatorLogicalAddress(this->initiatorLogicalAddress);
 		commandPacket->setRead();
@@ -183,22 +188,22 @@ public:
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				unlock();
-				delete replyPacket;
+				deleteReplyPacket();
 				throw RMAPReplyException(replyPacket->getStatus());
 			}
 			if (replyPacket->getDataBuffer()->size() != length) {
 				unlock();
-				delete replyPacket;
+				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}
 			replyPacket->getData(buffer, length);
 			unlock();
-			delete replyPacket;
+			deleteReplyPacket();
 			return;
 		} else {
 			transaction.state = RMAPTransaction::Timeout;
 			unlock();
-			delete replyPacket;
+			deleteReplyPacket();
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}
@@ -245,8 +250,7 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
 		lock();
 		if (replyPacket != NULL) {
-			delete replyPacket;
-			replyPacket = NULL;
+			deleteReplyPacket();
 		}
 		commandPacket->setInitiatorLogicalAddress(this->initiatorLogicalAddress);
 		commandPacket->setWrite();
@@ -287,26 +291,26 @@ public:
 			if (replyMode) {
 				if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
-					delete replyPacket;
+					deleteReplyPacket();
 					throw RMAPReplyException(replyPacket->getStatus());
 				}
 				if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
-					delete replyPacket;
+					deleteReplyPacket();
 					return;
 				} else {
 					unlock();
-					delete replyPacket;
+					deleteReplyPacket();
 					throw RMAPReplyException(replyPacket->getStatus());
 				}
 			} else {//no reply was expected
 				unlock();
-				delete replyPacket;
+				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::UnexpectedWriteReplyReceived);
 			}
 		} else if (transaction.state == RMAPTransaction::Timeout) {
 			unlock();
-			delete replyPacket;
+			deleteReplyPacket();
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}
