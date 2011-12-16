@@ -198,7 +198,8 @@ public:
 			}
 			replyPacket->getData(buffer, length);
 			unlock();
-			deleteReplyPacket();
+			//when successful, replay packet is retained until next transaction for inspection by user application
+			//deleteReplyPacket();
 			return;
 		} else {
 			transaction.state = RMAPTransaction::Timeout;
@@ -296,7 +297,8 @@ public:
 				}
 				if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
-					deleteReplyPacket();
+					//when successful, replay packet is retained until next transaction for inspection by user application
+					//deleteReplyPacket();
 					return;
 				} else {
 					unlock();
