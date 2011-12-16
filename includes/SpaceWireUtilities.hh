@@ -58,18 +58,17 @@ public:
 		dumpPacket(&std::cout, data, wordwidth);
 	}
 
-	static void dumpPacket(std::ostream* ofs, std::vector<uint8_t>* data, uint32_t wordwidth,uint32_t bytesPerLine=SpaceWireUtilities::DumpsPerLine)
-			throw (SpaceWireUtilitiesException) {
+	static void dumpPacket(std::ostream* ofs, std::vector<uint8_t>* data, uint32_t wordwidth, uint32_t bytesPerLine =
+			SpaceWireUtilities::DumpsPerLine) throw (SpaceWireUtilitiesException) {
 		using namespace std;
 		int v;
 		if (wordwidth == 0) {
 			throw(SpaceWireUtilitiesException(SpaceWireUtilitiesException::SizeIncorrect));
 		}
-		if (data->size() % wordwidth != 0) {
+		if (data->size() > wordwidth && data->size() % wordwidth != 0) {
 			throw(SpaceWireUtilitiesException(SpaceWireUtilitiesException::SizeIncorrect));
 		}
-		for (uint32_t i = 0; i < (data->size() / wordwidth + bytesPerLine - 1)
-				/ bytesPerLine; i++) {
+		for (uint32_t i = 0; i < (data->size() / wordwidth + bytesPerLine - 1) / bytesPerLine; i++) {
 			for (uint32_t o = 0; o < bytesPerLine; o++) {
 				if (i * bytesPerLine + o < data->size() / wordwidth) {
 					v = 0;
@@ -83,20 +82,58 @@ public:
 		}
 	}
 
-	static std::string packetToString(std::vector<uint8_t>* data) throw (SpaceWireUtilitiesException) {
+	static void dumpPacket(std::ostream* ofs, uint8_t* data, size_t length, uint32_t wordwidth = 16,
+			uint32_t bytesPerLine = SpaceWireUtilities::DumpsPerLine) throw (SpaceWireUtilitiesException) {
 		using namespace std;
-		if(data->size()==0){
-			return "";
+		int v;
+		if (wordwidth == 0) {
+			throw(SpaceWireUtilitiesException(SpaceWireUtilitiesException::SizeIncorrect));
+		}
+		if (length > wordwidth && length % wordwidth != 0) {
+			throw(SpaceWireUtilitiesException(SpaceWireUtilitiesException::SizeIncorrect));
+		}
+		for (uint32_t i = 0; i < (length / wordwidth + bytesPerLine - 1) / bytesPerLine; i++) {
+			for (uint32_t o = 0; o < bytesPerLine; o++) {
+				if (i * bytesPerLine + o < length / wordwidth) {
+					v = 0;
+					for (uint32_t p = 0; p < wordwidth; p++) {
+						v = v + (uint32_t) data[(i * bytesPerLine + o) * wordwidth + p];
+					}
+					(*ofs) << "0x" << right << hex << setw(2 * wordwidth) << setfill('0') << v << " ";
+				}
+			}
+			(*ofs) << endl;
+		}
+	}
+
+	static std::string packetToString(std::vector<uint8_t>* data,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
+		return packetToString(&(data->at(0)),data->size(),nBytesDisplayed);
+	}
+
+	static std::string packetToString(uint8_t* data,int length,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
+		using namespace std;
+		size_t max;
+		if(nBytesDisplayed<length){
+			max=nBytesDisplayed;
+		}else{
+			max=length;
+		}
+		if (length == 0) {
+			return "(empty packet)";
 		}
 		stringstream ss;
-		for (size_t i = 0; i < data->size(); i++) {
-			ss << "0x" << right << hex << setw(2) << setfill('0') << (uint32_t)data->at(i);
-			if(i!=data->size()-1){
-				ss  << "  ";
+		for (size_t i = 0; i < max; i++) {
+			ss << "0x" << right << hex << setw(2) << setfill('0') << (uint32_t) data[i];
+			if (i != max - 1) {
+				ss << "  ";
 			}
+		}
+		if(max!=length){
+			ss << " ... (total " << dec << length << " bytes)";
 		}
 		return ss.str();
 	}
+
 
 	static uint8_t convertStringToUnsignedChar(std::string str) {
 		using namespace std;
