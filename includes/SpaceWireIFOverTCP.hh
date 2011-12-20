@@ -97,16 +97,18 @@ public:
 		if (datasocket != NULL) {
 			if (isClientMode()) {
 				((TCPClientSocket*) datasocket)->close();
-				delete (TCPClientSocket*)datasocket;
+				delete (TCPClientSocket*) datasocket;
 			} else {
 				((TCPServerAcceptedSocket*) datasocket)->close();
-				delete (TCPServerAcceptedSocket*)datasocket;
+				delete (TCPServerAcceptedSocket*) datasocket;
 			}
 		}
 		datasocket = NULL;
-		if (serverSocket != NULL) {
-			serverSocket->close();
-			delete serverSocket;
+		if (isServerMode()) {
+			if (serverSocket != NULL) {
+				serverSocket->close();
+				delete serverSocket;
+			}
 		}
 	}
 
