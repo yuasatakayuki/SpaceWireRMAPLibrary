@@ -10,6 +10,7 @@
 
 #include "SpaceWireEOPMarker.hh"
 #include "SpaceWireIF.hh"
+#include "SpaceWireIFOverTCP.hh"
 #include "SpaceWireIFOverIPClient.hh"
 #include "SpaceWireProtocol.hh"
 #include "SpaceWireSSDTPModule.hh"
