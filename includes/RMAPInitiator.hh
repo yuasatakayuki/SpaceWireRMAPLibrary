@@ -29,7 +29,8 @@ public:
 		RMAPTransactionCouldNotBeInitiated,
 		SpecifiedRMAPMemoryObjectIsNotReadable,
 		SpecifiedRMAPMemoryObjectIsNotWritable,
-		SpecifiedRMAPMemoryObjectIsNotRMWable
+		SpecifiedRMAPMemoryObjectIsNotRMWable,
+		RMAPTargetNodeDBIsNotRegistered
 	};
 
 public:
@@ -93,6 +94,9 @@ public:
 public:
 	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		if(targetNodeDB==NULL){
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
@@ -105,29 +109,48 @@ public:
 	/** easy to use, but somewhat slow due to data copy. */
 	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		using namespace std;
+		std::cout << "##RMAPInitiator::readConstructingNewVecotrBuffer()" << std::endl;
+
+		if(targetNodeDB==NULL){
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
+		std::cout << "##1" << std::endl;
+		/*
+		cerr << targetNodeDB->getSize() << endl;
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
 		} catch (RMAPTargetNodeDBException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
+		/*
+		cerr << "##2" << endl;
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = targetNode->getMemoryObject(memoryObjectID);
 		} catch (RMAPTargetNodeException e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
+		cerr << "##3" << endl;
 		//check if the memory is readable.
 		if (!memoryObject->isReadable()) {
 			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
 		}
+		cout << "##RMAPInitiator::readConstructingNewVecotrBuffer() memoryObject->getLength()=" << memoryObject->getLength() << endl;
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
 		read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
 		return buffer;
+		*/
+		cerr << "##4" << endl;
+		return new std::vector<uint8_t>(4);
 	}
 
 	void read(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration =
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		if(targetNodeDB==NULL){
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
@@ -212,6 +235,9 @@ public:
 public:
 	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		if(targetNodeDB==NULL){
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
 		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
@@ -223,6 +249,9 @@ public:
 
 	void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
 			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+		if(targetNodeDB==NULL){
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
 		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
@@ -297,7 +326,7 @@ public:
 				}
 				if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 					unlock();
-					//when successful, replay packet is retained until next transaction for inspection by user application
+					//When successful, replay packet is retained until next transaction for inspection by user application
 					//deleteReplyPacket();
 					return;
 				} else {
