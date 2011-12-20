@@ -379,6 +379,11 @@ public:
 	}
 
 public:
+	size_t getSize(){
+		return db.size();
+	}
+
+public:
 	/** This method does not return NULL when not found, but throws an exception.
 	 *
 	 */
