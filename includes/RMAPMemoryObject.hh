@@ -207,11 +207,13 @@ public:
 
 		RMAPMemoryObject* memoryObject=new RMAPMemoryObject;
 		memoryObject->setID(node->getAttribute("id"));
-		memoryObject->setExtendedAddress(String::toInteger(node->getChild("ExtendedAddress")->getValue()));
 		memoryObject->setAddress(String::toUInt32(node->getChild("Address")->getValue()));
 		memoryObject->setLength(String::toUInt32(node->getChild("Length")->getValue()));
 
 		//optional
+		if (node->getChild("ExtendedAddress") != NULL) {
+			memoryObject->setExtendedAddress(String::toInteger(node->getChild("ExtendedAddress")->getValue()));
+		}
 		if (node->getChild("AccessMode") != NULL) {
 			memoryObject->setAccessMode(node->getChild("AccessMode")->getValue());
 		}
