@@ -110,10 +110,27 @@ public:
 
 	void setTransactionID(uint16_t transactionID) {
 		this->transactionID = transactionID;
+		this->transactionIDMode = ManualTransactionID;
 	}
 
 	uint32_t getTransactionIDMode() {
 		return transactionIDMode;
+	}
+
+	bool isAutoTransactionIDMode(){
+		if(transactionIDMode==AutoTransactionID){
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+	bool isManualTransactionIDMode(){
+		if(transactionIDMode==AutoTransactionID){
+			return false;
+		}else{
+			return true;
+		}
 	}
 
 	void setTransactionIDMode(uint32_t transactionIDMode) {

@@ -17,7 +17,7 @@
 #include "SpaceWireIF.hh"
 #include "SpaceWireUtilities.hh"
 
-class RMAPEngineStoppedAction : public CxxUtilities::Action {
+class RMAPEngineStoppedAction: public CxxUtilities::Action {
 public:
 	virtual void doAction(void* rmapEngine) = 0;
 };
@@ -60,6 +60,38 @@ public:
 	bool isRMAPPacketCausedThisExceptionRegistered() {
 		return causeIsRegistered;
 	}
+
+public:
+	std::string toString() {
+		std::string result;
+		switch (status) {
+		case RMAPEngineIsNotStarted:
+			result = "RMAPEngineIsNotStarted";
+			break;
+		case TransactionIDIsNotAvailable:
+			result = "TransactionIDIsNotAvailable";
+			break;
+		case TooManyConcurrentTransactions:
+			result = "TooManyConcurrentTransactions";
+			break;
+		case SpecifiedTransactionIDIsAlreadyInUse:
+			result = "SpecifiedTransactionIDIsAlreadyInUse";
+			break;
+		case PacketWasNotSentCorrectly:
+			result = "PacketWasNotSentCorrectly";
+			break;
+		case SpaceWireIFDisconnected:
+			result = "SpaceWireIFDisconnected";
+			break;
+		case UnexpectedRMAPReplyPacketWasReceived:
+			result = "UnexpectedRMAPReplyPacketWasReceived";
+			break;
+		default:
+			result = "Undefined status";
+			break;
+		}
+		return result;
+	}
 };
 
 class RMAPEngine: public CxxUtilities::Thread {
@@ -97,7 +129,7 @@ public:
 				return;
 			}
 			try {
-				SpaceWireUtilities::dumpPacket(&cout,rmapTransaction.replyPacket->getPacketBufferPointer());
+				SpaceWireUtilities::dumpPacket(&cout, rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.replyPacket->constructPacket();
 				cout << "$2 size=" << rmapTransaction.replyPacket->getPacketBufferPointer()->size() << endl;
 				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
@@ -441,24 +473,23 @@ public:
 	}
 
 public:
-	void addRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction){
+	void addRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction) {
 		rmapEngineStoppedActions.addAction(rmapEngineStoppedAction);
 	}
 
-	void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction){
+	void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction) {
 		rmapEngineStoppedActions.removeAction(rmapEngineStoppedAction);
 	}
 
-	CxxUtilities::Actions* getRMAPEngineStoppedActions(){
+	CxxUtilities::Actions* getRMAPEngineStoppedActions() {
 		return &rmapEngineStoppedActions;
 	}
 
 private:
-	void invokeRegisteredStopActions(){
+	void invokeRegisteredStopActions() {
 		rmapEngineStoppedActions.doEachAction(this);
 	}
 
 };
-
 
 #endif /* RMAPENGINE_HH_ */

@@ -37,6 +37,50 @@ public:
 	RMAPInitiatorException(uint32_t status) :
 		CxxUtilities::Exception(status) {
 	}
+
+public:
+	std::string toString() {
+		std::string result;
+		switch (status) {
+		case Timeout:
+			result = "Timeout";
+			break;
+		case Aborted:
+			result = "Aborted";
+			break;
+		case ReadReplyWithInsufficientData:
+			result = "ReadReplyWithInsufficientData";
+			break;
+		case ReadReplyWithTooMuchData:
+			result = "ReadReplyWithTooMuchData";
+			break;
+		case UnexpectedWriteReplyReceived:
+			result = "UnexpectedWriteReplyReceived";
+			break;
+		case NoSuchRMAPMemoryObject:
+			result = "NoSuchRMAPMemoryObject";
+			break;
+		case RMAPTransactionCouldNotBeInitiated:
+			result = "RMAPTransactionCouldNotBeInitiated";
+			break;
+		case SpecifiedRMAPMemoryObjectIsNotReadable:
+			result = "SpecifiedRMAPMemoryObjectIsNotReadable";
+			break;
+		case SpecifiedRMAPMemoryObjectIsNotWritable:
+			result = "SpecifiedRMAPMemoryObjectIsNotWritable";
+			break;
+		case SpecifiedRMAPMemoryObjectIsNotRMWable:
+			result = "SpecifiedRMAPMemoryObjectIsNotRMWable";
+			break;
+		case RMAPTargetNodeDBIsNotRegistered:
+			result = "RMAPTargetNodeDBIsNotRegistered";
+			break;
+		default:
+			result = "Undefined status";
+			break;
+		}
+		return result;
+	}
 };
 
 class RMAPInitiator {
@@ -55,14 +99,23 @@ private:
 
 private:
 	bool incrementMode;
+	bool isIncrementModeSet_;
 	bool verifyMode;
+	bool isVerifyModeSet_;
 	bool replyMode;
+	bool isReplyModeSet_;
+	uint16_t transactionID;
+	bool isTransactionIDSet_;
 
 public:
 	RMAPInitiator(RMAPEngine *rmapEngine) {
 		this->rmapEngine = rmapEngine;
 		commandPacket = new RMAPPacket();
 		replyPacket = new RMAPPacket();
+		isIncrementModeSet_ = false;
+		isVerifyModeSet_ = false;
+		isReplyModeSet_ = false;
+		isTransactionIDSet_ = false;
 	}
 
 	~RMAPInitiator() {
@@ -73,9 +126,9 @@ public:
 	}
 
 public:
-	void deleteReplyPacket(){
+	void deleteReplyPacket() {
 		delete replyPacket;
-		replyPacket=NULL;
+		replyPacket = NULL;
 	}
 
 public:
@@ -93,8 +146,9 @@ public:
 
 public:
 	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		if(targetNodeDB==NULL){
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
+		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
 		RMAPTargetNode* targetNode;
@@ -108,47 +162,48 @@ public:
 
 	/** easy to use, but somewhat slow due to data copy. */
 	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
 		using namespace std;
 		std::cout << "##RMAPInitiator::readConstructingNewVecotrBuffer()" << std::endl;
 
-		if(targetNodeDB==NULL){
+		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
 		std::cout << "##1" << std::endl;
 		/*
-		cerr << targetNodeDB->getSize() << endl;
-		RMAPTargetNode* targetNode;
-		try {
-			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
-			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
-		}
-		/*
-		cerr << "##2" << endl;
-		RMAPMemoryObject* memoryObject;
-		try {
-			memoryObject = targetNode->getMemoryObject(memoryObjectID);
-		} catch (RMAPTargetNodeException e) {
-			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
-		}
-		cerr << "##3" << endl;
-		//check if the memory is readable.
-		if (!memoryObject->isReadable()) {
-			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
-		}
-		cout << "##RMAPInitiator::readConstructingNewVecotrBuffer() memoryObject->getLength()=" << memoryObject->getLength() << endl;
-		std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
-		read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
-		return buffer;
-		*/
+		 cerr << targetNodeDB->getSize() << endl;
+		 RMAPTargetNode* targetNode;
+		 try {
+		 targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		 } catch (RMAPTargetNodeDBException e) {
+		 throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		 }
+		 /*
+		 cerr << "##2" << endl;
+		 RMAPMemoryObject* memoryObject;
+		 try {
+		 memoryObject = targetNode->getMemoryObject(memoryObjectID);
+		 } catch (RMAPTargetNodeException e) {
+		 throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		 }
+		 cerr << "##3" << endl;
+		 //check if the memory is readable.
+		 if (!memoryObject->isReadable()) {
+		 throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
+		 }
+		 cout << "##RMAPInitiator::readConstructingNewVecotrBuffer() memoryObject->getLength()=" << memoryObject->getLength() << endl;
+		 std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
+		 read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
+		 return buffer;
+		 */
 		cerr << "##4" << endl;
 		return new std::vector<uint8_t>(4);
 	}
 
 	void read(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration =
-			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		if(targetNodeDB==NULL){
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
+		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
 		RMAPTargetNode* targetNode;
@@ -161,7 +216,7 @@ public:
 	}
 
 	void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer, double timeoutDuration =
-			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
@@ -176,7 +231,8 @@ public:
 	}
 
 	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
 		using namespace std;
 		lock();
 		if (replyPacket != NULL) {
@@ -195,10 +251,15 @@ public:
 		commandPacket->setExtendedAddress(0x00);
 		commandPacket->setAddress(memoryAddress);
 		commandPacket->setDataLength(length);
+		commandPacket->clearData();
 		/** InitiatorLogicalAddress might be updated in commandPacket->setRMAPTargetInformation(rmapTargetNode) below */
 		commandPacket->setRMAPTargetInformation(rmapTargetNode);
 		RMAPTransaction transaction;
 		transaction.commandPacket = this->commandPacket;
+		//tid
+		if (isTransactionIDSet_) {
+			transaction.setTransactionID(transactionID);
+		}
 		try {
 			rmapEngine->initiateTransaction(transaction);
 		} catch (RMAPEngineException e) {
@@ -234,8 +295,9 @@ public:
 
 public:
 	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		if(targetNodeDB==NULL){
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
+		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
 		RMAPTargetNode *targetNode;
@@ -248,8 +310,8 @@ public:
 	}
 
 	void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
-			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
-		if(targetNodeDB==NULL){
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
+		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
 		RMAPTargetNode *targetNode;
@@ -262,7 +324,7 @@ public:
 	}
 
 	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
-			DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
@@ -277,7 +339,8 @@ public:
 	}
 
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPInitiatorException, RMAPReplyException) {
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
 		lock();
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
@@ -304,8 +367,10 @@ public:
 		commandPacket->setAddress(memoryAddress);
 		commandPacket->setDataLength(length);
 		commandPacket->setRMAPTargetInformation(rmapTargetNode);
+		commandPacket->setData(data, length);
 		RMAPTransaction transaction;
 		transaction.commandPacket = this->commandPacket;
+		setRMAPTransactionOptions(transaction);
 		rmapEngine->initiateTransaction(transaction);
 		transaction.condition.wait(timeoutDuration);
 		replyPacket = transaction.replyPacket;
@@ -346,6 +411,40 @@ public:
 		}
 	}
 
+private:
+	void setRMAPTransactionOptions(RMAPTransaction& transaction){
+		//increment mode
+		if(isIncrementModeSet_){
+			if(incrementMode){
+				transaction.commandPacket->setIncrementFlag();
+			}else{
+				transaction.commandPacket->unsetIncrementFlag();
+			}
+		}
+		//verify mode
+		if(isVerifyModeSet_){
+			if(verifyMode){
+				transaction.commandPacket->setVerifyFlag();
+			}else{
+				transaction.commandPacket->setNoVerifyMode();
+			}
+		}
+		//reply mode
+		if(transaction.commandPacket->isRead() && transaction.commandPacket->isCommand()){
+			transaction.commandPacket->setReplyMode();
+		}else if(isReplyModeSet_ ){
+			if(replyMode){
+				transaction.commandPacket->setReplyMode();
+			}else{
+				transaction.commandPacket->setNoReplyMode();
+			}
+		}
+		//tid
+		if (isTransactionIDSet_) {
+			transaction.setTransactionID(transactionID);
+		}
+	}
+
 public:
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
@@ -365,22 +464,69 @@ public:
 
 	void setReplyMode(bool replyMode) {
 		this->replyMode = replyMode;
+		this->isReplyModeSet_ = true;
 	}
 
+	void unsetReplyMode() {
+		isReplyModeSet_ = false;
+	}
+
+	bool isReplyModeSet() {
+		return isReplyModeSet_;
+	}
+
+public:
 	bool getIncrementMode() const {
 		return incrementMode;
 	}
 
+	void setIncrementMode(bool incrementMode) {
+		this->incrementMode = incrementMode;
+		this->isIncrementModeSet_ = true;
+	}
+
+	void unsetIncrementMode() {
+		this->isIncrementModeSet_ = false;
+	}
+
+	bool isIncrementModeSet() {
+		return isIncrementModeSet_;
+	}
+
+public:
 	bool getVerifyMode() const {
 		return verifyMode;
 	}
 
-	void setIncrementMode(bool incrementMode) {
-		this->incrementMode = incrementMode;
-	}
-
 	void setVerifyMode(bool verifyMode) {
 		this->verifyMode = verifyMode;
+		this->isVerifyModeSet_ = true;
+	}
+
+	void unsetVerifyMode() {
+		this->isVerifyModeSet_ = false;
+	}
+
+	bool isVerifyModeSet() {
+		return isVerifyModeSet_;
+	}
+
+public:
+	void setTransactionID(uint16_t transactionID) {
+		this->transactionID = transactionID;
+		this->isTransactionIDSet_ = true;
+	}
+
+	void unsetTransactionID() {
+		this->isTransactionIDSet_ = false;
+	}
+
+	uint16_t getTransactionID() {
+		return transactionID;
+	}
+
+	bool isTransactionIDSet() {
+		return isTransactionIDSet_;
 	}
 
 public:
@@ -400,8 +546,6 @@ public:
 	RMAPTargetNodeDB* getRMAPTargetNodeDB() {
 		return targetNodeDB;
 	}
-
-public:
 
 };
 #endif /* RMAPINITIATOR_HH_ */
