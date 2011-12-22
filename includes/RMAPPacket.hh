@@ -660,6 +660,14 @@ public:
 		this->dataLength = data.size();
 	}
 
+	void setData(uint8_t* data, size_t length) {
+		this->data.clear();
+		for (size_t i = 0; i < length; i++) {
+			this->data.push_back(data[i]);
+		}
+		this->dataLength = length;
+	}
+
 	void setDataCRC(uint8_t dataCRC) {
 		this->dataCRC = dataCRC;
 	}
@@ -1180,7 +1188,8 @@ public:
 	}
 
 public:
-	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status=RMAPReplyStatus::CommandExcecutedSuccessfully) {
+	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status =
+			RMAPReplyStatus::CommandExcecutedSuccessfully) {
 		RMAPPacket* replyPacket = new RMAPPacket();
 		*replyPacket = *commandPacket;
 		replyPacket->setReply();
