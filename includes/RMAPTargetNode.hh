@@ -287,7 +287,7 @@ public:
 				<< endl;
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.begin();
 		for (; it != memoryObjects.end(); it++) {
-			ss << it->second->toString(nTabs+1);
+			ss << it->second->toString(nTabs + 1);
 		}
 		stringstream ss2;
 		while (!ss.eof()) {
@@ -335,14 +335,30 @@ public:
 	}
 };
 
-class RMAPTargetNodeDBException : public CxxUtilities::Exception {
+class RMAPTargetNodeDBException: public CxxUtilities::Exception {
 public:
-	enum{
+	enum {
 		NoSuchRMAPTargetNode
 	};
-public:
-	RMAPTargetNodeDBException(int status) : CxxUtilities::Exception(status){
 
+public:
+	RMAPTargetNodeDBException(int status) :
+		CxxUtilities::Exception(status) {
+
+	}
+
+public:
+	std::string toString() {
+		std::string result;
+		switch (status) {
+		case NoSuchRMAPTargetNode:
+			result = "NoSuchRMAPTargetNode";
+			break;
+		default:
+			result = "Undefined status";
+			break;
+		}
+		return result;
 	}
 };
 
@@ -389,7 +405,7 @@ public:
 	}
 
 public:
-	size_t getSize(){
+	size_t getSize() {
 		return db.size();
 	}
 
@@ -397,7 +413,7 @@ public:
 	/** This method does not return NULL when not found, but throws an exception.
 	 *
 	 */
-	RMAPTargetNode* getRMAPTargetNode(std::string id) throw (RMAPTargetNodeDBException){
+	RMAPTargetNode* getRMAPTargetNode(std::string id) throw (RMAPTargetNodeDBException) {
 		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
 		if (it != db.end()) {
 			return it->second;
