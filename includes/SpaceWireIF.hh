@@ -27,6 +27,37 @@ public:
 	SpaceWireIFException(uint32_t status) :
 		CxxUtilities::Exception(status) {
 	}
+public:
+	std::string toString() {
+		std::string result;
+		switch (status) {
+		case OpeningConnectionFailed:
+			result = "OpeningConnectionFailed";
+			break;
+		case Disconnected:
+			result = "Disconnected";
+			break;
+		case Timeout:
+			result = "Timeout";
+			break;
+		case EEP:
+			result = "EEP";
+			break;
+		case ReceiveBufferTooSmall:
+			result = "ReceiveBufferTooSmall";
+			break;
+		case FunctionNotImplemented:
+			result = "FunctionNotImplemented";
+			break;
+		case LinkIsNotOpened:
+			result = "LinkIsNotOpened";
+			break;
+		default:
+			result = "Undefined status";
+			break;
+		}
+		return result;
+	}
 };
 
 class SpaceWireIF;
@@ -83,7 +114,7 @@ protected:
 	bool eepShouldBeReportedAsAnException_;//default false (no exception)
 
 public:
-	enum eopType {
+	enum EOPType {
 		EOP = 0x00, EEP = 0x01, Undefined = 0xffff
 	};
 
@@ -109,9 +140,9 @@ public:
 
 public:
 	virtual void
-	send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
+	send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
 
-	virtual void send(std::vector<uint8_t>& data, uint32_t eopType = SpaceWireEOPMarker::EOP)
+	virtual void send(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data.size() == 0) {
 			return;
@@ -120,7 +151,7 @@ public:
 		}
 	}
 
-	virtual void send(std::vector<uint8_t>* data, uint32_t eopType = SpaceWireEOPMarker::EOP)
+	virtual void send(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data->size() == 0) {
 			return;
@@ -130,7 +161,7 @@ public:
 	}
 
 public:
-	virtual void receive(uint8_t* buffer, uint8_t& eopType, size_t maxLength, size_t& length)
+	virtual void receive(uint8_t* buffer, SpaceWireEOPMarker::EOPType& eopType, size_t maxLength, size_t& length)
 			throw (SpaceWireIFException) {
 		std::vector<uint8_t>* packet = this->receive();
 		size_t packetSize = packet->size();

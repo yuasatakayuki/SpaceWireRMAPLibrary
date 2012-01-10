@@ -122,7 +122,7 @@ public:
 	}
 
 public:
-	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
+	void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		using namespace std;
 		if(ssdtp==NULL){
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
