@@ -1,21 +1,29 @@
-SPACEWIRERMAPLIBRARY_PATH = /Users/yuasa/Documents/workspace/SpaceWireRMAPLibrary
+#Check CxxUtilities
+ifndef $(CXXUTILITIES_PATH)
+CXXUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/CxxUtilities
+endif
 
-CXXUTILITIES_PATH = /usr/local/CxxUtilities
-XMLUTILITY_PATH = /Users/yuasa/ws/XMLUtilities
-XERCESDIR = /Users/yuasa/work/install/xerces-c-3.1.1_src
+#Check XMLUtilities
+ifndef $(XMLUTILITIES_PATH)
+XMLUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtilities
+endif
 
-CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITY_PATH) -I/$(XERCESDIR)/include
+CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITIES_PATH) -I/$(XERCESDIR)/include
 LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
 
 TARGETS = \
-main_RMAP_replyStatusToString
-#main_RMAP_readWriteRMAPTargetNode \
+tutorial_RMAPLayer \
+tutorial_SpaceWireLayer \
+tutorial_SpaceWireLayer_periodicTimecodeEmission \
+tutorial_RMAPPacket_creationInterpretation \
+main_RMAP_replyStatusToString \
+main_RMAP_readWriteRMAPTargetNode \
+main_RMAP_interpretAsAnRMAPPacket \
+main_RMAP_calculateCRC \
+main_RMAP_instructionToString 
 #test_RMAPTarget_ReadWriteRegisters
 #test_SpaceWireSSDTPModule \
 #test_RMAPTargetNode_fromXMLFile \
-#main_RMAP_interpretAsAnRMAPPacket \
-#main_RMAP_calculateCRC \
-#main_RMAP_instructionToString \
 #test_RMAPInitiator_RMAPEngine \
 #test_periodic_packet_source \
 #test_SpaceWireIFOverIPClient_timeout \
