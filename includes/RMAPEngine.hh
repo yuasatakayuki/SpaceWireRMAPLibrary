@@ -131,7 +131,6 @@ public:
 			try {
 				SpaceWireUtilities::dumpPacket(&cout, rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.replyPacket->constructPacket();
-				cout << "$2 size=" << rmapTransaction.replyPacket->getPacketBufferPointer()->size() << endl;
 				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.setState(RMAPTransaction::ReplySent);
 			} catch (...) {
@@ -153,6 +152,21 @@ public:
 		}
 	};
 
+public:
+	class RMAPEngineSpaceWireIFActionCloseAction: public SpaceWireIFActionCloseAction {
+	private:
+		RMAPEngine* rmapEngine;
+
+	public:
+		RMAPEngineSpaceWireIFActionCloseAction(RMAPEngine* rmapEngine) {
+			this->rmapEngine = rmapEngine;
+		}
+
+	public:
+		void doAction(SpaceWireIF* spwif) {
+			rmapEngine->stop();
+		}
+	};
 private:
 	std::map<uint16_t, RMAPTransaction*> transactions;
 	CxxUtilities::Mutex transactionIDMutex;
@@ -165,13 +179,18 @@ private:
 
 public:
 	static const size_t MaximumTIDNumber = 65536;
+	static const double DefaultReceiveTimeoutDurationInMilliSec = 1000;
 
 private:
 	SpaceWireIF* spwif;
 	CxxUtilities::Mutex spwSendMutex;
 
+private:
+	RMAPEngineSpaceWireIFActionCloseAction* spacewireIFActionCloseAction;
+
 public:
 	bool stopped;
+	bool hasStopped;
 	CxxUtilities::Actions rmapEngineStoppedActions;
 
 private:
@@ -180,6 +199,9 @@ private:
 	size_t nErrorneousCommandPackets;
 	size_t nTransactionsAbortedWhenReplying;
 
+private:
+	bool stopActionsHasBeenExecuted;
+
 public:
 	RMAPEngine() {
 		spwif = NULL;
@@ -187,8 +209,8 @@ public:
 	}
 
 	RMAPEngine(SpaceWireIF* spwif) {
-		this->spwif = spwif;
 		initialize();
+		this->setSpaceWireIF(spwif);
 	}
 
 	~RMAPEngine() {
@@ -204,6 +226,8 @@ private:
 		}
 		transactionIDMutex.unlock();
 		stopped = true;
+		spacewireIFActionCloseAction = NULL;
+		stopActionsHasBeenExecuted = false;
 		//initialize counters
 		initializeCounters();
 	}
@@ -219,6 +243,9 @@ public:
 	void run() {
 		using namespace std;
 		stopped = false;
+		hasStopped = false;
+		stopActionsHasBeenExecuted = false;
+		spwif->setTimeoutDuration(DefaultReceiveTimeoutDurationInMilliSec);
 		while (!stopped) {
 			try {
 				RMAPPacket* rmapPacket = receivePacket();
@@ -235,11 +262,19 @@ public:
 		}
 		stopped = true;
 		invokeRegisteredStopActions();
+		hasStopped = true;
 	}
 
 public:
 	void stop() {
-		stopped = true;
+		using namespace std;
+		if (stopped == false) {
+			stopped = true;
+			do {
+				CxxUtilities::Condition c;
+				c.wait(spwif->getTimeoutDurationInMicroSec() / 1000.0 /* in milli sec */);
+			} while (hasStopped != true);
+		}
 	}
 
 	bool isStopped() {
@@ -373,15 +408,13 @@ public:
 	void initiateTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
 		using namespace std;
 		uint16_t transactionID;
-		RMAPPacket* commandPacket;
+		RMAPPacket* commandPacket = transaction->getCommandPacket();
 		if (transaction->getTransactionIDMode() == RMAPTransaction::AutoTransactionID) {
 			transactionID = getNextAvailableTransactionID();
-			commandPacket = transaction->getCommandPacket();
-			commandPacket->setTransactionID(transactionID);
 		} else {
 			//check if the TID specified in RMAPCommandPacket is
 			//available or already used by another transaction
-			transactionID = transaction->getCommandPacket()->getTransactionID();
+			transactionID = transaction->getTransactionID();
 			if (isTransactionIDAvailable(transactionID) == false) {
 				throw RMAPEngineException(RMAPEngineException::SpecifiedTransactionIDIsAlreadyInUse);
 			}
@@ -391,6 +424,7 @@ public:
 		transactions[transactionID] = transaction;
 		transactionIDMutex.unlock();
 		//send a command packet
+		commandPacket->setTransactionID(transactionID);
 		commandPacket->constructPacket();
 		if (isStarted()) {
 			sendPacket(commandPacket->getPacketBufferPointer());
@@ -398,6 +432,21 @@ public:
 		} else {
 			throw RMAPEngineException(RMAPEngineException::RMAPEngineIsNotStarted);
 		}
+	}
+
+	void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
+		using namespace std;
+		RMAPPacket* commandPacket = transaction->getCommandPacket();
+		uint16_t transactionID = commandPacket->getTransactionID();
+		//remove tid from management list
+		transactionIDMutex.lock();
+		std::map<uint16_t, RMAPTransaction*>::iterator it = transactions.find(transactionID);
+		if (it != transactions.end()) {//found
+			transactions.erase(it);
+			pushBackUtilizedTransactionID(transactionID);
+		}
+		transactionIDMutex.unlock();
+		//put back the transaction id to the available list
 	}
 
 public:
@@ -416,7 +465,12 @@ public:
 
 public:
 	void setSpaceWireIF(SpaceWireIF* spwif) {
+		using namespace std;
 		this->spwif = spwif;
+		if (spacewireIFActionCloseAction == NULL) {
+			spacewireIFActionCloseAction = new RMAPEngineSpaceWireIFActionCloseAction(this);
+		}
+		this->spwif->addSpaceWireIFCloseAction(spacewireIFActionCloseAction);
 	}
 
 	SpaceWireIF* getSpaceWireIF() {
@@ -487,7 +541,11 @@ public:
 
 private:
 	void invokeRegisteredStopActions() {
-		rmapEngineStoppedActions.doEachAction(this);
+		using namespace std;
+		if (stopActionsHasBeenExecuted == false) {
+			rmapEngineStoppedActions.doEachAction(this);
+			stopActionsHasBeenExecuted = true;
+		}
 	}
 
 };

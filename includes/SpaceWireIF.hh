@@ -15,7 +15,13 @@
 class SpaceWireIFException: public CxxUtilities::Exception {
 public:
 	enum {
-		OpeningConnectionFailed, Disconnected, Timeout, EEP, ReceiveBufferTooSmall, FunctionNotImplemented
+		OpeningConnectionFailed,
+		Disconnected,
+		Timeout,
+		EEP,
+		ReceiveBufferTooSmall,
+		FunctionNotImplemented,
+		LinkIsNotOpened
 	};
 public:
 	SpaceWireIFException(uint32_t status) :
@@ -23,12 +29,33 @@ public:
 	}
 };
 
+class SpaceWireIF;
+
+/** An abstract super class for SpaceWireIF-related actions.
+ */
+class SpaceWireIFAction {
+};
+
 /** An abstract class which includes a method invoked when
  * Timecode is received.
  */
-class TimecodeScynchronizedAction {
+class SpaceWireIFActionTimecodeScynchronizedAction: public SpaceWireIFAction {
 public:
-	virtual void doAction(unsigned char timeOut)=0;
+	/** Performs action.
+	 * @param[in] timecodeValue time code value
+	 */
+	virtual void doAction(unsigned char timecodeValue) = 0;
+};
+
+/** An abstract class which includes a method invoked when
+ * a SpaceWire interface is closed.
+ */
+class SpaceWireIFActionCloseAction: public SpaceWireIFAction {
+public:
+	/** Performs action.
+	 * @param[in] spwif parent SpaceWireIF instance
+	 */
+	virtual void doAction(SpaceWireIF* spwif) = 0;
 };
 
 /** An abstract class for encapsulation of a SpaceWire interface.
@@ -39,29 +66,46 @@ public:
  */
 class SpaceWireIF {
 private:
-	std::vector<TimecodeScynchronizedAction*> timecodeSynchronizedActions;
+	std::vector<SpaceWireIFActionTimecodeScynchronizedAction*> timecodeSynchronizedActions;
+	std::vector<SpaceWireIFActionCloseAction*> spacewireIFCloseActions;
 	bool isTerminatedWithEEP_;
 	bool isTerminatedWithEOP_;
+
+public:
+	enum OpenCloseState {
+		Closed, Opened
+	};
+
+protected:
+	enum OpenCloseState state;
 
 protected:
 	bool eepShouldBeReportedAsAnException_;//default false (no exception)
 
 public:
-	enum {
+	enum eopType {
 		EOP = 0x00, EEP = 0x01, Undefined = 0xffff
-	} eopType;
+	};
 
 public:
 	SpaceWireIF() {
+		state = Closed;
 		isTerminatedWithEEP_ = false;
 		isTerminatedWithEOP_ = false;
 		eepShouldBeReportedAsAnException_ = false;
 	}
 
 public:
+	enum OpenCloseState getState() {
+		return state;
+	}
+
+public:
 	virtual void open() throw (SpaceWireIFException) =0;
 
-	virtual void close() throw (SpaceWireIFException) =0;
+	virtual void close() throw (SpaceWireIFException) {
+		invokeSpaceWireIFCloseActions();
+	}
 
 public:
 	virtual void
@@ -123,7 +167,7 @@ public:
 
 private:
 	uint32_t txLinkRateType;
-	enum {
+	enum LinkRates {
 		LinkRate200MHz = 200000,
 		LinkRate125MHz = 125000,
 		LinkRate100MHz = 100000,
@@ -149,16 +193,27 @@ protected:
 public:
 	/** A method sets (adds) an action against getting Timecode.
 	 */
-	void addTimecodeAction(TimecodeScynchronizedAction* action) {
+	void addTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
+		for (size_t i = 0; i < timecodeSynchronizedActions.size(); i++) {
+			if (action == timecodeSynchronizedActions[i]) {
+				return;//already registered
+			}
+		}
 		timecodeSynchronizedActions.push_back(action);
 	}
 
-	void deleteTimecodeAction(TimecodeScynchronizedAction* action) {
-		std::vector<TimecodeScynchronizedAction*>::iterator it = std::find(timecodeSynchronizedActions.begin(),
-				timecodeSynchronizedActions.end(), action);
-		if (it != timecodeSynchronizedActions.end()) {
-			timecodeSynchronizedActions.erase(it);
+	void registerTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
+		addTimecodeAction(action);
+	}
+
+	void deleteTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
+		std::vector<SpaceWireIFActionTimecodeScynchronizedAction*> newActions;
+		for (size_t i = 0; i < timecodeSynchronizedActions.size(); i++) {
+			if (action != timecodeSynchronizedActions[i]) {
+				newActions.push_back(timecodeSynchronizedActions[i]);
+			}
 		}
+		timecodeSynchronizedActions = newActions;
 	}
 
 	void clearTimecodeSynchronizedActions() {
@@ -168,6 +223,32 @@ public:
 	void invokeTimecodeSynchronizedActions(uint8_t tickOutValue) {
 		for (size_t i = 0; i < timecodeSynchronizedActions.size(); i++) {
 			timecodeSynchronizedActions[i]->doAction(tickOutValue);
+		}
+	}
+
+public:
+	void addSpaceWireIFCloseAction(SpaceWireIFActionCloseAction* spacewireIFCloseAction) {
+		for (size_t i = 0; i < spacewireIFCloseActions.size(); i++) {
+			if (spacewireIFCloseAction == spacewireIFCloseActions[i]) {
+				return;//already registered
+			}
+		}
+		spacewireIFCloseActions.push_back(spacewireIFCloseAction);
+	}
+
+	void deleteSpaceWireIFCloseAction(SpaceWireIFActionCloseAction* spacewireIFCloseAction) {
+		std::vector<SpaceWireIFActionCloseAction*> newActions;
+		for (size_t i = 0; i < spacewireIFCloseActions.size(); i++) {
+			if (spacewireIFCloseAction != spacewireIFCloseActions[i]) {
+				newActions.push_back(spacewireIFCloseActions[i]);
+			}
+		}
+		spacewireIFCloseActions = newActions;
+	}
+
+	void invokeSpaceWireIFCloseActions() {
+		for (size_t i = 0; i < spacewireIFCloseActions.size(); i++) {
+			spacewireIFCloseActions[i]->doAction(this);
 		}
 	}
 

@@ -8,16 +8,20 @@ CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includ
 LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
 
 TARGETS = \
-test_RMAPTargetNode_fromXMLFile \
-main_RMAP_interpretAsAnRMAPPacket \
-main_RMAP_calculateCRC \
-main_RMAP_instructionToString \
-test_RMAPInitiator_RMAPEngine \
-test_periodic_packet_source \
-test_SpaceWireIFOverIPClient_timeout \
-test_RMAPTargetNode \
-test_RMAPPacket \
-test_RMAPMemoryObject_fromXMLFile
+main_RMAP_replyStatusToString
+#main_RMAP_readWriteRMAPTargetNode \
+#test_RMAPTarget_ReadWriteRegisters
+#test_SpaceWireSSDTPModule \
+#test_RMAPTargetNode_fromXMLFile \
+#main_RMAP_interpretAsAnRMAPPacket \
+#main_RMAP_calculateCRC \
+#main_RMAP_instructionToString \
+#test_RMAPInitiator_RMAPEngine \
+#test_periodic_packet_source \
+#test_SpaceWireIFOverIPClient_timeout \
+#test_RMAPTargetNode \
+#test_RMAPPacket \
+#test_RMAPMemoryObject_fromXMLFile
 
 TARGETS_OBJECTS = $(addsuffix .o, $(basename $(TARGETS)))
 TARGETS_SOURCES = $(addsuffix .cc, $(basename $(TARGETS)))

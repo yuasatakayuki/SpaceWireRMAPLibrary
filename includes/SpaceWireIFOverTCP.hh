@@ -17,7 +17,7 @@
 /** SpaceWire IF class which is connected to a real SpaceWire IF
  * via TCP/IP network and spw-tcpip bridge server running on SpaceCube.
  */
-class SpaceWireIFOverTCP: public SpaceWireIF, public TimecodeScynchronizedAction {
+class SpaceWireIFOverTCP: public SpaceWireIF, public SpaceWireIFActionTimecodeScynchronizedAction {
 private:
 	bool opened;
 public:
@@ -63,7 +63,7 @@ public:
 			try {
 				datasocket = new TCPClientSocket(iphostname, ipportnumber);
 				((TCPClientSocket*) datasocket)->open(1000);
-				((TCPClientSocket*) datasocket)->setTimeout(1000);
+				setTimeoutDuration(1000000);
 			} catch (CxxUtilities::TCPSocketException e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
@@ -77,7 +77,7 @@ public:
 				serverSocket = new TCPServerSocket(ipportnumber);
 				serverSocket->open();
 				datasocket = serverSocket->accept();
-				((TCPServerAcceptedSocket*) datasocket)->setTimeout(1000);
+				setTimeoutDuration(1000000);
 			} catch (CxxUtilities::TCPSocketException e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
@@ -86,10 +86,19 @@ public:
 		}
 		ssdtp = new SpaceWireSSDTPModule(datasocket);
 		ssdtp->setTimeCodeAction(this);
+		state = Opened;
 	}
 
 	void close() throw (SpaceWireIFException) {
 		using namespace CxxUtilities;
+		using namespace std;
+		if(state==Closed){
+			return;
+		}
+		state=Closed;
+		//invoke SpaceWireIFCloseActions to tell other instances
+		//closing of this SpaceWire interface
+		invokeSpaceWireIFCloseActions();
 		if (ssdtp != NULL) {
 			delete ssdtp;
 		}
@@ -115,6 +124,9 @@ public:
 public:
 	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		using namespace std;
+		if(ssdtp==NULL){
+			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
+		}
 		try {
 			ssdtp->send(data, length, eopType);
 		} catch (SpaceWireSSDTPException e) {
@@ -128,6 +140,9 @@ public:
 
 public:
 	void receive(std::vector<uint8_t>* buffer) throw (SpaceWireIFException) {
+		if(ssdtp==NULL){
+			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
+		}
 		try {
 			uint32_t eopType;
 			ssdtp->receive(buffer, eopType);
@@ -154,7 +169,11 @@ public:
 
 public:
 	void emitTimecode(uint8_t timeIn, uint8_t controlFlagIn = 0x00) throw (SpaceWireIFException) {
-		timeIn = timeIn & 0x3F + controlFlagIn << 6;
+		using namespace std;
+		if(ssdtp==NULL){
+			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
+		}
+		timeIn = timeIn % 64 + (controlFlagIn << 6);
 		try {
 			ssdtp->sendTimeCode(timeIn);
 		} catch (SpaceWireSSDTPException e) {
@@ -186,6 +205,9 @@ public:
 
 public:
 	void setTxDivCount(uint8_t txdivcount) {
+		if(ssdtp==NULL){
+			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
+		}
 		try {
 			ssdtp->setTxDivCount(txdivcount);
 		} catch (SpaceWireSSDTPException e) {
@@ -203,12 +225,15 @@ public:
 
 public:
 	void setTimeoutDuration(double microsecond) throw (SpaceWireIFException) {
-		datasocket->setTimeout(microsecond * 1000);
+		datasocket->setTimeout(microsecond / 1000);
 		timeoutDurationInMicroSec = microsecond;
 	}
 
 public:
 	uint8_t getTimeCode() throw (SpaceWireIFException) {
+		if(ssdtp==NULL){
+			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
+		}
 		return ssdtp->getTimeCode();
 	}
 

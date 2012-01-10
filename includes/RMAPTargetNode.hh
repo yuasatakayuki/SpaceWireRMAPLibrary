@@ -271,9 +271,10 @@ public:
 		}
 	}
 public:
-	std::string toString() {
+	std::string toString(int nTabs = 0) {
 		using namespace std;
 		stringstream ss;
+		ss << "ID                        : " << this->id << endl;
 		if (isInitiatorLogicalAddressSet()) {
 			ss << "Initiator Logical Address : 0x" << right << hex << setw(2) << setfill('0')
 					<< (uint32_t) initiatorLogicalAddress << endl;
@@ -286,9 +287,18 @@ public:
 				<< endl;
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.begin();
 		for (; it != memoryObjects.end(); it++) {
-			ss << it->second->toString();
+			ss << it->second->toString(nTabs+1);
 		}
-		return ss.str();
+		stringstream ss2;
+		while (!ss.eof()) {
+			string line;
+			getline(ss, line);
+			for (int i = 0; i < nTabs; i++) {
+				ss2 << "	";
+			}
+			ss2 << line << endl;
+		}
+		return ss2.str();
 	}
 
 	std::string toXMLString(int nTabs = 0) {

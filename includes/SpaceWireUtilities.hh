@@ -107,6 +107,9 @@ public:
 	}
 
 	static std::string packetToString(std::vector<uint8_t>* data,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
+		if(data->size()==0){
+			return "";
+		}
 		return packetToString(&(data->at(0)),data->size(),nBytesDisplayed);
 	}
 

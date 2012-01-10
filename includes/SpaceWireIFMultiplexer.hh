@@ -23,7 +23,7 @@ public:
 class SpaceWireIFMultiplexer: public SpaceWireIF,
 		public CxxUtilities::StoppableThread,
 		public SpaceWireIFMultiplexerSuperClass,
-		public TimecodeScynchronizedAction {
+		public SpaceWireIFActionTimecodeScynchronizedAction {
 private:
 	SpaceWireIF** spwifs;
 	SpaceWireIF** spwifs_default;

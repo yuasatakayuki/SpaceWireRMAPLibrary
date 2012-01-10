@@ -232,6 +232,10 @@ public:
 	void interpretAsAnRMAPPacket(uint8_t *packet, size_t length) throw (RMAPPacketException) {
 		using namespace std;
 
+		if(length<12){
+			throw(RMAPPacketException(RMAPPacketException::PacketInterpretationFailed));
+		}
+		
 		std::vector<uint8_t> temporaryPathAddress;
 		try {
 			size_t i = 0;
@@ -242,6 +246,9 @@ public:
 			while (packet[i] < 0x20) {
 				temporaryPathAddress.push_back(packet[i]);
 				i++;
+				if(i>=length){
+					throw(RMAPPacketException(RMAPPacketException::PacketInterpretationFailed));
+				}
 			}
 			rmapIndex = i;
 			if (packet[rmapIndex + 1] != RMAPProtocol::ProtocolIdentifier) {
@@ -274,10 +281,12 @@ public:
 				setAddress(address_3 * 0x01000000 + address_2 * 0x00010000 + address_1 * 0x00000100 + address_0
 						* 0x00000001);
 				uint8_t length_2, length_1, length_0;
+				uint32_t lengthSpecifiedInPacket;
 				length_2 = packet[rmapIndexAfterSourcePathAddress + 8];
 				length_1 = packet[rmapIndexAfterSourcePathAddress + 9];
 				length_0 = packet[rmapIndexAfterSourcePathAddress + 10];
-				setDataLength(length_2 * 0x010000 + length_1 * 0x000100 + length_0 * 0x000001);
+				lengthSpecifiedInPacket=length_2 * 0x010000 + length_1 * 0x000100 + length_0 * 0x000001;
+				setDataLength(lengthSpecifiedInPacket);
 				uint8_t temporaryHeaderCRC = packet[rmapIndexAfterSourcePathAddress + 11];
 				if (headerCRCIsChecked == true) {
 					uint32_t headerCRCMode_original = headerCRCMode;
@@ -293,7 +302,7 @@ public:
 				dataIndex = rmapIndexAfterSourcePathAddress + 12;
 				data.clear();
 				if (isWrite()) {
-					for (uint32_t i = 0; i < getDataLength(); i++) {
+					for (uint32_t i = 0; i < lengthSpecifiedInPacket; i++) {
 						if ((dataIndex + i) < (length - 1)) {
 							data.push_back(packet[dataIndex + i]);
 						} else {
@@ -302,8 +311,8 @@ public:
 					}
 					//length check for DataCRC
 					uint8_t temporaryDataCRC = 0x00;
-					if ((dataIndex + getDataLength()) == (length - 1)) {
-						temporaryDataCRC = packet[dataIndex + getDataLength()];
+					if ((dataIndex + lengthSpecifiedInPacket) == (length - 1)) {
+						temporaryDataCRC = packet[dataIndex + lengthSpecifiedInPacket];
 					} else {
 						throw(RMAPPacketException(RMAPPacketException::DataLengthMismatch));
 					}
@@ -340,10 +349,12 @@ public:
 					}
 				} else {
 					uint8_t length_2, length_1, length_0;
+					uint32_t lengthSpecifiedInPacket;
 					length_2 = packet[rmapIndex + 8];
 					length_1 = packet[rmapIndex + 9];
 					length_0 = packet[rmapIndex + 10];
-					setDataLength(length_2 * 0x010000 + length_1 * 0x000100 + length_0 * 0x000001);
+					lengthSpecifiedInPacket=length_2 * 0x010000 + length_1 * 0x000100 + length_0 * 0x000001;
+					setDataLength(lengthSpecifiedInPacket);
 					uint8_t temporaryHeaderCRC = packet[rmapIndex + 11];
 					constructHeader();
 					if (headerCRCIsChecked == true) {
@@ -355,7 +366,7 @@ public:
 					}
 					dataIndex = rmapIndex + 12;
 					data.clear();
-					for (uint32_t i = 0; i < getDataLength(); i++) {
+					for (uint32_t i = 0; i < length; i++) {
 						try {
 							data.push_back(packet[dataIndex + i]);
 						} catch (...) {
@@ -365,8 +376,8 @@ public:
 					}
 					//length check for DataCRC
 					uint8_t temporaryDataCRC = 0x00;
-					if ((dataIndex + getDataLength()) == (length - 1)) {
-						temporaryDataCRC = packet[dataIndex + getDataLength()];
+					if ((dataIndex + lengthSpecifiedInPacket) == (length - 1)) {
+						temporaryDataCRC = packet[dataIndex + lengthSpecifiedInPacket];
 					} else {
 						throw(RMAPPacketException(RMAPPacketException::DataLengthMismatch));
 					}
@@ -392,14 +403,14 @@ public:
 		dataCRCMode = previousDataCRCMode;
 	}
 
-	inline void interpretAsAnRMAPPacket(std::vector<uint8_t>& data) throw (RMAPPacketException) {
+	void interpretAsAnRMAPPacket(std::vector<uint8_t>& data) throw (RMAPPacketException) {
 		if (data.size() == 0) {
 			throw RMAPPacketException(RMAPPacketException::PacketInterpretationFailed);
 		}
 		interpretAsAnRMAPPacket(&(data[0]), data.size());
 	}
 
-	inline void interpretAsAnRMAPPacket(std::vector<uint8_t>* data) throw (RMAPPacketException) {
+	void interpretAsAnRMAPPacket(std::vector<uint8_t>* data) throw (RMAPPacketException) {
 		if (data->size() == 0) {
 			throw RMAPPacketException(RMAPPacketException::PacketInterpretationFailed);
 		}

@@ -48,7 +48,7 @@ private:
 	uint32_t latest_sentsize;
 	CxxUtilities::Mutex sendmutex;
 	CxxUtilities::Mutex receivemutex;
-	TimecodeScynchronizedAction* timecodeaction;
+	SpaceWireIFActionTimecodeScynchronizedAction* timecodeaction;
 
 private:
 	/* for SSDTP2 */
@@ -147,8 +147,9 @@ public:
 	}
 
 	int receive(std::vector<uint8_t>* data, uint32_t& eopType) throw (SpaceWireSSDTPException) {
+		try{
 		using namespace std;
-		//		cout << "#1" << endl;
+//		cout << "#1" << endl;
 		size_t size = 0;
 		size_t hsize = 0;
 		size_t flagment_size = 0;
@@ -179,7 +180,7 @@ public:
 //					cout << "#2-6" << endl;
 					throw SpaceWireSSDTPException(SpaceWireSSDTPException::Timeout);
 				} else {
-//					cout << "#2-6" << endl;
+//					cout << "#2-7" << endl;
 					throw SpaceWireSSDTPException(SpaceWireSSDTPException::Disconnected);
 				}
 			} catch (...) {
@@ -247,7 +248,7 @@ public:
 //				cout << "#11" << endl;
 			} else {
 				cout << "SSDTP fatal error with flag value of 0x" << hex << (uint32_t) rheader[0] << dec << endl;
-				exit(-1);
+				throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
 			}
 		}
 //		cout << "#8 " << size << endl;
@@ -267,6 +268,17 @@ public:
 //		cout << "#9" << endl;
 		receivemutex.unlock();
 		return size;
+		}catch(SpaceWireSSDTPException e){
+			throw e;
+		}catch(CxxUtilities::TCPSocketException e) {
+			using namespace std;
+//			cout << "#SpaceWireSSDTPModule::receive() caught TCPSocketException(" << e.toString() << ")" << endl;
+			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
+		}catch(...){
+			using namespace std;
+			cout << "#SpaceWireSSDTPModule::receive() caught an unexpected exception" << endl;
+			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
+		}
 	}
 
 	void sendEEP() throw (SpaceWireSSDTPException) {
@@ -302,7 +314,7 @@ public:
 		return internal_timecode;
 	}
 
-	void setTimeCodeAction(TimecodeScynchronizedAction* action) {
+	void setTimeCodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
 		timecodeaction = action;
 	}
 

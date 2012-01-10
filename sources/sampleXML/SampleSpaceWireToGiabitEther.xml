@@ -1,45 +1,41 @@
 <root>
 
-<RMAPTargetNode id="SpaceWireToGigabitEther_ConfigurationPort">
+<RMAPTargetNode id="SpaceWireToGigabitEther_RouterConfigurationPort">
 	<TargetLogicalAddress>0xFE</TargetLogicalAddress>
 	<TargetSpaceWireAddress>0x00</TargetSpaceWireAddress>
 	<ReplyAddress></ReplyAddress>
 	<Key>0x20</Key>
 
-	<RMAPMemoryObject id="Command">
+	<RMAPMemoryObject id="Port1ControlStatusRegister">
 		<ExtendedAddress>0x00</ExtendedAddress>
-		<Address>0xFF803800</Address>
-		<Length>0x10</Length>
-		<Key>0x25</Key>
-		<AccessMode>WriteOnly</AccessMode>
+		<Address>0x0000</Address>
+		<Length>0x04</Length>
+		<Key>0x20</Key>
+		<AccessMode>ReadWrite</AccessMode>
 	</RMAPMemoryObject>
 
-	<RMAPMemoryObject id="EssentialHK">
+	<RMAPMemoryObject id="Port2ControlStatusRegister">
 		<ExtendedAddress>0x00</ExtendedAddress>
-		<Address>0xFF801100</Address>
+		<Address>0x0000</Address>
 		<Length>0x08</Length>
 		<Key>0x20</Key>
-		<AccessMode>ReadOnly</AccessMode>
-		<IncrementMode>No Increment</IncrementMode>
+		<AccessMode>ReadWrite</AccessMode>
 	</RMAPMemoryObject>
 
-<!--	
-	<PredefinedRMAPCommands>
-		<Command id="ChangeLinkRate">
-			<TimecodeConstraint>
-				<CanBeInitiatatedIf>
-					timecode==
-		</Command>
-	</PredefinedRMAPCommands>
-	-->
+	<RMAPMemoryObject id="RouterID">
+		<ExtendedAddress>0x00</ExtendedAddress>
+		<Address>0x404</Address>
+		<Length>0x04</Length>
+		<Key>0x20</Key>
+		<AccessMode>ReadOnly</AccessMode>
+	</RMAPMemoryObject>
 </RMAPTargetNode>
 
-<RMAPTargetNode id="SpaceWireToGigabitEther_InternalRegisterPort">
+<RMAPTargetNode id="SpaceWireToGigabitEther_RegisterPort">
 	<TargetLogicalAddress>0xFE</TargetLogicalAddress>
-	<TargetSpaceWireAddress>0x06</TargetSpaceWireAddress>
+	<TargetSpaceWireAddress>0x09</TargetSpaceWireAddress>
 	<ReplyAddress>0x04</ReplyAddress>
-	<Key>0x20</Key>
-	
+	<Key>0x20</Key>	
 </RMAPTargetNode>
 
 </root>

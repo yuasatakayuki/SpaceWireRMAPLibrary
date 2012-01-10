@@ -119,7 +119,9 @@ public:
 	}
 
 	~RMAPInitiator() {
-		delete commandPacket;
+		if(commandPacket!=NULL){
+			delete commandPacket;
+		}
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -127,6 +129,9 @@ public:
 
 public:
 	void deleteReplyPacket() {
+		if(replyPacket==NULL){
+			return;
+		}
 		delete replyPacket;
 		replyPacket = NULL;
 	}
@@ -165,39 +170,33 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 			RMAPReplyException) {
 		using namespace std;
-		std::cout << "##RMAPInitiator::readConstructingNewVecotrBuffer()" << std::endl;
-
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
-		std::cout << "##1" << std::endl;
-		/*
-		 cerr << targetNodeDB->getSize() << endl;
-		 RMAPTargetNode* targetNode;
-		 try {
-		 targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		 } catch (RMAPTargetNodeDBException e) {
-		 throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
-		 }
-		 /*
-		 cerr << "##2" << endl;
-		 RMAPMemoryObject* memoryObject;
-		 try {
-		 memoryObject = targetNode->getMemoryObject(memoryObjectID);
-		 } catch (RMAPTargetNodeException e) {
-		 throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
-		 }
-		 cerr << "##3" << endl;
-		 //check if the memory is readable.
-		 if (!memoryObject->isReadable()) {
-		 throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
-		 }
-		 cout << "##RMAPInitiator::readConstructingNewVecotrBuffer() memoryObject->getLength()=" << memoryObject->getLength() << endl;
-		 std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
-		 read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
-		 return buffer;
-		 */
-		cerr << "##4" << endl;
+		cerr << targetNodeDB->getSize() << endl;
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+
+		RMAPMemoryObject* memoryObject;
+		try {
+			memoryObject = targetNode->getMemoryObject(memoryObjectID);
+		} catch (RMAPTargetNodeException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+
+		//check if the memory is readable.
+		if (!memoryObject->isReadable()) {
+			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
+		}
+
+		std::vector<uint8_t>* buffer = new std::vector<uint8_t>(memoryObject->getLength());
+		read(targetNode, memoryObject->getAddress(), memoryObject->getLength(), &(buffer->at(0)), timeoutDuration);
+		return buffer;
+
 		return new std::vector<uint8_t>(4);
 	}
 
@@ -263,8 +262,10 @@ public:
 		try {
 			rmapEngine->initiateTransaction(transaction);
 		} catch (RMAPEngineException e) {
+			unlock();
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		} catch (...) {
+			unlock();
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		}
 		transaction.condition.wait(timeoutDuration);
@@ -287,6 +288,8 @@ public:
 			return;
 		} else {
 			transaction.state = RMAPTransaction::Timeout;
+			//cancel transaction (return transaction ID)
+			rmapEngine->cancelTransaction(&transaction);
 			unlock();
 			deleteReplyPacket();
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
@@ -372,10 +375,25 @@ public:
 		transaction.commandPacket = this->commandPacket;
 		setRMAPTransactionOptions(transaction);
 		rmapEngine->initiateTransaction(transaction);
+
+		if (!replyMode) {//if reply is not expected
+			if (transaction.state == RMAPTransaction::Initiated) {
+				unlock();
+				return;
+			} else {
+				unlock();
+				//command was not sent successfully
+				throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
+			}
+		}
+		transaction.state=RMAPTransaction::CommandSent;
+
+		//if reply is expected
 		transaction.condition.wait(timeoutDuration);
 		replyPacket = transaction.replyPacket;
 		if (transaction.state == RMAPTransaction::CommandSent) {
 			if (replyMode) {
+				unlock();
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
 				unlock();
@@ -383,59 +401,55 @@ public:
 			}
 		} else if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
-			if (replyMode) {
-				if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
-					unlock();
-					deleteReplyPacket();
-					throw RMAPReplyException(replyPacket->getStatus());
-				}
-				if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
-					unlock();
-					//When successful, replay packet is retained until next transaction for inspection by user application
-					//deleteReplyPacket();
-					return;
-				} else {
-					unlock();
-					deleteReplyPacket();
-					throw RMAPReplyException(replyPacket->getStatus());
-				}
-			} else {//no reply was expected
+			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				unlock();
 				deleteReplyPacket();
-				throw RMAPInitiatorException(RMAPInitiatorException::UnexpectedWriteReplyReceived);
+				throw RMAPReplyException(replyPacket->getStatus());
+			}
+			if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
+				unlock();
+				//When successful, replay packet is retained until next transaction for inspection by user application
+				//deleteReplyPacket();
+				return;
+			} else {
+				unlock();
+				deleteReplyPacket();
+				throw RMAPReplyException(replyPacket->getStatus());
 			}
 		} else if (transaction.state == RMAPTransaction::Timeout) {
 			unlock();
+			//cancel transaction (return transaction ID)
+			rmapEngine->cancelTransaction(&transaction);
 			deleteReplyPacket();
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}
 
 private:
-	void setRMAPTransactionOptions(RMAPTransaction& transaction){
+	void setRMAPTransactionOptions(RMAPTransaction& transaction) {
 		//increment mode
-		if(isIncrementModeSet_){
-			if(incrementMode){
+		if (isIncrementModeSet_) {
+			if (incrementMode) {
 				transaction.commandPacket->setIncrementFlag();
-			}else{
+			} else {
 				transaction.commandPacket->unsetIncrementFlag();
 			}
 		}
 		//verify mode
-		if(isVerifyModeSet_){
-			if(verifyMode){
+		if (isVerifyModeSet_) {
+			if (verifyMode) {
 				transaction.commandPacket->setVerifyFlag();
-			}else{
+			} else {
 				transaction.commandPacket->setNoVerifyMode();
 			}
 		}
 		//reply mode
-		if(transaction.commandPacket->isRead() && transaction.commandPacket->isCommand()){
+		if (transaction.commandPacket->isRead() && transaction.commandPacket->isCommand()) {
 			transaction.commandPacket->setReplyMode();
-		}else if(isReplyModeSet_ ){
-			if(replyMode){
+		} else if (isReplyModeSet_) {
+			if (replyMode) {
 				transaction.commandPacket->setReplyMode();
-			}else{
+			} else {
 				transaction.commandPacket->setNoReplyMode();
 			}
 		}
