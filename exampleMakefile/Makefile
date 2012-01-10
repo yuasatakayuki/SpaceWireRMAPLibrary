@@ -34,13 +34,13 @@ ifndef $(CXXUTILITIES_PATH)
 CXXUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/CxxUtilities
 endif
 
-#Check XMLUtility
-ifndef $(XMLUTILITY_PATH)
-XMLUTILITY_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtility
+#Check XMLUtilities
+ifndef $(XMLUTILITIES_PATH)
+XMLUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtilities
 endif
 
 #Set compiler/linker flags
-CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITY_PATH) -I/$(XERCESDIR)/include
+CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITIES_PATH) -I/$(XERCESDIR)/include
 LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
 
 
