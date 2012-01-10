@@ -10,11 +10,11 @@
 
 class SpaceWireEOPMarker {
 public:
-	enum {
+	enum EOPType {
 		EOP=0,
 		EEP=1,
 		Continued=0xFFFF
-	} EOPTypes;
+	};
 };
 
 #endif /* SPACEWIREEOPMARKER_HH_ */
