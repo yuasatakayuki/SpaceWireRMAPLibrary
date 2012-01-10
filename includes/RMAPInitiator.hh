@@ -26,6 +26,7 @@ public:
 		ReadReplyWithTooMuchData,
 		UnexpectedWriteReplyReceived,
 		NoSuchRMAPMemoryObject,
+		NoSuchRMAPTargetNode,
 		RMAPTransactionCouldNotBeInitiated,
 		SpecifiedRMAPMemoryObjectIsNotReadable,
 		SpecifiedRMAPMemoryObjectIsNotWritable,
@@ -59,6 +60,9 @@ public:
 			break;
 		case NoSuchRMAPMemoryObject:
 			result = "NoSuchRMAPMemoryObject";
+			break;
+		case NoSuchRMAPTargetNode:
+			result = "NoSuchRMAPTargetNode";
 			break;
 		case RMAPTransactionCouldNotBeInitiated:
 			result = "RMAPTransactionCouldNotBeInitiated";
@@ -160,7 +164,7 @@ public:
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
 		} catch (RMAPTargetNodeDBException e) {
-			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
 		}
 		read(targetNode, memoryAddress, length, buffer, timeoutDuration);
 	}
@@ -178,7 +182,7 @@ public:
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
 		} catch (RMAPTargetNodeDBException e) {
-			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
 		}
 
 		RMAPMemoryObject* memoryObject;
