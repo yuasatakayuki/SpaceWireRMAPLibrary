@@ -864,6 +864,8 @@ private:
 		using namespace std;
 		stringstream ss;
 
+		this->constructPacket();
+
 		///////////////////////////////
 		//Reply
 		///////////////////////////////
@@ -1073,6 +1075,9 @@ public:
 	std::string toXMLStringReplyPacket(int nTabs = 0) {
 		this->constructPacket();
 		using namespace std;
+
+		this->constructPacket();
+
 		stringstream ss;
 		ss << "<RMAPPacket>" << endl;
 
