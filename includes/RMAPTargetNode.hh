@@ -86,11 +86,10 @@ public:
 			throw RMAPTargetNodeException(RMAPTargetNodeException::FileNotFound);
 		}
 		ifs.close();
-		XMLLoader xmlLoader(filename.c_str());
+		XMLNode *topNode;
+		XMLLoader::XMLLoader(&topNode, filename.c_str());
 		std::vector<RMAPTargetNode*> result;
 		try {
-			XMLNode* topNode;
-			topNode=xmlLoader.getTopNode();
 			if(topNode!=NULL) {
 				result=constructFromXMLFile(topNode);
 				return result;

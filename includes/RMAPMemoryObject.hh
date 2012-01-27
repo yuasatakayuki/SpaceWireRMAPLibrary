@@ -152,10 +152,11 @@ public:
 			throw RMAPMemoryObjectException(RMAPMemoryObjectException::FileNotFound);
 		}
 		ifs.close();
-		XMLLoader xmlLoader(filename.c_str());
+		XMLNode *topnode;
+		XMLLoader::XMLLoader(&topnode, filename.c_str());
 		std::vector<RMAPMemoryObject*> result;
 		try {
-			result=constructFromXMLFile(xmlLoader.getTopNode());
+			result=constructFromXMLFile(topnode);
 		} catch(...) {
 			throw RMAPMemoryObjectException(RMAPMemoryObjectException::InvalidXMLEntry,filename);
 		}
