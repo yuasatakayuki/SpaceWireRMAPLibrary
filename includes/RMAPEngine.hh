@@ -374,6 +374,7 @@ private:
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException e) {
+			
 			delete packet;
 			receivedPacketDiscarded();
 			return NULL;
