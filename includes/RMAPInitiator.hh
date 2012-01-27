@@ -100,6 +100,7 @@ private:
 
 private:
 	uint8_t initiatorLogicalAddress;
+	bool isInitiatorLogicalAddressSet_;
 
 private:
 	bool incrementMode;
@@ -345,6 +346,16 @@ public:
 		write(rmapTargetNode, memoryObject->getAddress(), data, memoryObject->getLength(), timeoutDuration);
 	}
 
+	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, std::vector<uint8_t>* data,
+			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
+			RMAPReplyException) {
+		uint8_t* pointer=NULL;
+		if(data->size()!=0){
+			pointer=&(data->at(0));
+		}
+		write(rmapTargetNode,memoryAddress,pointer,data->size(),timeoutDuration);
+	}
+
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 			RMAPReplyException) {
@@ -466,10 +477,23 @@ private:
 public:
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
+		isInitiatorLogicalAddressSet_=true;
 	}
 
 	uint8_t getInitiatorLogicalAddress() {
-		return initiatorLogicalAddress;
+		if(isInitiatorLogicalAddressSet_==true){
+			return initiatorLogicalAddress;
+		}else{
+			return RMAPProtocol::DefaultLogicalAddress;
+		}
+	}
+
+	bool isInitiatorLogicalAddressSet(){
+		return isInitiatorLogicalAddressSet_;
+	}
+
+	void unsetInitiatorLogicalAddress(){
+		isInitiatorLogicalAddressSet_=false;
 	}
 
 public:
