@@ -242,7 +242,7 @@ public:
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
-		commandPacket->setInitiatorLogicalAddress(this->initiatorLogicalAddress);
+		commandPacket->setInitiatorLogicalAddress(this->getInitiatorLogicalAddress());
 		commandPacket->setRead();
 		commandPacket->setCommand();
 		if (incrementMode) {
@@ -363,7 +363,7 @@ public:
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
-		commandPacket->setInitiatorLogicalAddress(this->initiatorLogicalAddress);
+		commandPacket->setInitiatorLogicalAddress(this->getInitiatorLogicalAddress());
 		commandPacket->setWrite();
 		commandPacket->setCommand();
 		if (incrementMode) {
@@ -497,7 +497,7 @@ public:
 	}
 
 public:
-	static const double DefaultTimeoutDuration = 1000;
+	static const double DefaultTimeoutDuration = 1000.0;
 
 public:
 	bool getReplyMode() const {
