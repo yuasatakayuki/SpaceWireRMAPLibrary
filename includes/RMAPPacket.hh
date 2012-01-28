@@ -366,12 +366,12 @@ public:
 					}
 					dataIndex = rmapIndex + 12;
 					data.clear();
-					for (uint32_t i = 0; i < length; i++) {
-						try {
+					for (uint32_t i = 0; i < lengthSpecifiedInPacket; i++) {
+						if ((dataIndex + i) < (length - 1)) {
 							data.push_back(packet[dataIndex + i]);
-						} catch (...) {
+						} else {
 							dataCRC = 0x00;//initialized
-							throw RMAPPacketException(RMAPPacketException::DataLengthMismatch);
+							throw(RMAPPacketException(RMAPPacketException::DataLengthMismatch));
 						}
 					}
 					//length check for DataCRC
