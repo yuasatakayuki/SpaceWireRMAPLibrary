@@ -232,7 +232,7 @@ public:
 	void interpretAsAnRMAPPacket(uint8_t *packet, size_t length) throw (RMAPPacketException) {
 		using namespace std;
 
-		if(length<12){
+		if(length<8){
 			throw(RMAPPacketException(RMAPPacketException::PacketInterpretationFailed));
 		}
 		
