@@ -93,6 +93,8 @@ private:
 	RMAPPacket* commandPacket;
 	RMAPPacket* replyPacket;
 	CxxUtilities::Mutex mutex;
+	
+	CxxUtilities::Mutex deleteReplyPacketMutex;
 
 private:
 	//optional DB
@@ -134,11 +136,14 @@ public:
 
 public:
 	void deleteReplyPacket() {
+		deleteReplyPacketMutex.lock();
 		if(replyPacket==NULL){
+			deleteReplyPacketMutex.unlock();
 			return;
 		}
 		delete replyPacket;
 		replyPacket = NULL;
+		deleteReplyPacketMutex.unlock();
 	}
 
 public:
@@ -394,6 +399,7 @@ public:
 
 		if (!replyMode) {//if reply is not expected
 			if (transaction.state == RMAPTransaction::Initiated) {
+				transaction.state=RMAPTransaction::CommandSent;
 				unlock();
 				return;
 			} else {
