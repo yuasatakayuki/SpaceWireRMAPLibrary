@@ -142,6 +142,15 @@ public:
 	virtual void
 	send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
 
+	virtual void sendVectorReference(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
+			throw (SpaceWireIFException) {
+		if (data.size() == 0) {
+			return;
+		} else {
+			send(&(data[0]), data.size(), eopType);
+		}
+	}
+
 	virtual void send(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data.size() == 0) {
@@ -152,6 +161,15 @@ public:
 	}
 
 	virtual void send(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
+			throw (SpaceWireIFException) {
+		if (data->size() == 0) {
+			return;
+		} else {
+			send(&(data->at(0)), data->size(), eopType);
+		}
+	}
+
+	virtual void sendVectorPointer(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data->size() == 0) {
 			return;

@@ -277,9 +277,10 @@ public:
 		if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
+				uint8_t replyStatus=replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
-				throw RMAPReplyException(replyPacket->getStatus());
+				throw RMAPReplyException(replyStatus);
 			}
 			if (replyPacket->getDataBuffer()->size() != length) {
 				unlock();
@@ -417,9 +418,10 @@ public:
 		} else if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
+				uint8_t replyStatus=replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
-				throw RMAPReplyException(replyPacket->getStatus());
+				throw RMAPReplyException(replyStatus);
 			}
 			if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				unlock();
@@ -427,9 +429,10 @@ public:
 				//deleteReplyPacket();
 				return;
 			} else {
+				uint8_t replyStatus=replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
-				throw RMAPReplyException(replyPacket->getStatus());
+				throw RMAPReplyException(replyStatus);
 			}
 		} else if (transaction.state == RMAPTransaction::Timeout) {
 			unlock();
