@@ -34,6 +34,8 @@ public:
 	RMAPTransaction() {
 		timeoutDuration = DefaultTimeoutDuration;
 		transactionIDMode=AutoTransactionID;
+		replyPacket=NULL;
+		commandPacket=NULL;
 	}
 
 public:
