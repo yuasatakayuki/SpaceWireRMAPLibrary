@@ -73,6 +73,56 @@ public:
 		}
 		return statusstring;
 	}
+
+	static std::string replyStatusToStringWithoutCodeValue(uint8_t status) {
+		using namespace std;
+		//Status
+		string statusstring;
+		stringstream ss;
+		switch (status) {
+		case 0x00:
+			statusstring = "Successfully Executed";
+			break;
+		case 0x01:
+			statusstring = "General Error";
+			break;
+		case 0x02:
+			statusstring = "Unused RMAP Packet Type or Command Code";
+			break;
+		case 0x03:
+			statusstring = "Invalid Target Key";
+			break;
+		case 0x04:
+			statusstring = "Invalid Data CRC";
+			break;
+		case 0x05:
+			statusstring = "Early EOP";
+			break;
+		case 0x06:
+			statusstring = "Cargo Too Large";
+			break;
+		case 0x07:
+			statusstring = "EEP";
+			break;
+		case 0x08:
+			statusstring = "Reserved";
+			break;
+		case 0x09:
+			statusstring = "Verify Buffer Overrun";
+			break;
+		case 0x0a:
+			statusstring = "RMAP Command Not Implemented or Not Authorized";
+			break;
+		case 0x0b:
+			statusstring = "Invalid Target Logical Address";
+			break;
+		default:
+			ss << "Reserved (" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) status << ")";
+			statusstring = ss.str();
+			break;
+		}
+		return statusstring;
+	}
 };
 
 #endif /* RMAPREPLYSTATUS_HH_ */
