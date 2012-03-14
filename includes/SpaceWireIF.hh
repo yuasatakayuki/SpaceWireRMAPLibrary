@@ -25,7 +25,7 @@ public:
 	};
 public:
 	SpaceWireIFException(uint32_t status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 	}
 public:
 	std::string toString() {
@@ -111,7 +111,7 @@ protected:
 	enum OpenCloseState state;
 
 protected:
-	bool eepShouldBeReportedAsAnException_;//default false (no exception)
+	bool eepShouldBeReportedAsAnException_; //default false (no exception)
 
 public:
 	enum EOPType {
@@ -140,10 +140,11 @@ public:
 
 public:
 	virtual void
-	send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) =0;
+	send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
+			throw (SpaceWireIFException) =0;
 
-	virtual void sendVectorReference(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
-			throw (SpaceWireIFException) {
+	virtual void sendVectorReference(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType =
+			SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		if (data.size() == 0) {
 			return;
 		} else {
@@ -169,8 +170,8 @@ public:
 		}
 	}
 
-	virtual void sendVectorPointer(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
-			throw (SpaceWireIFException) {
+	virtual void sendVectorPointer(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType =
+			SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		if (data->size() == 0) {
 			return;
 		} else {
@@ -200,8 +201,13 @@ public:
 
 	virtual std::vector<uint8_t>* receive() throw (SpaceWireIFException) {
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>();
-		this->receive(buffer);
-		return buffer;
+		try {
+			this->receive(buffer);
+			return buffer;
+		} catch (SpaceWireIFException e) {
+			delete buffer;
+			throw e;
+		}
 	}
 
 	virtual void receive(std::vector<uint8_t>* buffer) throw (SpaceWireIFException) =0;
@@ -245,7 +251,7 @@ public:
 	void addTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
 		for (size_t i = 0; i < timecodeSynchronizedActions.size(); i++) {
 			if (action == timecodeSynchronizedActions[i]) {
-				return;//already registered
+				return; //already registered
 			}
 		}
 		timecodeSynchronizedActions.push_back(action);
@@ -279,7 +285,7 @@ public:
 	void addSpaceWireIFCloseAction(SpaceWireIFActionCloseAction* spacewireIFCloseAction) {
 		for (size_t i = 0; i < spacewireIFCloseActions.size(); i++) {
 			if (spacewireIFCloseAction == spacewireIFCloseActions[i]) {
-				return;//already registered
+				return; //already registered
 			}
 		}
 		spacewireIFCloseActions.push_back(spacewireIFCloseAction);
@@ -293,6 +299,10 @@ public:
 			}
 		}
 		spacewireIFCloseActions = newActions;
+	}
+
+	void clearSpaceWireIFCloseActions() {
+		spacewireIFCloseActions.clear();
 	}
 
 	void invokeSpaceWireIFCloseActions() {
