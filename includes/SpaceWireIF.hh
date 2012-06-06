@@ -96,7 +96,7 @@ public:
  *  by inheriting this class.
  */
 class SpaceWireIF {
-private:
+protected:
 	std::vector<SpaceWireIFActionTimecodeScynchronizedAction*> timecodeSynchronizedActions;
 	std::vector<SpaceWireIFActionCloseAction*> spacewireIFCloseActions;
 	bool isTerminatedWithEEP_;
