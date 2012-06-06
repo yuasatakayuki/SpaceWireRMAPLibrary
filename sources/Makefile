@@ -1,10 +1,10 @@
 #Check CxxUtilities
-ifndef $(CXXUTILITIES_PATH)
+ifndef CXXUTILITIES_PATH
 CXXUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/CxxUtilities
 endif
 
 #Check XMLUtilities
-ifndef $(XMLUTILITIES_PATH)
+ifndef XMLUTILITIES_PATH
 XMLUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtilities
 endif
 
