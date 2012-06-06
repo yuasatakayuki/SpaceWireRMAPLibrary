@@ -137,6 +137,7 @@ public:
 				return true;
 			}
 		}
+		return false;
 	}
 
 	bool doesAcceptTransaction(RMAPTransaction* rmapTransaction) {
@@ -148,6 +149,7 @@ public:
 				return true;
 			}
 		}
+		return false;
 	}
 
 	void processTransaction(RMAPTransaction* rmapTransaction) throw (RMAPTargetException) {
