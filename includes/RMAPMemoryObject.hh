@@ -274,7 +274,7 @@ public:
 	}
 
 	bool isReadable() {
-		if (accessMode & Readable == 0) {
+		if ((accessMode & Readable) == 0) {
 			return false;
 		} else {
 			return true;
@@ -282,7 +282,7 @@ public:
 	}
 
 	bool isWritable() {
-		if (accessMode & Writable == 0) {
+		if ((accessMode & Writable) == 0) {
 			return false;
 		} else {
 			return true;
@@ -367,13 +367,13 @@ private:
 	std::string toStringAccessMode() {
 		using namespace std;
 		stringstream ss;
-		if (accessMode & Readable != 0) {
+		if ((accessMode & Readable) != 0) {
 			ss << "Readable";
 		}
-		if (accessMode & Writable != 0) {
+		if ((accessMode & Writable) != 0) {
 			ss << "Writable";
 		}
-		if (accessMode & RMWable != 0) {
+		if ((accessMode & RMWable) != 0) {
 			ss << "RMWable";
 		}
 		return ss.str();
