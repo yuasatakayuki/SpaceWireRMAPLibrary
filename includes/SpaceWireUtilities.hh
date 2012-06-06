@@ -116,7 +116,7 @@ public:
 	static std::string packetToString(uint8_t* data,int length,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
 		using namespace std;
 		size_t max;
-		if(nBytesDisplayed<length){
+		if(nBytesDisplayed<(unsigned int)length){
 			max=nBytesDisplayed;
 		}else{
 			max=length;
@@ -131,7 +131,7 @@ public:
 				ss << "  ";
 			}
 		}
-		if(max!=length){
+		if(max!=(unsigned int)length){
 			ss << " ... (total " << dec << length << " bytes)";
 		}
 		return ss.str();
