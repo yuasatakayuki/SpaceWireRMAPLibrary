@@ -38,14 +38,14 @@ public:
 	/** Constructor (client mode).
 	 */
 	SpaceWireIFOverTCP(std::string iphostname, uint32_t ipportnumber) :
-		SpaceWireIF(), iphostname(iphostname), ipportnumber(ipportnumber) {
+			SpaceWireIF(), iphostname(iphostname), ipportnumber(ipportnumber) {
 		setOperationMode(ClientMode);
 	}
 
 	/** Constructor (server mode).
 	 */
 	SpaceWireIFOverTCP(uint32_t ipportnumber) :
-		SpaceWireIF(), ipportnumber(ipportnumber) {
+			SpaceWireIF(), ipportnumber(ipportnumber) {
 		setOperationMode(ServerMode);
 	}
 
@@ -92,10 +92,10 @@ public:
 	void close() throw (SpaceWireIFException) {
 		using namespace CxxUtilities;
 		using namespace std;
-		if(state==Closed){
+		if (state == Closed) {
 			return;
 		}
-		state=Closed;
+		state = Closed;
 		//invoke SpaceWireIFCloseActions to tell other instances
 		//closing of this SpaceWire interface
 		invokeSpaceWireIFCloseActions();
@@ -122,9 +122,10 @@ public:
 	}
 
 public:
-	void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
+	void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
+			throw (SpaceWireIFException) {
 		using namespace std;
-		if(ssdtp==NULL){
+		if (ssdtp == NULL) {
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
 		}
 		try {
@@ -140,7 +141,7 @@ public:
 
 public:
 	void receive(std::vector<uint8_t>* buffer) throw (SpaceWireIFException) {
-		if(ssdtp==NULL){
+		if (ssdtp == NULL) {
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
 		}
 		try {
@@ -170,11 +171,12 @@ public:
 public:
 	void emitTimecode(uint8_t timeIn, uint8_t controlFlagIn = 0x00) throw (SpaceWireIFException) {
 		using namespace std;
-		if(ssdtp==NULL){
+		if (ssdtp == NULL) {
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
 		}
 		timeIn = timeIn % 64 + (controlFlagIn << 6);
 		try {
+			//emit timecode via SSDTP module
 			ssdtp->sendTimeCode(timeIn);
 		} catch (SpaceWireSSDTPException e) {
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
@@ -186,6 +188,10 @@ public:
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
+		}
+		//invoke timecode synchronized action
+		if (timecodeSynchronizedActions.size() != 0) {
+			this->invokeTimecodeSynchronizedActions(timeIn);
 		}
 	}
 
@@ -205,7 +211,7 @@ public:
 
 public:
 	void setTxDivCount(uint8_t txdivcount) {
-		if(ssdtp==NULL){
+		if (ssdtp == NULL) {
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
 		}
 		try {
@@ -231,7 +237,7 @@ public:
 
 public:
 	uint8_t getTimeCode() throw (SpaceWireIFException) {
-		if(ssdtp==NULL){
+		if (ssdtp == NULL) {
 			throw SpaceWireIFException(SpaceWireIFException::LinkIsNotOpened);
 		}
 		return ssdtp->getTimeCode();
