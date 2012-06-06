@@ -36,7 +36,7 @@ public:
 
 public:
 	RMAPInitiatorException(uint32_t status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 	}
 
 public:
@@ -88,12 +88,18 @@ public:
 };
 
 class RMAPInitiator {
+public:
+	static const uint16_t DefaultTransactionID = 0x00;
+	static const bool DefaultIncrementMode = true;
+	static const bool DefaultVerifyMode = true;
+	static const bool DefaultReplyMode = true;
+
 private:
 	RMAPEngine* rmapEngine;
 	RMAPPacket* commandPacket;
 	RMAPPacket* replyPacket;
 	CxxUtilities::Mutex mutex;
-	
+
 	CxxUtilities::Mutex deleteReplyPacketMutex;
 
 private:
@@ -114,6 +120,9 @@ private:
 	uint16_t transactionID;
 	bool isTransactionIDSet_;
 
+private:
+	bool useDraftECRC;
+
 public:
 	RMAPInitiator(RMAPEngine *rmapEngine) {
 		this->rmapEngine = rmapEngine;
@@ -123,10 +132,16 @@ public:
 		isVerifyModeSet_ = false;
 		isReplyModeSet_ = false;
 		isTransactionIDSet_ = false;
+		useDraftECRC = false;
+
+		transactionID = DefaultTransactionID;
+		incrementMode = DefaultIncrementMode;
+		verifyMode = DefaultVerifyMode;
+		replyMode = DefaultReplyMode;
 	}
 
 	~RMAPInitiator() {
-		if(commandPacket!=NULL){
+		if (commandPacket != NULL) {
 			delete commandPacket;
 		}
 		if (replyPacket != NULL) {
@@ -137,7 +152,7 @@ public:
 public:
 	void deleteReplyPacket() {
 		deleteReplyPacketMutex.lock();
-		if(replyPacket==NULL){
+		if (replyPacket == NULL) {
 			deleteReplyPacketMutex.unlock();
 			return;
 		}
@@ -162,7 +177,7 @@ public:
 public:
 	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
+					RMAPReplyException) {
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
@@ -178,7 +193,7 @@ public:
 	/** easy to use, but somewhat slow due to data copy. */
 	std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID, std::string memoryObjectID,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
+					RMAPReplyException) {
 		using namespace std;
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
@@ -241,12 +256,13 @@ public:
 
 	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
+					RMAPReplyException) {
 		using namespace std;
 		lock();
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
+		setCRCVersion();
 		commandPacket->setInitiatorLogicalAddress(this->getInitiatorLogicalAddress());
 		commandPacket->setRead();
 		commandPacket->setCommand();
@@ -282,7 +298,7 @@ public:
 		if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
-				uint8_t replyStatus=replyPacket->getStatus();
+				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
@@ -310,7 +326,7 @@ public:
 public:
 	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
+					RMAPReplyException) {
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
@@ -354,21 +370,22 @@ public:
 
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, std::vector<uint8_t>* data,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
-		uint8_t* pointer=NULL;
-		if(data->size()!=0){
-			pointer=&(data->at(0));
+					RMAPReplyException) {
+		uint8_t* pointer = NULL;
+		if (data->size() != 0) {
+			pointer = &(data->at(0));
 		}
-		write(rmapTargetNode,memoryAddress,pointer,data->size(),timeoutDuration);
+		write(rmapTargetNode, memoryAddress, pointer, data->size(), timeoutDuration);
 	}
 
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-			RMAPReplyException) {
+					RMAPReplyException) {
 		lock();
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
+		setCRCVersion();
 		commandPacket->setInitiatorLogicalAddress(this->getInitiatorLogicalAddress());
 		commandPacket->setWrite();
 		commandPacket->setCommand();
@@ -397,9 +414,9 @@ public:
 		setRMAPTransactionOptions(transaction);
 		rmapEngine->initiateTransaction(transaction);
 
-		if (!replyMode) {//if reply is not expected
+		if (!replyMode) { //if reply is not expected
 			if (transaction.state == RMAPTransaction::Initiated) {
-				transaction.state=RMAPTransaction::CommandSent;
+				transaction.state = RMAPTransaction::CommandSent;
 				unlock();
 				return;
 			} else {
@@ -408,7 +425,7 @@ public:
 				throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 			}
 		}
-		transaction.state=RMAPTransaction::CommandSent;
+		transaction.state = RMAPTransaction::CommandSent;
 
 		//if reply is expected
 		transaction.condition.wait(timeoutDuration);
@@ -416,6 +433,9 @@ public:
 		if (transaction.state == RMAPTransaction::CommandSent) {
 			if (replyMode) {
 				unlock();
+				//cancel transaction (return transaction ID)
+				rmapEngine->cancelTransaction(&transaction);
+				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
 				unlock();
@@ -424,7 +444,7 @@ public:
 		} else if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
-				uint8_t replyStatus=replyPacket->getStatus();
+				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
@@ -435,7 +455,7 @@ public:
 				//deleteReplyPacket();
 				return;
 			} else {
-				uint8_t replyStatus=replyPacket->getStatus();
+				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
@@ -486,23 +506,23 @@ private:
 public:
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
-		isInitiatorLogicalAddressSet_=true;
+		isInitiatorLogicalAddressSet_ = true;
 	}
 
 	uint8_t getInitiatorLogicalAddress() {
-		if(isInitiatorLogicalAddressSet_==true){
+		if (isInitiatorLogicalAddressSet_ == true) {
 			return initiatorLogicalAddress;
-		}else{
+		} else {
 			return RMAPProtocol::DefaultLogicalAddress;
 		}
 	}
 
-	bool isInitiatorLogicalAddressSet(){
+	bool isInitiatorLogicalAddressSet() {
 		return isInitiatorLogicalAddressSet_;
 	}
 
-	void unsetInitiatorLogicalAddress(){
-		isInitiatorLogicalAddressSet_=false;
+	void unsetInitiatorLogicalAddress() {
+		isInitiatorLogicalAddressSet_ = false;
 	}
 
 public:
@@ -596,6 +616,24 @@ public:
 
 	RMAPTargetNodeDB* getRMAPTargetNodeDB() {
 		return targetNodeDB;
+	}
+
+public:
+	bool isUseDraftECRC() const {
+		return useDraftECRC;
+	}
+
+	void setUseDraftECRC(bool useDraftEcrc) {
+		this->useDraftECRC = useDraftEcrc;
+	}
+
+private:
+	inline void setCRCVersion() {
+		if (!useDraftECRC) {
+			commandPacket->setUseDraftECRC(false);
+		} else {
+			commandPacket->setUseDraftECRC(true);
+		}
 	}
 
 };
