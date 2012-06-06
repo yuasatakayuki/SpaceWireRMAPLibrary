@@ -40,14 +40,14 @@ private:
 
 public:
 	RMAPEngineException(uint32_t status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 		rmapPacketCausedThisException = NULL;
 		causeIsRegistered = false;
 	}
 
 public:
 	RMAPEngineException(uint32_t status, RMAPPacket* packetCausedThisException) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 		this->rmapPacketCausedThisException = packetCausedThisException;
 		causeIsRegistered = true;
 	}
@@ -108,7 +108,7 @@ public:
 	public:
 		RMAPTargetProcessThread(RMAPEngine* rmapEngine, RMAPTransaction rmapTransaction,
 				RMAPTargetAccessAction* rmapTargetAcessAction) :
-			CxxUtilities::Thread() {
+				CxxUtilities::Thread() {
 			this->rmapEngine = rmapEngine;
 			this->rmapTargetAcessAction = rmapTargetAcessAction;
 			this->rmapTransaction = rmapTransaction;
@@ -193,11 +193,12 @@ public:
 	bool hasStopped;
 	CxxUtilities::Actions rmapEngineStoppedActions;
 
-private:
+public:
 	size_t nDiscardedReceivedPackets;
 	size_t nErrorneousReplyPackets;
 	size_t nErrorneousCommandPackets;
 	size_t nTransactionsAbortedWhenReplying;
+	size_t nErrorInRMAPReplyPacketProcessing;
 
 private:
 	bool stopActionsHasBeenExecuted;
@@ -237,6 +238,7 @@ private:
 		nErrorneousReplyPackets = 0;
 		nErrorneousCommandPackets = 0;
 		nTransactionsAbortedWhenReplying = 0;
+		nErrorInRMAPReplyPacketProcessing = 0;
 	}
 
 public:
@@ -323,18 +325,29 @@ private:
 	}
 
 	void rmapReplyPacketReceived(RMAPPacket* packet) throw (RMAPEngineException) {
-		//find a corresponding command packet
-		RMAPTransaction* transaction;
 		try {
-			transaction = this->resolveTransaction(packet);
-		} catch (RMAPEngineException e) {
-			//if not found, increment error counter
-			nErrorneousReplyPackets++;
-			return;
+			//find a corresponding command packet
+			RMAPTransaction* transaction;
+			try {
+				transactionIDMutex.lock();
+				transaction = this->resolveTransaction(packet);
+			} catch (RMAPEngineException e) {
+				//if not found, increment error counter
+				nErrorneousReplyPackets++;
+				transactionIDMutex.unlock();
+				return;
+			}
+			//register reply packet to the resolved transaction
+			transaction->replyPacket = packet;
+			//update transaction state
+			transaction->setState(RMAPTransaction::ReplyReceived);
+			transaction->getCondition()->signal();
+			transactionIDMutex.unlock();
+		} catch (CxxUtilities::MutexException e) {
+			std::cerr << "Fatal error in RMAPEngine::rmapReplyPacketReceived()... :-(" << std::endl;
+			std::cerr << "RMAPEngine tries to recover normal operation, but may fail continuously." << std::endl;
+			nErrorInRMAPReplyPacketProcessing++;
 		}
-		transaction->replyPacket = packet;
-		transaction->setState(RMAPTransaction::ReplyReceived);
-		transaction->getCondition()->signal();
 	}
 
 	void receivedPacketDiscarded() {
@@ -374,7 +387,7 @@ private:
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException e) {
-			
+
 			delete packet;
 			receivedPacketDiscarded();
 			return NULL;
@@ -388,14 +401,17 @@ private:
 		using namespace std;
 		transactionIDMutex.lock();
 		uint16_t transactionID = packet->getTransactionID();
-		if (isTransactionIDAvailable(transactionID) == true) {
-			throw RMAPEngineException(RMAPEngineException::UnexpectedRMAPReplyPacketWasReceived, packet);
-		} else {
+		if (isTransactionIDAvailable(transactionID) == true) { //if tid is not in use
 			transactionIDMutex.unlock();
+			throw RMAPEngineException(RMAPEngineException::UnexpectedRMAPReplyPacketWasReceived, packet);
+		} else { //if tid is registered to tid db
+			//resolve transaction
 			RMAPTransaction* transaction = transactions[transactionID];
-			transaction->setReplyPacket(packet);
-			transaction->state = RMAPTransaction::ReplyReceived;
-			transaction->getCondition()->signal();
+			//delete registered tid
+			deleteTransactionIDFromDB(transactionID);
+			//unlock mutex
+			transactionIDMutex.unlock();
+			//return resolved transaction
 			return transaction;
 		}
 		transactionIDMutex.unlock();
@@ -435,19 +451,24 @@ public:
 		}
 	}
 
-	void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
-		using namespace std;
-		RMAPPacket* commandPacket = transaction->getCommandPacket();
-		uint16_t transactionID = commandPacket->getTransactionID();
+	inline void deleteTransactionIDFromDB(uint16_t transactionID) {
 		//remove tid from management list
 		transactionIDMutex.lock();
 		std::map<uint16_t, RMAPTransaction*>::iterator it = transactions.find(transactionID);
-		if (it != transactions.end()) {//found
+		if (it != transactions.end()) { //found
 			transactions.erase(it);
 			pushBackUtilizedTransactionID(transactionID);
 		}
 		transactionIDMutex.unlock();
 		//put back the transaction id to the available list
+		pushBackUtilizedTransactionID(transactionID);
+	}
+
+	void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
+		using namespace std;
+		RMAPPacket* commandPacket = transaction->getCommandPacket();
+		uint16_t transactionID = commandPacket->getTransactionID();
+		deleteTransactionIDFromDB(transactionID);
 	}
 
 public:
