@@ -129,7 +129,6 @@ public:
 				return;
 			}
 			try {
-				SpaceWireUtilities::dumpPacket(&cout, rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.replyPacket->constructPacket();
 				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
 				rmapTransaction.setState(RMAPTransaction::ReplySent);
@@ -258,7 +257,11 @@ public:
 				} else {
 					rmapReplyPacketReceived(rmapPacket);
 				}
-			} catch (...) {
+			} catch (RMAPPacketException& e) {
+				cerr << "RMAPEngine::run() got RMAPPacketException " << e.toString() << endl;
+				break;
+			} catch (RMAPEngineException& e) {
+				cerr << "RMAPEngine::run() got RMAPEngineException " << e.toString() << endl;
 				break;
 			}
 		}
@@ -369,7 +372,7 @@ private:
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>;
 		try {
 			spwif->receive(buffer);
-		} catch (SpaceWireIFException e) {
+		} catch (SpaceWireIFException& e) {
 			if (e.status == SpaceWireIFException::Disconnected) {
 				//tell run() that SpaceWireIF is disconnected
 				throw RMAPEngineException(RMAPEngineException::SpaceWireIFDisconnected);
@@ -384,10 +387,10 @@ private:
 			}
 		}
 		RMAPPacket* packet = new RMAPPacket();
+		SpaceWireUtilities::dumpPacket(buffer);
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
-		} catch (RMAPPacketException e) {
-
+		} catch (RMAPPacketException& e) {
 			delete packet;
 			receivedPacketDiscarded();
 			return NULL;

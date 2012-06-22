@@ -27,6 +27,9 @@ public:
 	SpaceWireIFException(uint32_t status) :
 			CxxUtilities::Exception(status) {
 	}
+
+	virtual ~SpaceWireIFException(){}
+
 public:
 	std::string toString() {
 		std::string result;

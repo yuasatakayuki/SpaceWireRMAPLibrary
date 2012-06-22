@@ -31,13 +31,18 @@ public:
 		SpecifiedRMAPMemoryObjectIsNotReadable,
 		SpecifiedRMAPMemoryObjectIsNotWritable,
 		SpecifiedRMAPMemoryObjectIsNotRMWable,
-		RMAPTargetNodeDBIsNotRegistered
+		RMAPTargetNodeDBIsNotRegistered,
+		NonblockingTransactionHasNotBeenInitiated,
+		NonblockingTransactionHasNotBeenCompleted
 	};
 
 public:
 	RMAPInitiatorException(uint32_t status) :
 			CxxUtilities::Exception(status) {
 	}
+
+public:
+	virtual ~RMAPInitiatorException(){}
 
 public:
 	std::string toString() {
@@ -79,6 +84,12 @@ public:
 		case RMAPTargetNodeDBIsNotRegistered:
 			result = "RMAPTargetNodeDBIsNotRegistered";
 			break;
+		case NonblockingTransactionHasNotBeenInitiated:
+			result = "NonblockingTransactionHasNotBeenInitiated";
+			break;
+		case NonblockingTransactionHasNotBeenCompleted:
+			result = "NonblockingTransactionHasNotBeenCompleted";
+			break;
 		default:
 			result = "Undefined status";
 			break;
@@ -111,6 +122,9 @@ private:
 	bool isInitiatorLogicalAddressSet_;
 
 private:
+	RMAPTransaction transaction;
+
+private:
 	bool incrementMode;
 	bool isIncrementModeSet_;
 	bool verifyMode;
@@ -124,7 +138,7 @@ private:
 	bool useDraftECRC;
 
 public:
-	RMAPInitiator(RMAPEngine *rmapEngine) {
+	RMAPInitiator(RMAPEngine* rmapEngine) {
 		this->rmapEngine = rmapEngine;
 		commandPacket = new RMAPPacket();
 		replyPacket = new RMAPPacket();
@@ -254,6 +268,8 @@ public:
 		read(rmapTargetNode, memoryObject->getAddress(), memoryObject->getLength(), buffer, timeoutDuration);
 	}
 
+	/** Reads remote memory. This method blocks the current thread. For non-blocking access, use the nonblockingRead() method.
+	 */
 	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
@@ -279,7 +295,6 @@ public:
 		commandPacket->clearData();
 		/** InitiatorLogicalAddress might be updated in commandPacket->setRMAPTargetInformation(rmapTargetNode) below */
 		commandPacket->setRMAPTargetInformation(rmapTargetNode);
-		RMAPTransaction transaction;
 		transaction.commandPacket = this->commandPacket;
 		//tid
 		if (isTransactionIDSet_) {
@@ -289,9 +304,11 @@ public:
 			rmapEngine->initiateTransaction(transaction);
 		} catch (RMAPEngineException e) {
 			unlock();
+			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		} catch (...) {
 			unlock();
+			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		}
 		transaction.condition.wait(timeoutDuration);
@@ -300,11 +317,149 @@ public:
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
+				transaction.state = RMAPTransaction::NotInitiated;
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
 			}
 			if (replyPacket->getDataBuffer()->size() != length) {
 				unlock();
+				transaction.state = RMAPTransaction::NotInitiated;
+				deleteReplyPacket();
+				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
+			}
+			replyPacket->getData(buffer, length);
+			transaction.state = RMAPTransaction::NotInitiated;
+			unlock();
+			//when successful, replay packet is retained until next transaction for inspection by user application
+			//deleteReplyPacket();
+			return;
+		} else {
+			//cancel transaction (return transaction ID)
+			rmapEngine->cancelTransaction(&transaction);
+			transaction.state = RMAPTransaction::NotInitiated;
+			unlock();
+			deleteReplyPacket();
+			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
+		}
+	}
+
+public:
+	void nonblockingRead(std::string targetNodeID, uint32_t memoryAddress, uint32_t length) throw (RMAPEngineException,
+			RMAPInitiatorException, RMAPReplyException) {
+		if (targetNodeDB == NULL) {
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
+		}
+		nonblockingRead(targetNode, memoryAddress, length);
+	}
+
+	void nonblockingRead(std::string targetNodeID, std::string memoryObjectID) throw (RMAPEngineException,
+			RMAPInitiatorException, RMAPReplyException) {
+		if (targetNodeDB == NULL) {
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
+		RMAPTargetNode* targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		nonblockingRead(targetNode, memoryObjectID);
+	}
+
+	void nonblockingRead(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID) throw (RMAPEngineException,
+			RMAPInitiatorException, RMAPReplyException) {
+		RMAPMemoryObject* memoryObject;
+		try {
+			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
+		} catch (RMAPTargetNodeException e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		//check if the memory is readable.
+		if (!memoryObject->isReadable()) {
+			throw RMAPInitiatorException(RMAPInitiatorException::SpecifiedRMAPMemoryObjectIsNotReadable);
+		}
+		nonblockingRead(rmapTargetNode, memoryObject->getAddress(), memoryObject->getLength());
+	}
+
+	/** Reads remote memory without blocking the current thread.
+	 * This method returns immediately after initiating a transaction.
+	 * A result of the transaction can be checked via isNonblockingReadCompleted(),
+	 * and read data can be obtained via getNonblockingReadData().
+	 * Do not invoke other read/write methods while a non-blocking
+	 * read/write transaction is taking place, otherwise state information of
+	 * the non-blocking access will be corrupted. A non-blocking transaction
+	 * can be canceled via cancelNonblockingRead()/cancelNonblockingWrite().
+	 */
+	void nonblockingRead(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length)
+			throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
+		using namespace std;
+		lock();
+		if (replyPacket != NULL) {
+			deleteReplyPacket();
+		}
+		setCRCVersion();
+		commandPacket->setInitiatorLogicalAddress(this->getInitiatorLogicalAddress());
+		commandPacket->setRead();
+		commandPacket->setCommand();
+		if (incrementMode) {
+			commandPacket->setIncrementMode();
+		} else {
+			commandPacket->setNoIncrementMode();
+		}
+		commandPacket->setNoVerifyMode();
+		commandPacket->setReplyMode();
+		commandPacket->setExtendedAddress(0x00);
+		commandPacket->setAddress(memoryAddress);
+		commandPacket->setDataLength(length);
+		commandPacket->clearData();
+		/** InitiatorLogicalAddress might be updated in commandPacket->setRMAPTargetInformation(rmapTargetNode) below */
+		commandPacket->setRMAPTargetInformation(rmapTargetNode);
+		transaction.commandPacket = this->commandPacket;
+		//tid
+		if (isTransactionIDSet_) {
+			transaction.setTransactionID(transactionID);
+		}
+		try {
+			rmapEngine->initiateTransaction(transaction);
+			unlock();
+			return;
+		} catch (RMAPEngineException e) {
+			transaction.state = RMAPTransaction::NotInitiated;
+			unlock();
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
+		} catch (...) {
+			transaction.state = RMAPTransaction::NotInitiated;
+			unlock();
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
+		}
+	}
+
+	bool isNonblockingReadCompleted() {
+		if (transaction.state == RMAPTransaction::ReplyReceived) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	void getNonblockingReadData(uint8_t *buffer, uint32_t length) throw (RMAPInitiatorException) {
+		if (transaction.state == RMAPTransaction::NotInitiated) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NonblockingTransactionHasNotBeenInitiated);
+		}
+		if (transaction.state == RMAPTransaction::ReplyReceived) {
+			replyPacket = transaction.replyPacket;
+			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
+				uint8_t replyStatus = replyPacket->getStatus();
+				deleteReplyPacket();
+				throw RMAPReplyException(replyStatus);
+			}
+			if (replyPacket->getDataBuffer()->size() != length) {
 				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}
@@ -314,12 +469,15 @@ public:
 			//deleteReplyPacket();
 			return;
 		} else {
-			transaction.state = RMAPTransaction::Timeout;
+			throw RMAPInitiatorException(RMAPInitiatorException::NonblockingTransactionHasNotBeenCompleted);
+		}
+	}
+
+	void cancelNonblockingRead() {
+		try {
 			//cancel transaction (return transaction ID)
 			rmapEngine->cancelTransaction(&transaction);
-			unlock();
-			deleteReplyPacket();
-			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
+		} catch (...) {
 		}
 	}
 
@@ -378,6 +536,8 @@ public:
 		write(rmapTargetNode, memoryAddress, pointer, data->size(), timeoutDuration);
 	}
 
+	/** Writes remote memory. This method blocks the current thread. For non-blocking access, use the writeAsynchronouly() method.
+	 */
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
@@ -409,17 +569,17 @@ public:
 		commandPacket->setDataLength(length);
 		commandPacket->setRMAPTargetInformation(rmapTargetNode);
 		commandPacket->setData(data, length);
-		RMAPTransaction transaction;
 		transaction.commandPacket = this->commandPacket;
 		setRMAPTransactionOptions(transaction);
 		rmapEngine->initiateTransaction(transaction);
 
 		if (!replyMode) { //if reply is not expected
 			if (transaction.state == RMAPTransaction::Initiated) {
-				transaction.state = RMAPTransaction::CommandSent;
+				transaction.state = RMAPTransaction::NotInitiated;
 				unlock();
 				return;
 			} else {
+				transaction.state = RMAPTransaction::NotInitiated;
 				unlock();
 				//command was not sent successfully
 				throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
@@ -436,8 +596,10 @@ public:
 				//cancel transaction (return transaction ID)
 				rmapEngine->cancelTransaction(&transaction);
 				deleteReplyPacket();
+				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
+				transaction.state = RMAPTransaction::NotInitiated;
 				unlock();
 				return;
 			}
@@ -447,17 +609,20 @@ public:
 				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
+				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPReplyException(replyStatus);
 			}
 			if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				unlock();
 				//When successful, replay packet is retained until next transaction for inspection by user application
 				//deleteReplyPacket();
+				transaction.state = RMAPTransaction::NotInitiated;
 				return;
 			} else {
 				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
 				deleteReplyPacket();
+				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPReplyException(replyStatus);
 			}
 		} else if (transaction.state == RMAPTransaction::Timeout) {
@@ -465,6 +630,7 @@ public:
 			//cancel transaction (return transaction ID)
 			rmapEngine->cancelTransaction(&transaction);
 			deleteReplyPacket();
+			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
 	}

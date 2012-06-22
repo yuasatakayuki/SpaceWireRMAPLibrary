@@ -40,7 +40,7 @@ public:
 
 public:
 	RMAPAddressRange(uint32_t addressFrom, uint32_t addressTo) :
-		addressFrom(addressFrom), addressTo(addressTo) {
+			addressFrom(addressFrom), addressTo(addressTo) {
 
 	}
 
@@ -70,12 +70,19 @@ public:
 
 public:
 	RMAPTargetAccessActionException(int status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 
+	}
+
+	virtual ~RMAPTargetAccessActionException() {
 	}
 };
 
 class RMAPTargetAccessAction {
+public:
+	virtual ~RMAPTargetAccessAction() {
+	}
+
 public:
 	virtual void processTransaction(RMAPTransaction* rmapTransaction) throw (RMAPTargetAccessActionException)= 0;
 
@@ -90,12 +97,15 @@ public:
 
 public:
 	void setReplyWithDataWithStatus(RMAPTransaction* rmapTransaction, std::vector<uint8_t>* data, uint8_t status) {
-
+		rmapTransaction->replyPacket = RMAPPacket::constructReplyForCommand(rmapTransaction->commandPacket, status);
+		rmapTransaction->replyPacket->setData(*data);
 	}
 
-	void setReplyWithStatus(RMAPTransaction* rmapTransaction, std::vector<uint8_t>* data, uint8_t status) {
-
+	void setReplyWithStatus(RMAPTransaction* rmapTransaction, uint8_t status) {
+		rmapTransaction->replyPacket = RMAPPacket::constructReplyForCommand(rmapTransaction->commandPacket, status);
+		rmapTransaction->replyPacket->clearData();
 	}
+
 };
 
 class RMAPTargetException: public CxxUtilities::Exception {
@@ -106,7 +116,10 @@ public:
 
 public:
 	RMAPTargetException(int status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
+	}
+
+	virtual ~RMAPTargetException() {
 	}
 
 };
@@ -174,8 +187,8 @@ public:
 		using namespace std;
 		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
 		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength() - 1;
-		cout << "%1 " << "0x" << hex << right << setw(4) << setfill('0') << (uint32_t) addressFrom << " " << "0x"
-				<< hex << right << setw(2) << setfill('0') << (uint32_t) addressTo << endl;
+		cout << "%1 " << "0x" << hex << right << setw(4) << setfill('0') << (uint32_t) addressFrom << " " << "0x" << hex
+				<< right << setw(2) << setfill('0') << (uint32_t) addressTo << endl;
 		RMAPAddressRange addressRange(addressFrom, addressTo);
 		for (size_t i = 0; i < addressRanges.size(); i++) {
 			if (addressRanges[i]->contains(addressRange) == true) {

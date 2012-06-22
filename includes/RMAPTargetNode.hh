@@ -28,12 +28,12 @@ public:
 
 public:
 	RMAPTargetNodeException(int status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 		isErrorFilenameSet_ = false;
 	}
 
 	RMAPTargetNodeException(int status, std::string errorFilename) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 		setErrorFilename(errorFilename);
 	}
 
@@ -79,10 +79,11 @@ public:
 
 #ifndef NO_XMLLODER
 public:
-	static std::vector<RMAPTargetNode*> constructFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException,RMAPMemoryObjectException) {
+	static std::vector<RMAPTargetNode*> constructFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException,
+			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
 		ifstream ifs(filename.c_str());
-		if(!ifs.is_open()) {
+		if (!ifs.is_open()) {
 			throw RMAPTargetNodeException(RMAPTargetNodeException::FileNotFound);
 		}
 		ifs.close();
@@ -90,43 +91,44 @@ public:
 		XMLLoader::XMLLoader(&topNode, filename.c_str());
 		std::vector<RMAPTargetNode*> result;
 		try {
-			if(topNode!=NULL) {
-				result=constructFromXMLFile(topNode);
+			if (topNode != NULL) {
+				result = constructFromXMLFile(topNode);
 				return result;
 			} else {
-				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry,filename);
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, filename);
 			}
-		} catch(RMAPTargetNodeException e) {
-			if(e.isErrorFilenameSet()) {
+		} catch (RMAPTargetNodeException e) {
+			if (e.isErrorFilenameSet()) {
 				throw e;
 			} else {
-				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry,filename);
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, filename);
 			}
-		} catch(...) {
-			throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry,filename);
+		} catch (...) {
+			throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, filename);
 		}
 	}
 
-	static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException,RMAPMemoryObjectException) {
+	static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException,
+			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
-		if(topNode==NULL) {
+		if (topNode == NULL) {
 			throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
 		}
 		vector<XMLNode*> nodes = topNode->getChildren("RMAPTargetNode");
 		vector<RMAPTargetNode*> result;
 		for (unsigned int i = 0; i < nodes.size(); i++) {
-			if(nodes[i]!=NULL) {
+			if (nodes[i] != NULL) {
 				try {
 					result.push_back(RMAPTargetNode::constructFromXMLNode(nodes[i]));
-				} catch(RMAPMemoryObjectException e) {
+				} catch (RMAPMemoryObjectException e) {
 					throw e;
-				} catch(RMAPTargetNodeException e) {
-					if(e.isErrorFilenameSet()) {
-						throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry,e.getErrorFilename());
+				} catch (RMAPTargetNodeException e) {
+					if (e.isErrorFilenameSet()) {
+						throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, e.getErrorFilename());
 					} else {
 						throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
 					}
-				} catch(...) {
+				} catch (...) {
 					throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
 				}
 			} else {
@@ -136,12 +138,13 @@ public:
 		return result;
 	}
 
-	static RMAPTargetNode* constructFromXMLNode(XMLNode* node) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException,RMAPMemoryObjectException) {
+	static RMAPTargetNode* constructFromXMLNode(XMLNode* node) throw (XMLLoader::XMLLoaderException,
+			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
 		using namespace CxxUtilities;
 
-		const char* tagNames[] = {"TargetLogicalAddress", "TargetSpaceWireAddress", "ReplyAddress", "Key"};
-		const size_t nTagNames=4;
+		const char* tagNames[] = { "TargetLogicalAddress", "TargetSpaceWireAddress", "ReplyAddress", "Key" };
+		const size_t nTagNames = 4;
 		for (size_t i = 0; i < nTagNames; i++) {
 			if (node->getChild(string(tagNames[i])) == NULL) {
 				//not all of necessary tags are defined in the node configration part
@@ -152,8 +155,8 @@ public:
 		RMAPTargetNode* targetNode = new RMAPTargetNode();
 		targetNode->setID(node->getAttribute("id"));
 		targetNode->setTargetLogicalAddress(String::toInteger(node->getChild("TargetLogicalAddress")->getValue()));
-		vector<unsigned char> targetSpaceWireAddress = String::toUnsignedCharArray(node->getChild(
-						"TargetSpaceWireAddress")->getValue());
+		vector<unsigned char> targetSpaceWireAddress = String::toUnsignedCharArray(
+				node->getChild("TargetSpaceWireAddress")->getValue());
 		targetNode->setTargetSpaceWireAddress(targetSpaceWireAddress);
 		vector<unsigned char> replyAddress = String::toUnsignedCharArray(node->getChild("ReplyAddress")->getValue());
 		targetNode->setReplyAddress(replyAddress);
@@ -164,22 +167,23 @@ public:
 			using namespace std;
 			targetNode->setInitiatorLogicalAddress(node->getChild("InitiatorLogicalAddress")->getValueAsUInt8());
 		}
-		constructRMAPMemoryObjectFromXMLFile(node,targetNode);
+		constructRMAPMemoryObjectFromXMLFile(node, targetNode);
 
 		return targetNode;
 	}
 
 private:
-	static void constructRMAPMemoryObjectFromXMLFile(XMLNode* node,RMAPTargetNode* targetNode) throw (XMLLoader::XMLLoaderException,RMAPTargetNodeException,RMAPMemoryObjectException) {
+	static void constructRMAPMemoryObjectFromXMLFile(XMLNode* node, RMAPTargetNode* targetNode)
+			throw (XMLLoader::XMLLoaderException, RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
 		vector<XMLNode*> nodes = node->getChildren("RMAPMemoryObject");
 		for (unsigned int i = 0; i < nodes.size(); i++) {
-			if(nodes[i]!=NULL) {
+			if (nodes[i] != NULL) {
 				try {
 					targetNode->addMemoryObject(RMAPMemoryObject::constructFromXMLNode(nodes[i]));
-				} catch(RMAPMemoryObjectException e) {
+				} catch (RMAPMemoryObjectException e) {
 					throw e;
-				} catch(...) {
+				} catch (...) {
 					throw RMAPMemoryObjectException(RMAPMemoryObjectException::InvalidXMLEntry);
 				}
 			} else {
@@ -342,7 +346,7 @@ public:
 
 public:
 	RMAPTargetNodeDBException(int status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 
 	}
 
@@ -363,7 +367,7 @@ public:
 
 class RMAPTargetNodeDB {
 private:
-	std::map<std::string, RMAPTargetNode*> db;
+	std::map<std::string, RMAPTargetNode*> db; //targetNodeID-RMAPTargetNodeInstance
 
 public:
 	RMAPTargetNodeDB() {
@@ -421,7 +425,7 @@ public:
 		}
 	}
 
-	/** This method can return NULL when an RMAPTargetNode with an specified ID is not found.
+	/** This method can return NULL when an RMAPTargetNode with a specified ID is not found.
 	 */
 	RMAPTargetNode* findRMAPTargetNode(std::string id) {
 		std::map<std::string, RMAPTargetNode*>::iterator it = db.find(id);
@@ -431,6 +435,20 @@ public:
 			return NULL;
 		}
 	}
+
+public:
+	/** This method can return NULL when an RMAPTargetNode with a specified logical address is not found.
+	 */
+	RMAPTargetNode* findRMAPTargetNode(uint8_t logicalAddress) {
+		std::map<std::string, RMAPTargetNode*>::iterator it = db.begin();
+		for (; it != db.end(); it++) {
+			if (it->second->getTargetLogicalAddress() == logicalAddress) {
+				return it->second;
+			}
+		}
+		return NULL;
+	}
+
 };
 
 #endif /* RMAPTARGETNODE_HH_ */

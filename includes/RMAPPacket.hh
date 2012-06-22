@@ -1189,12 +1189,24 @@ public:
 	}
 
 public:
+	/** Constructs a reply packet for a corresponding command packet.
+	 * @param[in] commandPacket a command packet of which reply packet will be constructed
+	 */
 	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status =
 			RMAPReplyStatus::CommandExcecutedSuccessfully) {
-		RMAPPacket* replyPacket = new RMAPPacket();
-		*replyPacket = *commandPacket;
+		RMAPPacket* replyPacket=new RMAPPacket();
+		replyPacket->protocolID = RMAPProtocol::ProtocolIdentifier;
+		replyPacket->targetLogicalAddress = commandPacket->getInitiatorLogicalAddress();
+		replyPacket->key = commandPacket->getKey();
+		replyPacket->transactionID = commandPacket->getTransactionID();
+		replyPacket->status = RMAPProtocol::DefaultStatus;
+		replyPacket->instruction = commandPacket->getInstruction();
 		replyPacket->setReply();
-		replyPacket->clearData();
+		replyPacket->headerCRCMode = RMAPPacket::AutoCRC;
+		replyPacket->dataCRCMode = RMAPPacket::AutoCRC;
+		replyPacket->headerCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
+		replyPacket->dataCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
+		replyPacket->useDraftECRC = false;
 		replyPacket->setStatus(status);
 		return replyPacket;
 	}

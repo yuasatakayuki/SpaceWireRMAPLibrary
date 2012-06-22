@@ -20,7 +20,8 @@ main_RMAP_replyStatusToString \
 main_RMAP_readWriteRMAPTargetNode \
 main_RMAP_interpretAsAnRMAPPacket \
 main_RMAP_calculateCRC \
-main_RMAP_instructionToString 
+main_RMAP_instructionToString \
+main_SpaceWire_packetSink
 #test_RMAPTarget_ReadWriteRegisters
 #test_SpaceWireSSDTPModule \
 #test_RMAPTargetNode_fromXMLFile \

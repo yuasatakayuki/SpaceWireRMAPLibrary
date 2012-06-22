@@ -159,11 +159,13 @@ public:
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
+			using namespace std;
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
 		} catch (CxxUtilities::TCPSocketException e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
+			using namespace std;
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
 		}
 	}
