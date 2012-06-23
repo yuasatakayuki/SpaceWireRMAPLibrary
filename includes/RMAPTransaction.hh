@@ -27,6 +27,9 @@ public:
 	};
 
 public:
+	bool isNonblockingMode;
+
+public:
 	RMAPPacket* commandPacket;
 	RMAPPacket* replyPacket;
 
@@ -36,6 +39,7 @@ public:
 		transactionIDMode=AutoTransactionID;
 		replyPacket=NULL;
 		commandPacket=NULL;
+		isNonblockingMode=false;
 	}
 
 public:

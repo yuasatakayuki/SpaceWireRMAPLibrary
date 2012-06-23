@@ -328,11 +328,11 @@ private:
 	}
 
 	void rmapReplyPacketReceived(RMAPPacket* packet) throw (RMAPEngineException) {
+		using namespace std;
 		try {
 			//find a corresponding command packet
 			RMAPTransaction* transaction;
 			try {
-				transactionIDMutex.lock();
 				transaction = this->resolveTransaction(packet);
 			} catch (RMAPEngineException e) {
 				//if not found, increment error counter
@@ -344,12 +344,16 @@ private:
 			transaction->replyPacket = packet;
 			//update transaction state
 			transaction->setState(RMAPTransaction::ReplyReceived);
-			transaction->getCondition()->signal();
-			transactionIDMutex.unlock();
-		} catch (CxxUtilities::MutexException e) {
+			if (!transaction->isNonblockingMode) {
+				transaction->getCondition()->signal();
+			}
+		} catch (CxxUtilities::MutexException& e) {
 			std::cerr << "Fatal error in RMAPEngine::rmapReplyPacketReceived()... :-(" << std::endl;
 			std::cerr << "RMAPEngine tries to recover normal operation, but may fail continuously." << std::endl;
 			nErrorInRMAPReplyPacketProcessing++;
+		} catch (...) {
+			std::cerr << "Fatal error in RMAPEngine::rmapReplyPacketReceived()... :-(" << std::endl;
+			std::cerr << "RMAPEngine tries to recover normal operation, but may fail continuously." << std::endl;
 		}
 	}
 
@@ -387,7 +391,6 @@ private:
 			}
 		}
 		RMAPPacket* packet = new RMAPPacket();
-		SpaceWireUtilities::dumpPacket(buffer);
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException& e) {

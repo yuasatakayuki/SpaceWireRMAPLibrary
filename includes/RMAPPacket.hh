@@ -1195,18 +1195,9 @@ public:
 	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status =
 			RMAPReplyStatus::CommandExcecutedSuccessfully) {
 		RMAPPacket* replyPacket=new RMAPPacket();
-		replyPacket->protocolID = RMAPProtocol::ProtocolIdentifier;
-		replyPacket->targetLogicalAddress = commandPacket->getInitiatorLogicalAddress();
-		replyPacket->key = commandPacket->getKey();
-		replyPacket->transactionID = commandPacket->getTransactionID();
-		replyPacket->status = RMAPProtocol::DefaultStatus;
-		replyPacket->instruction = commandPacket->getInstruction();
+		*replyPacket=*commandPacket;
+		replyPacket->clearData();
 		replyPacket->setReply();
-		replyPacket->headerCRCMode = RMAPPacket::AutoCRC;
-		replyPacket->dataCRCMode = RMAPPacket::AutoCRC;
-		replyPacket->headerCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
-		replyPacket->dataCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
-		replyPacket->useDraftECRC = false;
 		replyPacket->setStatus(status);
 		return replyPacket;
 	}

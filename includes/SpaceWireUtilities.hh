@@ -17,7 +17,7 @@ public:
 	};
 public:
 	SpaceWireUtilitiesException(uint32_t status) :
-		CxxUtilities::Exception(status) {
+			CxxUtilities::Exception(status) {
 	}
 };
 
@@ -42,6 +42,14 @@ public:
 	}
 
 public:
+	static void dumpPacketUnsignedChar(std::vector<unsigned char>& data) throw (SpaceWireUtilitiesException) {
+		std::vector < uint8_t > data2(data.size());
+		for (size_t i = 0; i < data.size(); i++) {
+			data2[i] = data[i];
+		}
+		dumpPacket(&std::cout, &data2, 1);
+	}
+
 	static void dumpPacket(std::vector<uint8_t>& data) throw (SpaceWireUtilitiesException) {
 		dumpPacket(&std::cout, &data, 1);
 	}
@@ -106,20 +114,22 @@ public:
 		}
 	}
 
-	static std::string packetToString(std::vector<uint8_t>* data,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
-		if(data->size()==0){
+	static std::string packetToString(std::vector<uint8_t>* data, size_t nBytesDisplayed = 16)
+			throw (SpaceWireUtilitiesException) {
+		if (data->size() == 0) {
 			return "";
 		}
-		return packetToString(&(data->at(0)),data->size(),nBytesDisplayed);
+		return packetToString(&(data->at(0)), data->size(), nBytesDisplayed);
 	}
 
-	static std::string packetToString(uint8_t* data,int length,size_t nBytesDisplayed=16) throw (SpaceWireUtilitiesException) {
+	static std::string packetToString(uint8_t* data, int length, size_t nBytesDisplayed = 16)
+			throw (SpaceWireUtilitiesException) {
 		using namespace std;
 		size_t max;
-		if(nBytesDisplayed<(unsigned int)length){
-			max=nBytesDisplayed;
-		}else{
-			max=length;
+		if (nBytesDisplayed < (unsigned int) length) {
+			max = nBytesDisplayed;
+		} else {
+			max = length;
 		}
 		if (length == 0) {
 			return "(empty packet)";
@@ -131,12 +141,11 @@ public:
 				ss << "  ";
 			}
 		}
-		if(max!=(unsigned int)length){
+		if (max != (unsigned int) length) {
 			ss << " ... (total " << dec << length << " bytes)";
 		}
 		return ss.str();
 	}
-
 
 	static uint8_t convertStringToUnsignedChar(std::string str) {
 		using namespace std;
@@ -171,8 +180,8 @@ public:
 				cout << setfill('0') << setw(4) << hex << (address + i * 2) / 0x00010000;
 				cout << "-" << setfill('0') << setw(4) << hex << (address + i * 2) % 0x00010000;
 				cout << "  ";
-				cout << "0x" << setfill('0') << setw(4) << hex << (uint32_t) (data->at(i * 2 + 1) * 0x100 + data->at(i
-						* 2)) << endl;
+				cout << "0x" << setfill('0') << setw(4) << hex
+						<< (uint32_t) (data->at(i * 2 + 1) * 0x100 + data->at(i * 2)) << endl;
 			}
 		} else if (size != 0) {
 			size_t i;
@@ -180,8 +189,8 @@ public:
 				cout << setfill('0') << setw(4) << hex << (address + i * 2) / 0x00010000;
 				cout << "-" << setfill('0') << setw(4) << hex << (address + i * 2) % 0x00010000;
 				cout << "  ";
-				cout << "0x" << setfill('0') << setw(4) << hex << (uint32_t) (data->at(i * 2 + 1) * 0x100 + data->at(i
-						* 2)) << endl;
+				cout << "0x" << setfill('0') << setw(4) << hex
+						<< (uint32_t) (data->at(i * 2 + 1) * 0x100 + data->at(i * 2)) << endl;
 			}
 			cout << setfill('0') << setw(4) << hex << (address + i * 2) / 0x00010000;
 			cout << "-" << setfill('0') << setw(4) << hex << (address + i * 2) % 0x00010000;

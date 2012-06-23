@@ -187,8 +187,8 @@ public:
 		using namespace std;
 		uint32_t addressFrom = rmapTransaction->commandPacket->getAddress();
 		uint32_t addressTo = addressFrom + rmapTransaction->commandPacket->getLength() - 1;
-		cout << "%1 " << "0x" << hex << right << setw(4) << setfill('0') << (uint32_t) addressFrom << " " << "0x" << hex
-				<< right << setw(2) << setfill('0') << (uint32_t) addressTo << endl;
+/*		cout << "%1 " << "0x" << hex << right << setw(4) << setfill('0') << (uint32_t) addressFrom << " " << "0x" << hex
+				<< right << setw(2) << setfill('0') << (uint32_t) addressTo << endl;*/
 		RMAPAddressRange addressRange(addressFrom, addressTo);
 		for (size_t i = 0; i < addressRanges.size(); i++) {
 			if (addressRanges[i]->contains(addressRange) == true) {

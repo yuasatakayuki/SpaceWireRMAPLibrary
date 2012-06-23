@@ -275,6 +275,7 @@ public:
 					RMAPReplyException) {
 		using namespace std;
 		lock();
+		transaction.isNonblockingMode=false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -400,6 +401,7 @@ public:
 			throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		using namespace std;
 		lock();
+		transaction.isNonblockingMode=true;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -449,6 +451,7 @@ public:
 	}
 
 	void getNonblockingReadData(uint8_t *buffer, uint32_t length) throw (RMAPInitiatorException) {
+		using namespace std;
 		if (transaction.state == RMAPTransaction::NotInitiated) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NonblockingTransactionHasNotBeenInitiated);
 		}
@@ -464,7 +467,6 @@ public:
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}
 			replyPacket->getData(buffer, length);
-			unlock();
 			//when successful, replay packet is retained until next transaction for inspection by user application
 			//deleteReplyPacket();
 			return;
@@ -542,6 +544,7 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
 		lock();
+		transaction.isNonblockingMode=false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}

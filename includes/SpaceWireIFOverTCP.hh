@@ -27,7 +27,7 @@ public:
 
 private:
 	std::string iphostname;
-	uint32_t ipportnumber;
+	uint32_t portnumber;
 	SpaceWireSSDTPModule* ssdtp;
 	CxxUtilities::TCPSocket* datasocket;
 	CxxUtilities::TCPServerSocket* serverSocket;
@@ -37,19 +37,39 @@ private:
 public:
 	/** Constructor (client mode).
 	 */
-	SpaceWireIFOverTCP(std::string iphostname, uint32_t ipportnumber) :
-			SpaceWireIF(), iphostname(iphostname), ipportnumber(ipportnumber) {
+	SpaceWireIFOverTCP(std::string iphostname, uint32_t portnumber) :
+			SpaceWireIF(), iphostname(iphostname), portnumber(portnumber) {
 		setOperationMode(ClientMode);
 	}
 
 	/** Constructor (server mode).
 	 */
-	SpaceWireIFOverTCP(uint32_t ipportnumber) :
-			SpaceWireIF(), ipportnumber(ipportnumber) {
+	SpaceWireIFOverTCP(uint32_t portnumber) :
+			SpaceWireIF(), portnumber(portnumber) {
 		setOperationMode(ServerMode);
 	}
 
+	/** Constructor. Server/client mode will be determined later via
+	 * the setClientMode() or setServerMode() method.
+	 */
+	SpaceWireIFOverTCP() :
+			SpaceWireIF() {
+
+	}
+
 	virtual ~SpaceWireIFOverTCP() {
+	}
+
+public:
+	void setClientMode(std::string iphostname, uint32_t portnumber) {
+		setOperationMode(ClientMode);
+		this->iphostname = iphostname;
+		this->portnumber = portnumber;
+	}
+
+	void setServerMode(uint32_t portnumber) {
+		setOperationMode(ServerMode);
+		this->portnumber = portnumber;
 	}
 
 public:
@@ -61,7 +81,7 @@ public:
 			datasocket = NULL;
 			ssdtp = NULL;
 			try {
-				datasocket = new TCPClientSocket(iphostname, ipportnumber);
+				datasocket = new TCPClientSocket(iphostname, portnumber);
 				((TCPClientSocket*) datasocket)->open(1000);
 				setTimeoutDuration(1000000);
 			} catch (CxxUtilities::TCPSocketException e) {
@@ -74,7 +94,7 @@ public:
 			datasocket = NULL;
 			ssdtp = NULL;
 			try {
-				serverSocket = new TCPServerSocket(ipportnumber);
+				serverSocket = new TCPServerSocket(portnumber);
 				serverSocket->open();
 				datasocket = serverSocket->accept();
 				setTimeoutDuration(1000000);
