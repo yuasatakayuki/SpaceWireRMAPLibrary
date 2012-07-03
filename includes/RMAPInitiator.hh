@@ -322,7 +322,7 @@ public:
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
 			}
-			if (replyPacket->getDataBuffer()->size() != length) {
+			if (length < replyPacket->getDataBuffer()->size()) {
 				unlock();
 				transaction.state = RMAPTransaction::NotInitiated;
 				deleteReplyPacket();
@@ -462,7 +462,7 @@ public:
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
 			}
-			if (replyPacket->getDataBuffer()->size() != length) {
+			if (length < replyPacket->getDataBuffer()->size()) {
 				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}

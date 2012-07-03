@@ -228,6 +228,7 @@ private:
 		stopped = true;
 		spacewireIFActionCloseAction = NULL;
 		stopActionsHasBeenExecuted = false;
+		useDraftECRC=false;
 		//initialize counters
 		initializeCounters();
 	}
@@ -371,6 +372,9 @@ protected:
 	}
 
 private:
+	bool useDraftECRC;
+
+private:
 	RMAPPacket* receivePacket() throw (RMAPEngineException) {
 		using namespace std;
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>;
@@ -391,6 +395,12 @@ private:
 			}
 		}
 		RMAPPacket* packet = new RMAPPacket();
+		if (!useDraftECRC) {
+			packet->setUseDraftECRC(false);
+		} else {
+			packet->setUseDraftECRC(true);
+		}
+
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException& e) {
@@ -574,6 +584,15 @@ private:
 			rmapEngineStoppedActions.doEachAction(this);
 			stopActionsHasBeenExecuted = true;
 		}
+	}
+
+public:
+	bool isUseDraftECRC() const {
+		return useDraftECRC;
+	}
+
+	void setUseDraftECRC(bool useDraftEcrc) {
+		this->useDraftECRC = useDraftEcrc;
 	}
 
 };
