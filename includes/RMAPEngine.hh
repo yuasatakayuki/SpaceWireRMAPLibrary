@@ -228,7 +228,7 @@ private:
 		stopped = true;
 		spacewireIFActionCloseAction = NULL;
 		stopActionsHasBeenExecuted = false;
-		useDraftECRC=false;
+		useDraftECRC = false;
 		//initialize counters
 		initializeCounters();
 	}
@@ -591,7 +591,7 @@ public:
 		return useDraftECRC;
 	}
 
-	void setUseDraftECRC(bool useDraftEcrc) {
+	void setUseDraftECRC(bool useDraftEcrc = true) {
 		this->useDraftECRC = useDraftEcrc;
 	}
 

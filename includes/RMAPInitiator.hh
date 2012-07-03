@@ -42,7 +42,8 @@ public:
 	}
 
 public:
-	virtual ~RMAPInitiatorException(){}
+	virtual ~RMAPInitiatorException() {
+	}
 
 public:
 	std::string toString() {
@@ -275,7 +276,7 @@ public:
 					RMAPReplyException) {
 		using namespace std;
 		lock();
-		transaction.isNonblockingMode=false;
+		transaction.isNonblockingMode = false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -401,7 +402,7 @@ public:
 			throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		using namespace std;
 		lock();
-		transaction.isNonblockingMode=true;
+		transaction.isNonblockingMode = true;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -544,7 +545,7 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
 		lock();
-		transaction.isNonblockingMode=false;
+		transaction.isNonblockingMode = false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
 		}
@@ -792,7 +793,7 @@ public:
 		return useDraftECRC;
 	}
 
-	void setUseDraftECRC(bool useDraftEcrc) {
+	void setUseDraftECRC(bool useDraftEcrc = true) {
 		this->useDraftECRC = useDraftEcrc;
 	}
 
