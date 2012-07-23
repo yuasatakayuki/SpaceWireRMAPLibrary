@@ -84,7 +84,7 @@ public:
 				datasocket = new TCPClientSocket(iphostname, portnumber);
 				((TCPClientSocket*) datasocket)->open(1000);
 				setTimeoutDuration(1000000);
-			} catch (CxxUtilities::TCPSocketException e) {
+			} catch (CxxUtilities::TCPSocketException& e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
@@ -98,7 +98,7 @@ public:
 				serverSocket->open();
 				datasocket = serverSocket->accept();
 				setTimeoutDuration(1000000);
-			} catch (CxxUtilities::TCPSocketException e) {
+			} catch (CxxUtilities::TCPSocketException& e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
@@ -150,7 +150,7 @@ public:
 		}
 		try {
 			ssdtp->send(data, length, eopType);
-		} catch (SpaceWireSSDTPException e) {
+		} catch (SpaceWireSSDTPException& e) {
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			} else {
@@ -175,13 +175,13 @@ public:
 			} else {
 				this->setReceivedPacketEOPMarkerType(SpaceWireIF::EOP);
 			}
-		} catch (SpaceWireSSDTPException e) {
+		} catch (SpaceWireSSDTPException& e) {
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
 			using namespace std;
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
@@ -200,12 +200,12 @@ public:
 		try {
 			//emit timecode via SSDTP module
 			ssdtp->sendTimeCode(timeIn);
-		} catch (SpaceWireSSDTPException e) {
+		} catch (SpaceWireSSDTPException& e) {
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
@@ -238,12 +238,12 @@ public:
 		}
 		try {
 			ssdtp->setTxDivCount(txdivcount);
-		} catch (SpaceWireSSDTPException e) {
+		} catch (SpaceWireSSDTPException& e) {
 			if (e.getStatus() == SpaceWireSSDTPException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}
 			throw SpaceWireIFException(SpaceWireIFException::Disconnected);
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireIFException(SpaceWireIFException::Timeout);
 			}

@@ -307,9 +307,9 @@ public:
 //		cout << "#9" << endl;
 			receivemutex.unlock();
 			return size;
-		} catch (SpaceWireSSDTPException e) {
+		} catch (SpaceWireSSDTPException& e) {
 			throw e;
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			using namespace std;
 //			cout << "#SpaceWireSSDTPModule::receive() caught TCPSocketException(" << e.toString() << ")" << endl;
 			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
@@ -338,7 +338,7 @@ public:
 			sendmutex.lock();
 			datasocket->send(sendbuffer, 14);
 			sendmutex.unlock();
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			sendmutex.unlock();
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireSSDTPException(SpaceWireSSDTPException::Timeout);
@@ -394,7 +394,7 @@ public:
 		sendbuffer[13] = 0;
 		try {
 			datasocket->send(sendbuffer, 14);
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			sendmutex.unlock();
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireSSDTPException(SpaceWireSSDTPException::Timeout);
@@ -410,7 +410,7 @@ public:
 		sendmutex.lock();
 		try {
 			datasocket->send(data, length);
-		} catch (CxxUtilities::TCPSocketException e) {
+		} catch (CxxUtilities::TCPSocketException& e) {
 			sendmutex.unlock();
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 				throw SpaceWireSSDTPException(SpaceWireSSDTPException::Timeout);
