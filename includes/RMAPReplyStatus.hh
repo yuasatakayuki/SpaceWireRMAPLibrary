@@ -22,7 +22,7 @@ public:
 		VerifyBufferOverrun=0x09,
 		CommandNotImplementedOrNotAuthorized=0x0a,
 		RMWDataLengthError=0x0b,
-		InvalidDataDestinationLogicalAddress=0x0c
+		InvalidTargetLogicalAddress=0x0c
 	};
 	static std::string replyStatusToString(uint8_t status) {
 		using namespace std;
