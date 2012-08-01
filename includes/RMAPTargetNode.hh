@@ -449,6 +449,16 @@ public:
 		return NULL;
 	}
 
+public:
+	std::vector<RMAPTargetNode*> getAllRMAPTargetNodes(){
+		std::vector<RMAPTargetNode*> targetNodes;
+		std::map<std::string, RMAPTargetNode*>::iterator it = db.begin();
+		while (it != db.end()) {
+			targetNodes.push_back(it->second);
+			it++;
+		}
+		return targetNodes;
+	}
 };
 
 #endif /* RMAPTARGETNODE_HH_ */
