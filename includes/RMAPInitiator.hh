@@ -316,6 +316,7 @@ public:
 		transaction.condition.wait(timeoutDuration);
 		if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
+			transaction.replyPacket = NULL;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
@@ -593,13 +594,13 @@ public:
 
 		//if reply is expected
 		transaction.condition.wait(timeoutDuration);
-		replyPacket = transaction.replyPacket;
 		if (transaction.state == RMAPTransaction::CommandSent) {
 			if (replyMode) {
 				unlock();
 				//cancel transaction (return transaction ID)
 				rmapEngine->cancelTransaction(&transaction);
-				deleteReplyPacket();
+				//reply packet is not created, and therefore the line below is not necessary
+				//deleteReplyPacket();
 				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
@@ -609,6 +610,7 @@ public:
 			}
 		} else if (transaction.state == RMAPTransaction::ReplyReceived) {
 			replyPacket = transaction.replyPacket;
+			transaction.replyPacket = NULL;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				uint8_t replyStatus = replyPacket->getStatus();
 				unlock();
