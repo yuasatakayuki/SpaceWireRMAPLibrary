@@ -381,6 +381,7 @@ private:
 		try {
 			spwif->receive(buffer);
 		} catch (SpaceWireIFException& e) {
+			delete buffer;
 			if (e.status == SpaceWireIFException::Disconnected) {
 				//tell run() that SpaceWireIF is disconnected
 				throw RMAPEngineException(RMAPEngineException::SpaceWireIFDisconnected);
@@ -405,6 +406,7 @@ private:
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException& e) {
 			delete packet;
+			delete buffer;
 			receivedPacketDiscarded();
 			return NULL;
 		}
