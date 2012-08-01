@@ -243,10 +243,14 @@ public:
 					while (received_size != flagment_size) {
 //					cout << "#6" << endl;
 						long result;
+						_loop_receiveDataPart: //
 						try {
 							result = datasocket->receive(data_pointer + size + received_size,
 									flagment_size - received_size);
 						} catch (CxxUtilities::TCPSocketException e) {
+							if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
+								goto _loop_receiveDataPart;
+							}
 							cout << "SSDTPModule::receive() exception when receiving data" << endl;
 							cout << "rheader[0]=0x" << setw(2) << setfill('0') << hex << (uint32_t) rheader[0] << endl;
 							cout << "rheader[1]=0x" << setw(2) << setfill('0') << hex << (uint32_t) rheader[1] << endl;
@@ -335,7 +339,6 @@ public:
 		sendbuffer[12] = timecode;
 		sendbuffer[13] = 0;
 		try {
-			sendmutex.lock();
 			datasocket->send(sendbuffer, 14);
 			sendmutex.unlock();
 		} catch (CxxUtilities::TCPSocketException& e) {
@@ -346,7 +349,6 @@ public:
 				throw SpaceWireSSDTPException(SpaceWireSSDTPException::Disconnected);
 			}
 		}
-		sendmutex.unlock();
 	}
 
 	uint8_t getTimeCode() throw (SpaceWireSSDTPException) {
@@ -365,9 +367,9 @@ public:
 		using namespace std;
 		if (timecodeaction != NULL) {
 			timecodeaction->doAction(timecode);
-		}else {
-		/*	cout << "SSDTPModule::gotTimeCode(): Got TimeCode : " << hex << setw(2) << setfill('0')
-					<< (uint32_t) timecode << dec << endl;*/
+		} else {
+			/*	cout << "SSDTPModule::gotTimeCode(): Got TimeCode : " << hex << setw(2) << setfill('0')
+			 << (uint32_t) timecode << dec << endl;*/
 		}
 	}
 
