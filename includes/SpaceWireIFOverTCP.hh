@@ -104,6 +104,7 @@ public:
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			}
 		}
+		datasocket->setNoDelay();
 		ssdtp = new SpaceWireSSDTPModule(datasocket);
 		ssdtp->setTimeCodeAction(this);
 		state = Opened;
