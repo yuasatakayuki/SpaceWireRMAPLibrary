@@ -433,7 +433,7 @@ public:
 			rmapEngine->initiateTransaction(transaction);
 			unlock();
 			return;
-		} catch (RMAPEngineException e) {
+		} catch (RMAPEngineException& e) {
 			transaction.state = RMAPTransaction::NotInitiated;
 			unlock();
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
