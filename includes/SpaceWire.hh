@@ -9,6 +9,7 @@
 #define SPACEWIRE_HH_
 
 #include "SpaceWireEOPMarker.hh"
+#include "SpaceWirePacket.hh"
 #include "SpaceWireIF.hh"
 #include "SpaceWireIFOverTCP.hh"
 #include "SpaceWireIFOverIPClient.hh"
