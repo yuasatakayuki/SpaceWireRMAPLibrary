@@ -1,0 +1,18 @@
+/*
+ * SpaceWireRProtocol.hh
+ *
+ *  Created on: Apr 21, 2012
+ *      Author: yuasa
+ */
+
+#ifndef SPACEWIRERPROTOCOL_HH_
+#define SPACEWIRERPROTOCOL_HH_
+
+class SpaceWireRProtocol {
+public:
+	static uint8_t ProtocolID;
+};
+
+uint8_t SpaceWireRProtocol::ProtocolID=0x10;
+
+#endif /* SPACEWIRERPROTOCOL_HH_ */
