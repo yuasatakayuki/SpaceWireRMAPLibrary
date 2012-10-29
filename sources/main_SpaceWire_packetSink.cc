@@ -11,6 +11,13 @@
 using namespace CxxUtilities;
 using namespace std;
 
+class SpaceWireTimecodeAction_DumpTimecode : public SpaceWireIFActionTimecodeScynchronizedAction {
+public:
+	void doAction(uint8_t timecode){
+		cout << CxxUtilities::Time::getCurrentTimeAsString() << " Timecode " << hex << setw(2) << setfill('0') << (uint32_t)timecode << " was received." << dec << endl;
+	}
+};
+
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cerr << "Give IP address and port number of SpaceWire-to-GigabitEther" << endl;
@@ -27,6 +34,8 @@ int main(int argc, char* argv[]) {
 		cerr << "Could not connect to " << ipaddress << "." << endl;
 		exit(-1);
 	}
+	SpaceWireTimecodeAction_DumpTimecode* timecodeAction_DumpTimecode=new SpaceWireTimecodeAction_DumpTimecode();
+	spwif->addTimecodeAction(timecodeAction_DumpTimecode);
 
 	std::vector<uint8_t> buffer;
 	while (true) {
