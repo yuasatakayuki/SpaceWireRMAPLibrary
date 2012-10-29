@@ -11,6 +11,12 @@
 #include <vector>
 
 class SpaceWirePacket {
+public:
+	static const uint8_t DefaultLogicalAddress = 0xFE;
+
+public:
+	static const uint8_t DefaultProtocolID = 0x00;
+
 protected:
 	std::vector<uint8_t> wholePacket;
 
@@ -20,11 +26,25 @@ protected:
 	uint8_t targetLogicalAddress;
 
 public:
+	SpaceWirePacket() {
+		this->targetLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
+		this->protocolID = DefaultProtocolID;
+	}
+
+public:
 	uint8_t getTargetLogicalAddress() const {
 		return targetLogicalAddress;
 	}
 
 	std::vector<uint8_t> getTargetSpaceWireAddress() const {
+		return targetSpaceWireAddress;
+	}
+
+	uint8_t getDestinationLogicalAddress() const {
+		return targetLogicalAddress;
+	}
+
+	std::vector<uint8_t> getDestinationSpaceWireAddress() const {
 		return targetSpaceWireAddress;
 	}
 
