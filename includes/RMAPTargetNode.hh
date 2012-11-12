@@ -97,7 +97,7 @@ public:
 			} else {
 				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, filename);
 			}
-		} catch (RMAPTargetNodeException e) {
+		} catch (RMAPTargetNodeException& e) {
 			if (e.isErrorFilenameSet()) {
 				throw e;
 			} else {
@@ -120,9 +120,9 @@ public:
 			if (nodes[i] != NULL) {
 				try {
 					result.push_back(RMAPTargetNode::constructFromXMLNode(nodes[i]));
-				} catch (RMAPMemoryObjectException e) {
+				} catch (RMAPMemoryObjectException& e) {
 					throw e;
-				} catch (RMAPTargetNodeException e) {
+				} catch (RMAPTargetNodeException& e) {
 					if (e.isErrorFilenameSet()) {
 						throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry, e.getErrorFilename());
 					} else {
@@ -181,7 +181,7 @@ private:
 			if (nodes[i] != NULL) {
 				try {
 					targetNode->addMemoryObject(RMAPMemoryObject::constructFromXMLNode(nodes[i]));
-				} catch (RMAPMemoryObjectException e) {
+				} catch (RMAPMemoryObjectException& e) {
 					throw e;
 				} catch (...) {
 					throw RMAPMemoryObjectException(RMAPMemoryObjectException::InvalidXMLEntry);
