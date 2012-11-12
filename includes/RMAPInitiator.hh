@@ -199,7 +199,7 @@ public:
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
 		}
 		read(targetNode, memoryAddress, length, buffer, timeoutDuration);
@@ -217,14 +217,14 @@ public:
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
 		}
 
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = targetNode->getMemoryObject(memoryObjectID);
-		} catch (RMAPTargetNodeException e) {
+		} catch (RMAPTargetNodeException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 
@@ -248,7 +248,7 @@ public:
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		read(targetNode, memoryObjectID, buffer, timeoutDuration);
@@ -259,7 +259,7 @@ public:
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
-		} catch (RMAPTargetNodeException e) {
+		} catch (RMAPTargetNodeException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		//check if the memory is readable.
@@ -304,7 +304,7 @@ public:
 		}
 		try {
 			rmapEngine->initiateTransaction(transaction);
-		} catch (RMAPEngineException e) {
+		} catch (RMAPEngineException& e) {
 			unlock();
 			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
@@ -355,7 +355,7 @@ public:
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPTargetNode);
 		}
 		nonblockingRead(targetNode, memoryAddress, length);
@@ -369,7 +369,7 @@ public:
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		nonblockingRead(targetNode, memoryObjectID);
@@ -380,7 +380,7 @@ public:
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
-		} catch (RMAPTargetNodeException e) {
+		} catch (RMAPTargetNodeException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		//check if the memory is readable.
@@ -495,7 +495,7 @@ public:
 		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		write(targetNode, memoryAddress, data, length, timeoutDuration);
@@ -509,7 +509,7 @@ public:
 		RMAPTargetNode *targetNode;
 		try {
 			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
-		} catch (RMAPTargetNodeDBException e) {
+		} catch (RMAPTargetNodeDBException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		write(targetNode, memoryObjectID, data, timeoutDuration);
@@ -520,7 +520,7 @@ public:
 		RMAPMemoryObject* memoryObject;
 		try {
 			memoryObject = rmapTargetNode->getMemoryObject(memoryObjectID);
-		} catch (RMAPTargetNodeException e) {
+		} catch (RMAPTargetNodeException& e) {
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		//check if the memory is readable.
