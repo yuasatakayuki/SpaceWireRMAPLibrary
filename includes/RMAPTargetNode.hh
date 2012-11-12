@@ -195,6 +195,46 @@ private:
 #endif
 
 public:
+	void pushLeadingTargetSpaceWireAddress(uint8_t spaceWireAddress){
+		std::vector<uint8_t> newList;
+		newList.push_back(spaceWireAddress);
+		for(size_t i=0;i<targetSpaceWireAddress.size();i++){
+			newList.push_back(targetSpaceWireAddress.at(i));
+		}
+		targetSpaceWireAddress=newList;
+	}
+
+public:
+	void pushTrailingTargetSpaceWireAddress(uint8_t spaceWireAddress){
+		std::vector<uint8_t> newList;
+		for(size_t i=0;i<targetSpaceWireAddress.size();i++){
+			newList.push_back(targetSpaceWireAddress.at(i));
+		}
+		newList.push_back(spaceWireAddress);
+		targetSpaceWireAddress=newList;
+	}
+
+public:
+	void pushLeadingReplyAddress(uint8_t spaceWireAddress){
+		std::vector<uint8_t> newList;
+		newList.push_back(spaceWireAddress);
+		for(size_t i=0;i<replyAddress.size();i++){
+			newList.push_back(replyAddress.at(i));
+		}
+		replyAddress=newList;
+	}
+
+public:
+	void pushTrailingReplyAddress(uint8_t spaceWireAddress){
+		std::vector<uint8_t> newList;
+		for(size_t i=0;i<replyAddress.size();i++){
+			newList.push_back(replyAddress.at(i));
+		}
+		newList.push_back(spaceWireAddress);
+		replyAddress=newList;
+	}
+
+public:
 	uint8_t getDefaultKey() const {
 		return defaultKey;
 	}
