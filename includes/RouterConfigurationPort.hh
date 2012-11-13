@@ -28,19 +28,38 @@ public:
 		case NotImplemented:
 			str = "NotImplemented";
 			break;
+		case OperationFailed:
+			str="OperationFailed";
+			break;
+		case InvalidPortNumber:
+			str = "InvalidPortNumber";
+			break;
+		case InvalidLinkFrequency:
+			str = "InvalidLinkFrequency";
+			break;
+		case RMAPInitiatorIsNotAvailable:
+			str = "RMAPInitiatorIsNotAvailable";
+			break;
 		}
 		return str;
 	}
 public:
 	enum {
-		NotImplemented
+		NotImplemented, //
+		OperationFailed, //
+		InvalidPortNumber, //
+		InvalidLinkFrequency, //
+		RMAPInitiatorIsNotAvailable
 	};
 };
 
 class RouterConfigurationPort {
-private:
+protected:
 	std::vector<uint8_t> additionalTargetSpaceWireAddress;
 	std::vector<uint8_t> additionalReplyAddress;
+
+protected:
+	RMAPInitiator* rmapInitiator;
 
 public:
 	virtual ~RouterConfigurationPort() {
@@ -59,10 +78,62 @@ public:
 	virtual std::string getConfigurationFileAsString() = 0;
 
 public:
-	virtual uint32_t getRoutingTableAddress(uint8_t logicalAddress) = 0;
+	virtual uint32_t getRoutingTableAddress(uint8_t logicalAddress) throw (RouterConfigurationPortException) = 0;
 
 public:
-	virtual RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress) = 0;
+	virtual RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress)
+			throw (RouterConfigurationPortException) = 0;
+
+public:
+	virtual uint32_t getLinkFrequencyRegisterAddress(uint8_t port) throw (RouterConfigurationPortException) = 0;
+
+public:
+	virtual RMAPMemoryObject* getLinkFrequencyRegisterMemoryObject(uint8_t port)
+			throw (RouterConfigurationPortException) = 0;
+
+public:
+	std::vector<double> getAvailableLinkFrequencies(uint8_t port) = 0;
+
+public:
+	void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void setLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void setAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+
+public:
+	bool isLinkFrequencyValid(uint8_t port, double linkFrequency) {
+		std::vector<double> linkFrequencies = getAvailableLinkFrequencies(port);
+		for (size_t i = 0; i < linkFrequencies.size(); i++) {
+			if (linkFrequencies[i] == linkFrequencies) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 public:
 	const std::vector<uint8_t>& getAdditionalReplyAddress() const {
@@ -82,6 +153,16 @@ public:
 public:
 	void setAdditionalTargetSpaceWireAddress(const std::vector<uint8_t>& additionalTargetSpaceWireAddress) {
 		this->additionalTargetSpaceWireAddress = additionalTargetSpaceWireAddress;
+	}
+
+public:
+	RMAPInitiator* getRMAPInitiator() const {
+		return rmapInitiator;
+	}
+
+public:
+	void setRMAPInitiator(const RMAPInitiator* rmapInitiator) {
+		this->rmapInitiator = rmapInitiator;
 	}
 };
 
