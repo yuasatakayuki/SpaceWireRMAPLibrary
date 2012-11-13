@@ -9,18 +9,20 @@
 #define SHIMAFUJIELECTRICSPACEWIRETOGIGABITETHERNETSTANDALONE_HH_
 
 #include <string>
-#include "RouterConfigurationPort.hh"
+#include "../RouterConfigurationPort.hh"
 
 class ShimafujiElectricSpaceWireToGigabitEthernetStandalone: public RouterConfigurationPort {
 public:
 	static const size_t NumberOfExternalPorts = 4;
 	static const size_t NumberOfInternalPorts = 2;
+	static const size_t MaximumPortNumber = 9;
 
 private:
 	RMAPTargetNode* routerConfigurationPort;
 
 public:
 	ShimafujiElectricSpaceWireToGigabitEthernetStandalone() {
+		setRMAPInitiator(NULL);
 		std::vector<RMAPTargetNode*> nodes = RMAPTargetNode::constructFromXMLString(getConfigurationFileAsString());
 		for (size_t i = 0; i < nodes.size(); i++) {
 			if (nodes[i]->getID() == "SpW2GbE_ConfigurationPort") {
@@ -50,7 +52,7 @@ public:
 	}
 
 public:
-	RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress) {
+	RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress) throw (RouterConfigurationPortException) {
 		std::string id;
 		std::stringstream ss;
 		using namespace std;
@@ -60,8 +62,275 @@ public:
 	}
 
 public:
-	uint32_t getRoutingTableAddress(uint8_t logicalAddress) {
+	uint32_t getRoutingTableAddress(uint8_t logicalAddress) throw (RouterConfigurationPortException) {
 		return getRoutingTableMemoryObject(logicalAddress)->getAddress();
+	}
+
+public:
+	RMAPMemoryObject* getLinkFrequencyRegisterMemoryObject(uint8_t port) throw (RouterConfigurationPortException) {
+		if (port > MaximumPortNumber) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::InvalidPortNumber);
+		}
+		using namespace std;
+		stringstream ss;
+		ss << "Port" << (uint32_t) port << "ControlStatusRegister";
+		return routerConfigurationPort->findMemoryObject(ss.str());
+	}
+
+public:
+	uint32_t getLinkFrequencyRegisterAddress(uint8_t port) throw (RouterConfigurationPortException) {
+		return getLinkFrequencyRegisterMemoryObject(port)->getAddress();
+	}
+
+public:
+	std::vector<double> getAvailableLinkFrequencies(uint8_t port) {
+		std::vector<double> result;
+		result.push_back(200);
+		result.push_back(100);
+		result.push_back(50);
+		result.push_back(25);
+		result.push_back(10);
+		result.push_back(5);
+		result.push_back(2);
+		return result;
+	}
+
+public:
+	void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,
+			RMAPInitiatorException) {
+		if (isLinkFrequencyValid(port, linkFrequency) == false) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::InvalidLinkFrequency);
+		}
+
+		uint8_t txdivider = 0; //200MHz
+		if (linkFrequency == 200) {
+			txdivider = 0;
+		} else if (linkFrequency == 100) {
+			txdivider = 1;
+		} else if (linkFrequency == 50) {
+			txdivider = 3;
+		} else if (linkFrequency == 25) {
+			txdivider = 7;
+		} else if (linkFrequency == 10) {
+			txdivider = 19;
+		} else if (linkFrequency == 5) {
+			txdivider = 39;
+		} else if (linkFrequency == 2) {
+			txdivider = 99;
+		}
+
+		if (rmapInitiator == NULL) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::RMAPInitiatorIsNotAvailable);
+		}
+
+		RMAPMemoryObject* registerMemoryObject = getLinkFrequencyRegisterMemoryObject(port);
+		uint8_t value[4];
+
+		RMAPInitiator* rmapInitiator;
+		try {
+			//29:24 = Tx Clock Divider n. TxClock = 200MHz / (n + 1)
+
+			//first read the register
+			rmapInitiator->read(routerConfigurationPort, registerMemoryObject->getID(), value);
+
+			//change the register value
+			value[3] = txdivider;
+
+			//write back
+			rmapInitiator->write(routerConfigurationPort, registerMemoryObject->getID(), value);
+		} catch (RMAPInitiatorException& e) {
+			throw e;
+		} catch (...) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		}
+	}
+
+private:
+	void throwIfRMAPInitiatorIsNULL() throw (RouterConfigurationPortException) {
+		if (rmapInitiator == NULL) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::RMAPInitiatorIsNotAvailable);
+		}
+	}
+
+private:
+	RMAPMemoryObject* getLinkControlStatusRegisterMemoryObject(uint8_t port) throw (RouterConfigurationPortException) {
+		if (port > MaximumPortNumber) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::InvalidPortNumber);
+		}
+		using namespace std;
+		stringstream ss;
+		ss << "Port" << (uint32_t) port << "ControlStatusRegister";
+		return routerConfigurationPort->findMemoryObject(ss.str());
+	}
+
+private:
+	void readLinkControlStatusRegister(uint8_t port, uint8_t* value) throw (RouterConfigurationPortException,
+			RMAPInitiatorException) {
+		RMAPMemoryObject* linkCSR = getLinkControlStatusRegisterMemoryObject(port);
+		throwIfRMAPInitiatorIsNULL();
+		try {
+			rmapInitiator->read(routerConfigurationPort, linkCSR->getID(), value);
+		} catch (RMAPEngineException& e) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		}
+	}
+
+private:
+	void writeLinkControlStatusRegister(uint8_t port, uint8_t* value) throw (RouterConfigurationPortException,
+			RMAPInitiatorException) {
+		RMAPMemoryObject* linkCSR = getLinkControlStatusRegisterMemoryObject(port);
+		throwIfRMAPInitiatorIsNULL();
+		try {
+			rmapInitiator->write(routerConfigurationPort, linkCSR->getID(), value);
+		} catch (RMAPEngineException& e) {
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		}
+	}
+
+	/* [29:24] Tx Clock Divider
+	 * [19]    Link Reset   (R/W) Default 0
+	 * [18]    Auto Start   (R/W) Default 1
+	 * [17]    Link Disable (R/W) Default 0
+	 * [16]    Link Start   (R/W) Default 1
+	 */
+
+private:
+	void readLinkControlFlags() {
+		uint8_t value[4];
+		uint8_t linkControlFlags=value[2];
+		uint8_t linkStart = linkControlFlags & 0x01; //0000 0001
+		uint8_t linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
+		uint8_t linkEnable;
+		if (linkDisable == 0) {
+			linkEnable = 1;
+		} else {
+			linkEnable = 0;
+		}
+		uint8_t autoStart=(linkControlFlags & 0x04) >> 2; //000 0100
+		uint8_t linkReset=(linkControlFlags & 0x08) >> 3; //000 1000
+	}
+
+public:
+	void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
+
+		//set Link Disable 0
+		value[2]=value[2] & 0xFD /* 1111 1101 */ + 0x00 /* 0000 0000 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
+
+		//set Link Disable 1
+		value[2]=value[2] & 0xFD /* 1111 1101 */ + 0x02 /* 0000 0010 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		uint8_t linkControlFlags=value[2];
+		uint8_t linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
+		uint8_t linkEnable;
+		if (linkDisable == 0) {
+			linkEnable = 1;
+		} else {
+			linkEnable = 0;
+		}
+		if(linkEnable==1){
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+public:
+	void setLinkStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// linkStart = linkControlFlags & 0x01; //0000 0001
+
+		//set Link Start 1
+		value[2]=value[2] & 0xFE /* 1111 1110 */ + 0x01 /* 0000 0001 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// linkStart = linkControlFlags & 0x01; //0000 0001
+
+		//set Link Start 0
+		value[2]=value[2] & 0xFE /* 1111 1110 */ + 0x00 /* 0000 0000 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		uint8_t linkControlFlags=value[2];
+		uint8_t linkStart = linkControlFlags & 0x01; //0000 0001
+		if(linkStart==1){
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+public:
+	void setAutoStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// autoStart = linkControlFlags & 0x04; //0000 0100
+
+		//set Auto Start 1
+		value[2]=value[2] & 0xFB /* 1111 1011 */ + 0x04 /* 0000 0100 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		// linkControlFlags = value[2]
+		// autoStart = linkControlFlags & 0x04; //0000 0100
+
+		//set Auto Start 0
+		value[2]=value[2] & 0xFB /* 1111 1011 */ + 0x00 /* 0000 0000 */;
+
+		writeLinkControlStatusRegister(port,value);
+	}
+
+public:
+	bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		uint8_t value[4];
+		readLinkControlStatusRegister(port, value);
+		uint8_t linkControlFlags=value[2];
+		uint8_t autoStart=(linkControlFlags & 0x04) >> 2; //000 0100
+		if(autoStart==1){
+			return true;
+		}else{
+			return false;
+		}
 	}
 
 public:
