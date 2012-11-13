@@ -111,14 +111,14 @@ int main(int argc, char* argv[]) {
 			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
 			rmapInitiator->read(targetNode, memoryObjectID, buffer, 300000.0);
 			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
-		} catch (RMAPInitiatorException e) {
+		} catch (RMAPInitiatorException& e) {
 			if (e.getStatus() == RMAPInitiatorException::Timeout) {
 				cerr << "Timeout." << endl;
 			} else {
 				cerr << "Exception in RMAPInitiator::read()." << endl;
 			}
 			goto finalize;
-		} catch (RMAPReplyException e) {
+		} catch (RMAPReplyException& e) {
 			cout << "Exception : " << e.toString() << endl;
 		}
 		cout << "Read successfully done." << endl;
@@ -134,14 +134,14 @@ int main(int argc, char* argv[]) {
 			} else {
 				rmapInitiator->write(targetNode, memoryObjectID, (uint8_t*) NULL, (uint32_t) 0);
 			}
-		} catch (RMAPInitiatorException e) {
+		} catch (RMAPInitiatorException& e) {
 			if (e.getStatus() == RMAPInitiatorException::Timeout) {
 				cerr << "Timeout." << endl;
 			} else {
 				cerr << "Exception in RMAPInitiator::read()." << endl;
 			}
 			goto finalize;
-		} catch (RMAPReplyException e) {
+		} catch (RMAPReplyException& e) {
 			cout << "Exception : " << e.toString() << endl;
 		}
 		cout << "Write successfully done." << endl;
