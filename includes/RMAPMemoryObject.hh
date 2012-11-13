@@ -251,7 +251,13 @@ public:
 			if (mode.find("readable") != string::npos) {
 				accessMode = accessMode | Readable;
 			}
+			if (mode.find("read") != string::npos) {
+				accessMode = accessMode | Readable;
+			}
 			if (mode.find("writable") != string::npos) {
+				accessMode = accessMode | Writable;
+			}
+			if (mode.find("write") != string::npos) {
 				accessMode = accessMode | Writable;
 			}
 			if (mode.find("rmwable") != string::npos) {
