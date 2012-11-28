@@ -20,5 +20,6 @@
 #include "RMAPTransaction.hh"
 #include "RMAPUtilities.hh"
 
+#include "RouterConfigurationPort.hh"
 
 #endif /* RMAP_HH_ */
