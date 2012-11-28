@@ -8,29 +8,22 @@ ifndef XMLUTILITIES_PATH
 XMLUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtilities
 endif
 
-CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITIES_PATH) -I/$(XERCESDIR)/include
+CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$(XMLUTILITIES_PATH)/include -I/$(XERCESDIR)/include
 LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
 
 TARGETS = \
-tutorial_RMAPLayer \
-tutorial_SpaceWireLayer \
-tutorial_SpaceWireLayer_periodicTimecodeEmission \
-tutorial_RMAPPacket_creationInterpretation \
-main_RMAP_replyStatusToString \
-main_RMAP_readWriteRMAPTargetNode \
-main_RMAP_interpretAsAnRMAPPacket \
 main_RMAP_calculateCRC \
 main_RMAP_instructionToString \
-main_SpaceWire_packetSink
-#test_RMAPTarget_ReadWriteRegisters
-#test_SpaceWireSSDTPModule \
-#test_RMAPTargetNode_fromXMLFile \
-#test_RMAPInitiator_RMAPEngine \
-#test_periodic_packet_source \
-#test_SpaceWireIFOverIPClient_timeout \
-#test_RMAPTargetNode \
-#test_RMAPPacket \
-#test_RMAPMemoryObject_fromXMLFile
+main_RMAP_interpretAsAnRMAPPacket \
+main_RMAP_readWriteRMAPTargetNode \
+main_RMAP_replyStatusToString \
+main_RouterConfigurator \
+main_SpaceWire_packetSink \
+tutorial_RMAPLayer \
+tutorial_RMAPPacket_creationInterpretation \
+tutorial_SpaceWireLayer \
+tutorial_SpaceWireLayer_periodicTimecodeEmission 
+
 
 TARGETS_OBJECTS = $(addsuffix .o, $(basename $(TARGETS)))
 TARGETS_SOURCES = $(addsuffix .cc, $(basename $(TARGETS)))
