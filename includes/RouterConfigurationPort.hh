@@ -66,6 +66,9 @@ public:
 	}
 
 public:
+	virtual RMAPTargetNode* getRMAPTargetNodeInstance() = 0;
+
+public:
 	virtual size_t getTotalNumberOfPorts() = 0;
 
 public:
@@ -73,9 +76,6 @@ public:
 
 public:
 	virtual size_t getNumberOfInternalPorts() = 0;
-
-public:
-	virtual std::string getConfigurationFileAsString() = 0;
 
 public:
 	virtual uint32_t getRoutingTableAddress(uint8_t logicalAddress) throw (RouterConfigurationPortException) = 0;
@@ -92,43 +92,43 @@ public:
 			throw (RouterConfigurationPortException) = 0;
 
 public:
-	std::vector<double> getAvailableLinkFrequencies(uint8_t port) = 0;
+	virtual std::vector<double> getAvailableLinkFrequencies(uint8_t port) = 0;
 
 public:
-	void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void setLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void setAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
-	bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
 
 public:
 	bool isLinkFrequencyValid(uint8_t port, double linkFrequency) {
 		std::vector<double> linkFrequencies = getAvailableLinkFrequencies(port);
 		for (size_t i = 0; i < linkFrequencies.size(); i++) {
-			if (linkFrequencies[i] == linkFrequencies) {
+			if (linkFrequencies[i] == linkFrequency) {
 				return true;
 			}
 		}
@@ -141,7 +141,7 @@ public:
 	}
 
 public:
-	void setAdditionalReplyAddress(const std::vector<uint8_t>& additionalReplyAddress) {
+	void setAdditionalReplyAddress(std::vector<uint8_t>& additionalReplyAddress) {
 		this->additionalReplyAddress = additionalReplyAddress;
 	}
 
@@ -151,7 +151,7 @@ public:
 	}
 
 public:
-	void setAdditionalTargetSpaceWireAddress(const std::vector<uint8_t>& additionalTargetSpaceWireAddress) {
+	void setAdditionalTargetSpaceWireAddress(std::vector<uint8_t>& additionalTargetSpaceWireAddress) {
 		this->additionalTargetSpaceWireAddress = additionalTargetSpaceWireAddress;
 	}
 
@@ -161,7 +161,7 @@ public:
 	}
 
 public:
-	void setRMAPInitiator(const RMAPInitiator* rmapInitiator) {
+	void setRMAPInitiator(RMAPInitiator* rmapInitiator) {
 		this->rmapInitiator = rmapInitiator;
 	}
 };
