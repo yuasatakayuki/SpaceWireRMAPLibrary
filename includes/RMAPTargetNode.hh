@@ -79,6 +79,32 @@ public:
 
 #ifndef NO_XMLLODER
 public:
+	static std::vector<RMAPTargetNode*> constructFromXMLString(std::string str) throw (XMLLoader::XMLLoaderException,
+			RMAPTargetNodeException, RMAPMemoryObjectException) {
+		std::vector<RMAPTargetNode*> result;
+		XMLNode *topNode;
+		XMLLoader::XMLLoader xmlLoader;
+		try {
+			xmlLoader.loadFromString(&topNode, str);
+			if (topNode != NULL) {
+				result = constructFromXMLFile(topNode);
+				return result;
+			} else {
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
+			}
+		} catch (RMAPTargetNodeException& e) {
+			if (e.isErrorFilenameSet()) {
+				throw e;
+			} else {
+				throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
+			}
+		} catch (...) {
+			throw RMAPTargetNodeException(RMAPTargetNodeException::InvalidXMLEntry);
+		}
+		return result;
+	}
+
+public:
 	static std::vector<RMAPTargetNode*> constructFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException,
 			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
@@ -195,43 +221,43 @@ private:
 #endif
 
 public:
-	void pushLeadingTargetSpaceWireAddress(uint8_t spaceWireAddress){
+	void pushLeadingTargetSpaceWireAddress(uint8_t spaceWireAddress) {
 		std::vector<uint8_t> newList;
 		newList.push_back(spaceWireAddress);
-		for(size_t i=0;i<targetSpaceWireAddress.size();i++){
+		for (size_t i = 0; i < targetSpaceWireAddress.size(); i++) {
 			newList.push_back(targetSpaceWireAddress.at(i));
 		}
-		targetSpaceWireAddress=newList;
+		targetSpaceWireAddress = newList;
 	}
 
 public:
-	void pushTrailingTargetSpaceWireAddress(uint8_t spaceWireAddress){
+	void pushTrailingTargetSpaceWireAddress(uint8_t spaceWireAddress) {
 		std::vector<uint8_t> newList;
-		for(size_t i=0;i<targetSpaceWireAddress.size();i++){
+		for (size_t i = 0; i < targetSpaceWireAddress.size(); i++) {
 			newList.push_back(targetSpaceWireAddress.at(i));
 		}
 		newList.push_back(spaceWireAddress);
-		targetSpaceWireAddress=newList;
+		targetSpaceWireAddress = newList;
 	}
 
 public:
-	void pushLeadingReplyAddress(uint8_t spaceWireAddress){
+	void pushLeadingReplyAddress(uint8_t spaceWireAddress) {
 		std::vector<uint8_t> newList;
 		newList.push_back(spaceWireAddress);
-		for(size_t i=0;i<replyAddress.size();i++){
+		for (size_t i = 0; i < replyAddress.size(); i++) {
 			newList.push_back(replyAddress.at(i));
 		}
-		replyAddress=newList;
+		replyAddress = newList;
 	}
 
 public:
-	void pushTrailingReplyAddress(uint8_t spaceWireAddress){
+	void pushTrailingReplyAddress(uint8_t spaceWireAddress) {
 		std::vector<uint8_t> newList;
-		for(size_t i=0;i<replyAddress.size();i++){
+		for (size_t i = 0; i < replyAddress.size(); i++) {
 			newList.push_back(replyAddress.at(i));
 		}
 		newList.push_back(spaceWireAddress);
-		replyAddress=newList;
+		replyAddress = newList;
 	}
 
 public:
@@ -490,7 +516,7 @@ public:
 	}
 
 public:
-	std::vector<RMAPTargetNode*> getAllRMAPTargetNodes(){
+	std::vector<RMAPTargetNode*> getAllRMAPTargetNodes() {
 		std::vector<RMAPTargetNode*> targetNodes;
 		std::map<std::string, RMAPTargetNode*>::iterator it = db.begin();
 		while (it != db.end()) {
