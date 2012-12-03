@@ -67,7 +67,7 @@ public:
 	}
 };
 
-class RMAPPacket : public SpaceWirePacket {
+class RMAPPacket: public SpaceWirePacket {
 private:
 	uint8_t instruction;
 	uint8_t key;
@@ -141,6 +141,8 @@ public:
 
 public:
 	RMAPPacket() {
+		this->setByteArrayMode();
+		initiatorLogicalAddress = SpaceWireProtocol::DefaultLogicalAddress;
 		protocolID = RMAPProtocol::ProtocolIdentifier;
 		targetLogicalAddress = SpaceWireProtocol::DefaultLogicalAddress;
 		key = RMAPProtocol::DefaultKey;
@@ -152,10 +154,16 @@ public:
 		headerCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
 		dataCRCIsChecked = RMAPProtocol::DefaultCRCCheckMode;
 		useDraftECRC = false;
+		dataLength = 0;
+		address = 0x00;
+		extendedAddress = RMAPProtocol::DefaultExtendedAddress;
+		headerCRC = 0;
+		dataCRC = 0;
 	}
 
 public:
 	void constructHeader() {
+		this->setByteArrayMode();
 		using namespace std;
 
 		header.clear();
@@ -206,9 +214,11 @@ public:
 			calculateHeaderCRC();
 		}
 		header.push_back(headerCRC);
+		this->setByteArrayMode();
 	}
 
 	inline void calculateHeaderCRC() {
+		this->setByteArrayMode();
 		if (!useDraftECRC) {
 			headerCRC = RMAPUtilities::calculateCRC(header);
 		} else {
@@ -217,6 +227,7 @@ public:
 	}
 
 	inline void calculateDataCRC() {
+		this->setByteArrayMode();
 		if (!useDraftECRC) {
 			dataCRC = RMAPUtilities::calculateCRC(data);
 		} else {
@@ -225,6 +236,7 @@ public:
 	}
 
 	void constructPacket() {
+		this->setByteArrayMode();
 		using namespace std;
 
 		constructHeader();
@@ -246,6 +258,7 @@ public:
 
 public:
 	void interpretAsAnRMAPPacket(uint8_t *packet, size_t length) throw (RMAPPacketException) {
+		this->setByteArrayMode();
 		using namespace std;
 
 		if (length < 8) {
@@ -416,7 +429,7 @@ public:
 
 			}
 
-		} catch (exception e) {
+		} catch (exception& e) {
 			throw(RMAPPacketException(RMAPPacketException::PacketInterpretationFailed));
 		}
 		uint32_t previousHeaderCRCMode = headerCRCMode;
@@ -1194,8 +1207,8 @@ public:
 	 */
 	static RMAPPacket* constructReplyForCommand(RMAPPacket* commandPacket, uint8_t status =
 			RMAPReplyStatus::CommandExcecutedSuccessfully) {
-		RMAPPacket* replyPacket=new RMAPPacket();
-		*replyPacket=*commandPacket;
+		RMAPPacket* replyPacket = new RMAPPacket();
+		*replyPacket = *commandPacket;
 		replyPacket->clearData();
 		replyPacket->setReply();
 		replyPacket->setStatus(status);
