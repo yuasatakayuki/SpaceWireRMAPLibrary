@@ -28,7 +28,8 @@ public:
 			CxxUtilities::Exception(status) {
 	}
 
-	virtual ~SpaceWireIFException(){}
+	virtual ~SpaceWireIFException() {
+	}
 
 public:
 	std::string toString() {
@@ -130,6 +131,10 @@ public:
 	}
 
 public:
+	virtual ~SpaceWireIF() {
+	}
+
+public:
 	enum OpenCloseState getState() {
 		return state;
 	}
@@ -180,6 +185,12 @@ public:
 		} else {
 			send(&(data->at(0)), data->size(), eopType);
 		}
+	}
+
+public:
+	void send(SpaceWirePacket* packet) throw (SpaceWireIFException) {
+		std::vector<uint8_t>* packetPointer = packet->getPacketBufferPointer();
+		sendVectorPointer(packetPointer, packet->getEOPType());
 	}
 
 public:
@@ -326,20 +337,20 @@ public:
 	void setReceivedPacketEOPMarkerType(int eopType) {
 		if (eopType == SpaceWireIF::EEP) {
 			isTerminatedWithEEP_ = true;
-			isTerminatedWithEEP_ = false;
+			isTerminatedWithEOP_ = false;
 		} else if (eopType == SpaceWireIF::EOP) {
 			isTerminatedWithEEP_ = false;
-			isTerminatedWithEEP_ = true;
+			isTerminatedWithEOP_ = true;
 		} else {
 			isTerminatedWithEEP_ = false;
-			isTerminatedWithEEP_ = false;
+			isTerminatedWithEOP_ = false;
 		}
 	}
 
 	int getReceivedPacketEOPMarkerType() {
-		if (isTerminatedWithEEP_ == false && isTerminatedWithEEP_ == true) {
+		if (isTerminatedWithEEP_ == false && isTerminatedWithEOP_ == true) {
 			return EOP;
-		} else if (isTerminatedWithEEP_ == true && isTerminatedWithEEP_ == false) {
+		} else if (isTerminatedWithEEP_ == true && isTerminatedWithEOP_ == false) {
 			return EEP;
 		} else {
 			return Undefined;
