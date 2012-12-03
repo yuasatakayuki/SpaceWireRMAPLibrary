@@ -11,5 +11,10 @@
 class SpaceWireProtocol {
 public:
 	static const uint8_t DefaultLogicalAddress=0xFE;
+
+public:
+	static const uint8_t MinimumLogicalAddress=0x20;
+	static const uint8_t MaximumLogicalAddress=0xFF;
+
 };
 #endif /* SPACEWIREPROTOCOL_HH_ */
