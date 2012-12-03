@@ -9,6 +9,7 @@
 #define ROUTERCONFIGURATIONPORT_HH_
 
 #include "CxxUtilities/CxxUtilities.hh"
+#include "RMAP.hh"
 
 class RouterConfigurationPortException: public CxxUtilities::Exception {
 public:
@@ -29,7 +30,7 @@ public:
 			str = "NotImplemented";
 			break;
 		case OperationFailed:
-			str="OperationFailed";
+			str = "OperationFailed";
 			break;
 		case InvalidPortNumber:
 			str = "InvalidPortNumber";
@@ -95,34 +96,35 @@ public:
 	virtual std::vector<double> getAvailableLinkFrequencies(uint8_t port) = 0;
 
 public:
-	virtual void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkFrequency(uint8_t port, double linkFrequency) throw (RouterConfigurationPortException,
+			RMAPInitiatorException) = 0;
 
 public:
-	virtual void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkEnable(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetLinkEnable(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isLinkEnabled(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual void setLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setLinkStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetLinkStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isLinkStarted(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual void setAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void setAutoStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual void unsetAutoStart(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
-	virtual bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException,RMAPInitiatorException) = 0;
+	virtual bool isAutoStarted(uint8_t port) throw (RouterConfigurationPortException, RMAPInitiatorException) = 0;
 
 public:
 	bool isLinkFrequencyValid(uint8_t port, double linkFrequency) {
