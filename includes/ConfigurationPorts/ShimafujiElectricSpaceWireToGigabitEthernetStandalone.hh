@@ -38,6 +38,16 @@ public:
 	}
 
 public:
+	std::vector<uint8_t> getConfigurablePorts() {
+		std::vector<uint8_t> result;
+		result.push_back(0x01);
+		result.push_back(0x02);
+		result.push_back(0x03);
+		result.push_back(0x04);
+		return result;
+	}
+
+public:
 	virtual RMAPTargetNode* getRMAPTargetNodeInstance() {
 		return routerConfigurationPort;
 	}
@@ -76,9 +86,9 @@ private:
 	std::vector<uint8_t> convertRoutingTableToPortNumbers(uint8_t* value) {
 		uint32_t register32bits;
 		register32bits = value[3];
-		register32bits = register32bits << 8 + value[2];
-		register32bits = register32bits << 8 + value[1];
-		register32bits = register32bits << 8 + value[0];
+		register32bits = (register32bits << 8) + value[2];
+		register32bits = (register32bits << 8) + value[1];
+		register32bits = (register32bits << 8) + value[0];
 		uint32_t flag = 0;
 		std::vector<uint8_t> result;
 		for (size_t i = 0; i < 32; i++) {
@@ -91,14 +101,30 @@ private:
 	}
 
 private:
-	uint32_t convertPortNumbersToRoutingTable(std::vector<uint8_t> portNumbers) {
-		uint32_t register32bits = 0;
+	uint8_t* convertPortNumbersToRoutingTable(std::vector<uint8_t> portNumbers) {
+		uint8_t* buffer = new uint8_t[4];
+		memset(buffer, 0, 4);
 		uint32_t flag = 0;
 		for (size_t i = 0; i < portNumbers.size(); i++) {
-			flag = 0x01 << portNumbers[i];
-			register32bits += flag;
+			uint8_t port = portNumbers.at(i);
+			if (port < 8) { //Port 0-7
+				buffer[0] = (buffer[0] & ~(0x01 << port)) + (0x01 << port);
+			} else { //Port 8-9
+				buffer[1] = (buffer[1] & ~(0x01 << (port - 8))) + (0x01 << (port - 8));
+			}
 		}
-		return register32bits;
+		return buffer;
+	}
+
+private:
+	std::vector<std::vector<uint8_t> > convertWholeRoutingTableToVector(uint8_t* buffer) {
+		std::vector<std::vector<uint8_t> > result;
+		size_t nLogicalAddresses = SpaceWireProtocol::MaximumLogicalAddress - SpaceWireProtocol::MinimumLogicalAddress
+				+ 1;
+		for (size_t i = 0; i < nLogicalAddresses; i++) {
+			result.push_back(convertRoutingTableToPortNumbers(buffer + i * 4));
+		}
+		return result;
 	}
 
 public:
@@ -116,19 +142,52 @@ public:
 	}
 
 public:
+	std::vector<std::vector<uint8_t> > readWholeRoutingTable() throw (RouterConfigurationPortException,
+			RMAPInitiatorException) {
+
+		RMAPMemoryObject* routingTableForALogicalAddress = getRoutingTableMemoryObject(
+				SpaceWireProtocol::MinimumLogicalAddress);
+		size_t length = (SpaceWireProtocol::MaximumLogicalAddress - SpaceWireProtocol::MinimumLogicalAddress + 1) * 4;
+		throwIfRMAPInitiatorIsNULL();
+		uint8_t* buffer = new uint8_t[length];
+		using namespace std;
+		try {
+			size_t o = 0;
+			for (size_t i = SpaceWireProtocol::MinimumLogicalAddress; i < SpaceWireProtocol::MaximumLogicalAddress;
+					i++) {
+				rmapInitiator->read(routerConfigurationPort, getRoutingTableAddress(i), 4, buffer + o * 4);
+				o++;
+			}
+		} catch (RMAPEngineException& e) {
+			delete buffer;
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		} catch (RMAPInitiatorException& e) {
+			using namespace std;
+			cout << e.toString() << endl;
+			delete buffer;
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		} catch (RMAPReplyException& e) {
+			using namespace std;
+			cout << e.toString() << endl;
+			delete buffer;
+			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
+		}
+		std::vector<std::vector<uint8_t> > result = convertWholeRoutingTableToVector(buffer);
+		delete buffer;
+		return result;
+	}
+
+public:
 	void writeRoutingTable(uint8_t logicalAddress, std::vector<uint8_t> ports) throw (RouterConfigurationPortException,
 			RMAPInitiatorException) {
 		RMAPMemoryObject* routingTableForALogicalAddress = getRoutingTableMemoryObject(logicalAddress);
 		throwIfRMAPInitiatorIsNULL();
-		uint32_t register32bits = convertPortNumbersToRoutingTable(ports);
-		uint8_t value[4];
-		value[0] = register32bits & 0x000000FF;
-		value[1] = register32bits & 0x0000FF00;
-		value[2] = register32bits & 0x00FF0000;
-		value[3] = register32bits & 0xFF000000;
+		uint8_t* buffer = convertPortNumbersToRoutingTable(ports);
 		try {
-			rmapInitiator->write(routerConfigurationPort, routingTableForALogicalAddress->getID(), value);
+			rmapInitiator->write(routerConfigurationPort, routingTableForALogicalAddress->getID(), buffer);
+			delete buffer;
 		} catch (RMAPEngineException& e) {
+			delete buffer;
 			throw RouterConfigurationPortException(RouterConfigurationPortException::OperationFailed);
 		}
 	}
@@ -331,7 +390,7 @@ public:
 		// linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
 
 		//set Link Disable 0
-		value[2] = (value[2] & 0xFC /* 1111 1100 */)+ 0x01 /* 0000 0000 */;
+		value[2] = (value[2] & 0xFC /* 1111 1100 */) + 0x01 /* 0000 0000 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -344,7 +403,7 @@ public:
 		// linkDisable = (linkControlFlags & 0x02) >> 1; //000 0010
 
 		//set Link Disable 1
-		value[2] = (value[2] & 0xF4 /* 1111 0100 */)+ 0x0A /* 0000 1010 */;
+		value[2] = (value[2] & 0xF4 /* 1111 0100 */) + 0x0A /* 0000 1010 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -381,7 +440,7 @@ public:
 		// linkStart = linkControlFlags & 0x01; //0000 0001
 
 		//set Link Start 1
-		value[2] = (value[2] & 0xFE /* 1111 1110 */)+ 0x01 /* 0000 0001 */;
+		value[2] = (value[2] & 0xFE /* 1111 1110 */) + 0x01 /* 0000 0001 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -394,7 +453,7 @@ public:
 		// linkStart = linkControlFlags & 0x01; //0000 0001
 
 		//set Link Start 0
-		value[2] = (value[2] & 0xFE /* 1111 1110 */)+ 0x00 /* 0000 0000 */;
+		value[2] = (value[2] & 0xFE /* 1111 1110 */) + 0x00 /* 0000 0000 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -420,7 +479,7 @@ public:
 		// autoStart = linkControlFlags & 0x04; //0000 0100
 
 		//set Auto Start 1
-		value[2] = (value[2] & 0xFB /* 1111 1011 */)+ 0x04 /* 0000 0100 */;
+		value[2] = (value[2] & 0xFB /* 1111 1011 */) + 0x04 /* 0000 0100 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -433,7 +492,7 @@ public:
 		// autoStart = linkControlFlags & 0x04; //0000 0100
 
 		//set Auto Start 0
-		value[2] = (value[2] & 0xFB /* 1111 1011 */)+ 0x00 /* 0000 0000 */;
+		value[2] = (value[2] & 0xFB /* 1111 1011 */) + 0x00 /* 0000 0000 */;
 
 		writeLinkControlStatusRegister(port, value);
 	}
@@ -466,6 +525,26 @@ public:
 	}
 
 public:
+	std::string getFPGARevisionAsString() throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		return getRegisterValueAsString("DeviceID");
+	}
+
+public:
+	std::string getDeviceIDAsString() throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		return getRegisterValueAsString("FPGA Revision");
+	}
+
+public:
+	std::string getSpaceWireIPRevisionAsString() throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		return getRegisterValueAsString("SpaceWireIPRevision");
+	}
+
+public:
+	std::string getRMAPIPRevisionAsString() throw (RouterConfigurationPortException, RMAPInitiatorException) {
+		return getRegisterValueAsString("RMAPIPRevision");;
+	}
+
+public:
 	std::string getRevisionsAsString() throw (RouterConfigurationPortException, RMAPInitiatorException) {
 		using namespace std;
 		stringstream ss;
@@ -474,16 +553,36 @@ public:
 		string idSpaceWireIPRevision = "SpaceWireIPRevision";
 		string idRMAPIPRevision = "RMAPIPRevision";
 
-		size_t width=25;
+		size_t width = 25;
 
 		ss << setw(width) << setfill(' ') << right << "Device ID = " << getRegisterValueAsString(idDeviceID) << endl;
 		ss << setw(width) << setfill(' ') << right << "FPGA Revision = " << getRegisterValueAsString(idFPGARevision)
 				<< endl;
 		ss << setw(width) << setfill(' ') << right << "SpaceWire IP Revision = "
 				<< getRegisterValueAsString(idSpaceWireIPRevision) << endl;
-		ss << setw(width) << setfill(' ') << right << "RMAP IP Revision = " << getRegisterValueAsString(idRMAPIPRevision);
+		ss << setw(width) << setfill(' ') << right << "RMAP IP Revision = "
+				<< getRegisterValueAsString(idRMAPIPRevision);
 
 		return ss.str();
+	}
+
+public:
+	bool isPortNumberValid(uint8_t port) {
+		if (port > ShimafujiElectricSpaceWireToGigabitEthernetStandalone::MaximumPortNumber) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+public:
+	bool areAllPortNumbersValid(std::vector<uint8_t>& ports) {
+		for (size_t i = 0; i < ports.size(); i++) {
+			if (!isPortNumberValid(ports[i])) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 public:
