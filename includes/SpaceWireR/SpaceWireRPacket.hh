@@ -58,6 +58,7 @@ public:
 class SpaceWireRPacketException: public CxxUtilities::Exception {
 public:
 	enum {
+		InvalidPacket, //
 		InvalidPayloadLength, //
 		TooShortPacketSize, //
 		InvalidHeaderFormat, //
@@ -79,6 +80,9 @@ public:
 	std::string toString() {
 		std::string str;
 		switch (status) {
+		case InvalidPacket:
+			str = "InvalidPacket";
+			break;
 		case InvalidPayloadLength:
 			str = "InvalidPayloadLength";
 			break;
@@ -179,11 +183,12 @@ public:
 		packetType = SpaceWireRPacketType::DataPacket; //dummy
 		unuseSecondaryHeader();
 		prefixLength = 0;
-		sourceSpaceWireLogicalAddress=SpaceWirePacket::DefaultLogicalAddress;
+		sourceSpaceWireLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
 	}
 
 public:
-	std::vector<uint8_t>* getPacketAsVectorPointer() {
+	std::vector<uint8_t>* getPacketBufferPointer() {
+		setByteArrayMode();
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>();
 		constructHeader();
 
@@ -217,6 +222,7 @@ public:
 
 public:
 	size_t getPacket(uint8_t* buffer, size_t maxLength) {
+		setByteArrayMode();
 		constructHeader();
 
 		//Check buffer length
@@ -300,86 +306,90 @@ private:
 public:
 	void interpretPacket(std::vector<uint8_t>* buffer) throw (SpaceWireRPacketException) {
 		if (buffer->size() < MinimumHeaderLength) {
-			throw SpaceWireRPacketException::TooShortPacketSize;
+			throw SpaceWireRPacketException(SpaceWireRPacketException::TooShortPacketSize);
 		}
 
-		//SpaceWire Address
-		size_t index = 0;
 		try {
-			std::vector<uint8_t> temporarySpaceWireAddress;
-			while (buffer->at(index) < 0x20) {
-				temporarySpaceWireAddress.push_back(buffer->at(index));
-				index++;
+			//SpaceWire Address
+			size_t index = 0;
+			try {
+				std::vector<uint8_t> temporarySpaceWireAddress;
+				while (buffer->at(index) < 0x20) {
+					temporarySpaceWireAddress.push_back(buffer->at(index));
+					index++;
+				}
+			} catch (...) {
+				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidHeaderFormat);
+			}
+
+			//Destination SLA
+			this->targetLogicalAddress = buffer->at(index);
+			index++;
+
+			//Protocol ID
+			if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
+				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidProtocolID);
+			}
+			index++;
+
+			//Packet Control
+			this->packetControl = buffer->at(index);
+			interpretPacketControl();
+			index++;
+
+			//Payload Length
+			this->payloadLength[0] = buffer->at(index);
+			this->payloadLength[1] = buffer->at(index + 1);
+			index += 2;
+
+			//Channel Number
+			this->channelNumber[0] = buffer->at(index);
+			this->channelNumber[1] = buffer->at(index + 1);
+			index += 2;
+
+			//Sequence Number
+			this->sequenceNumber = buffer->at(index);
+			index++;
+
+			//Address Control
+			uint8_t prefixLength = buffer->at(index);
+			index++;
+
+			//Prefix
+			try {
+				prefix.clear();
+				for (size_t i = 0; i < prefixLength; i++) {
+					prefix.push_back(buffer->at(index));
+				}
+			} catch (...) {
+				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPrefixLength);
+			}
+
+			//Source SLA
+			this->sourceSpaceWireLogicalAddress = buffer->at(index);
+			index++;
+
+			//Payload
+			try {
+				size_t payloadLengthValue = payloadLength[0] * 0x100 + payloadLength[1];
+				payload.clear();
+				for (size_t i = 0; i < payloadLengthValue; i++) {
+					payload.push_back(buffer->at(index));
+				}
+			} catch (...) {
+				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPayloadLength);
+			}
+
+			//Trailer
+			this->crc16 = buffer->at(index) * 0x100 + buffer->at(index + 1);
+			index += 2;
+
+			//Size check
+			if (index != buffer->size()) {
+				throw SpaceWireRPacketException(SpaceWireRPacketException::PacketHasExtraBytesAfterTrailer);
 			}
 		} catch (...) {
-			throw SpaceWireRPacketException::InvalidHeaderFormat;
-		}
-
-		//Destination SLA
-		this->targetLogicalAddress = buffer->at(index);
-		index++;
-
-		//Protocol ID
-		if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
-			throw SpaceWireRPacketException::InvalidProtocolID;
-		}
-		index++;
-
-		//Packet Control
-		this->packetControl = buffer->at(index);
-		interpretPacketControl();
-		index++;
-
-		//Payload Length
-		this->payloadLength[0] = buffer->at(index);
-		this->payloadLength[1] = buffer->at(index + 1);
-		index += 2;
-
-		//Channel Number
-		this->channelNumber[0] = buffer->at(index);
-		this->channelNumber[1] = buffer->at(index + 1);
-		index += 2;
-
-		//Sequence Number
-		this->sequenceNumber = buffer->at(index);
-		index++;
-
-		//Address Control
-		uint8_t prefixLength = buffer->at(index);
-		index++;
-
-		//Prefix
-		try {
-			prefix.clear();
-			for (size_t i = 0; i < prefixLength; i++) {
-				prefix.push_back(buffer->at(index));
-			}
-		} catch (...) {
-			throw SpaceWireRPacketException::InvalidPrefixLength;
-		}
-
-		//Source SLA
-		this->sourceSpaceWireLogicalAddress = buffer->at(index);
-		index++;
-
-		//Payload
-		try {
-			size_t payloadLengthValue = payloadLength[0] * 0x100 + payloadLength[1];
-			payload.clear();
-			for (size_t i = 0; i < payloadLengthValue; i++) {
-				payload.push_back(buffer->at(index));
-			}
-		} catch (...) {
-			throw SpaceWireRPacketException::InvalidPayloadLength;
-		}
-
-		//Trailer
-		this->crc16 = buffer->at(index) * 0x100 + buffer->at(index + 1);
-		index += 2;
-
-		//Size check
-		if (index != buffer->size()) {
-			throw SpaceWireRPacketException::PacketHasExtraBytesAfterTrailer;
+			throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPacket);
 		}
 	}
 
