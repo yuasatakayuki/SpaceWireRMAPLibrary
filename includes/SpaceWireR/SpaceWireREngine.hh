@@ -9,7 +9,7 @@
 #define SPACEWIRERENGINE_HH_
 
 #include "CxxUtilities/Thread.hh"
-
+/*
 class SpaceWireRTEP {
 private:
 	uint8_t channelNumber;
@@ -24,6 +24,7 @@ public:
 		this->channelNumber = channelNumber;
 	}
 };
+*/
 
 class SpaceWireREngineException: public CxxUtilities::Exception {
 public:
@@ -33,18 +34,21 @@ public:
 	}
 
 public:
-	~SpaceWireREngineException() {
+	virtual ~SpaceWireREngineException() {
 	}
 
 public:
 	enum {
-
+		SpaceWireREngineIsNotRunning
 	};
 
 public:
 	std::string toString() {
 		std::string str;
 		switch (status) {
+		case SpaceWireREngineIsNotRunning:
+			str = "SpaceWireREngineIsNotRunning";
+			break;
 		default:
 			str = "";
 			break;
@@ -57,8 +61,16 @@ class SpaceWireREngine: public CxxUtilities::StoppableThread {
 private:
 	SpaceWireIF* spwif;
 	CxxUtilities::Condition stopCondition;
-	std::map<uint8_t, SpaceWireRPacket**> receiveTEPPacketPointerMap;
+
+private:
+	std::map<uint8_t, std::list<SpaceWireRPacket*>*> receiveTEPPacketListMap;
 	std::map<uint8_t, CxxUtilities::Condition*> receiveTEPNotificationMap;
+
+private:
+	std::map<uint8_t, std::list<SpaceWireRPacket*>*> transmitTEPPacketListMap;
+	std::map<uint8_t, CxxUtilities::Condition*> transmitTEPNotificationMap;
+
+private:
 	size_t nDiscardedReceivedPackets;
 	size_t nSentPackets;
 	size_t nReceivedPackets;
@@ -71,8 +83,8 @@ public:
 	SpaceWireREngine(SpaceWireIF* spwif) {
 		this->spwif = spwif;
 		nDiscardedReceivedPackets = 0;
-		nSentPackets=0;
-		nReceivedPackets=0;
+		nSentPackets = 0;
+		nReceivedPackets = 0;
 	}
 
 public:
@@ -81,11 +93,11 @@ public:
 public:
 	void processReceivedSpaceWireRPacket(SpaceWireRPacket* packet) throw (SpaceWireREngineException) {
 		uint8_t channel = packet->getChannelNumber();
-		std::map<uint8_t, SpaceWireRPacket**>::iterator it_find = receiveTEPPacketPointerMap.find(channel);
-		if (it_find != receiveTEPPacketPointerMap.end()) {
+		std::map<uint8_t, std::list<SpaceWireRPacket*>*>::iterator it_find = receiveTEPPacketListMap.find(channel);
+		if (it_find != receiveTEPPacketListMap.end()) {
 			//if there is ReceiveTEP corresponding to the channel number in the received packet.
-			SpaceWireRPacket** packetPointer = it_find->second;
-			(*packetPointer) = packet; //pass the received packet to the ReceiveTEP
+			std::list<SpaceWireRPacket*>* packetList = it_find->second;
+			packetList->push_back(packet); //pass the received packet to the ReceiveTEP
 			//tell the ReceiveTEP that a packet has arrived.
 			receiveTEPNotificationMap[channel]->signal();
 		} else {
@@ -97,11 +109,15 @@ public:
 	}
 
 public:
-	void sendPacket(SpaceWireRPacket* packet) {
+	void sendPacket(SpaceWireRPacket* packet) throw (SpaceWireREngineException) {
+		if (this->isStopped()) {
+			throw SpaceWireREngineException(SpaceWireREngineException::SpaceWireREngineIsNotRunning);
+		}
 		sendMutex.lock();
 		try {
 			spwif->send(packet->getPacketBufferPointer());
 			nSentPackets++;
+
 		} catch (...) {
 			sendMutex.unlock();
 			//todo
@@ -113,9 +129,33 @@ public:
 	}
 
 public:
-	void registerReceiveTEP(uint8_t channel, SpaceWireRPacket** packetPointer, CxxUtilities::Condition* notifier) {
-		receiveTEPPacketPointerMap[channel] = packetPointer;
+	void registerReceiveTEP(uint8_t channel, std::list<SpaceWireRPacket*>* packetList,
+			CxxUtilities::Condition* notifier) {
+		receiveTEPPacketListMap[channel] = packetList;
 		receiveTEPNotificationMap[channel] = notifier;
+	}
+
+public:
+	void unregisterReceiveTEP(uint8_t channel) {
+		if (receiveTEPNotificationMap.find(channel) != receiveTEPNotificationMap.end()) {
+			receiveTEPNotificationMap.erase(receiveTEPNotificationMap.find(channel));
+			receiveTEPPacketListMap.erase(receiveTEPPacketListMap.find(channel));
+		}
+	}
+
+public:
+	void registerTransmitTEP(uint8_t channel, std::list<SpaceWireRPacket*>* packetList,
+			CxxUtilities::Condition* notifier) {
+		transmitTEPPacketListMap[channel] = packetList;
+		transmitTEPNotificationMap[channel] = notifier;
+	}
+
+public:
+	void unregisterTransmitTEP(uint8_t channel) {
+		if (transmitTEPNotificationMap.find(channel) != transmitTEPNotificationMap.end()) {
+			transmitTEPNotificationMap.erase(transmitTEPNotificationMap.find(channel));
+			transmitTEPPacketListMap.erase(receiveTEPPacketListMap.find(channel));
+		}
 	}
 
 public:
@@ -124,13 +164,13 @@ public:
 		spwif->setTimeoutDuration(DefaultReceiveTimeoutDurationInMicroSec);
 		std::vector<uint8_t>* data;
 		SpaceWireRPacket* packet;
-		_SpaceWireREngine_run_loop:
-		while (!stopped) {
+		_SpaceWireREngine_run_loop: while (!stopped) {
 			try {
 				data = spwif->receive();
 				nReceivedPackets++;
 				packet = new SpaceWireRPacket();
 				packet->interpretPacket(data);
+				processReceivedSpaceWireRPacket(packet);
 				delete data;
 			} catch (SpaceWireIFException& e) {
 				//todo
@@ -170,12 +210,12 @@ public:
 	}
 
 public:
-	size_t getNSentPackets(){
+	size_t getNSentPackets() {
 		return nSentPackets;
 	}
 
 public:
-	size_t getNReceivedPackets(){
+	size_t getNReceivedPackets() {
 		return nReceivedPackets;
 	}
 };

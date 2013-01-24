@@ -11,6 +11,7 @@
 #include "SpaceWire.hh"
 #include "SpaceWireR/SpaceWireRProtocol.hh"
 #include "SpaceWireR/SpaceWireRPacket.hh"
-
+#include "SpaceWireR/SpaceWireREngine.hh"
+#include "SpaceWireR/SpaceWireRTransmitTEP.hh"
 
 #endif /* SPACEWIRER_HH_ */

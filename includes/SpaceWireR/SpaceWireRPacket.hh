@@ -45,7 +45,7 @@ class SpaceWireRSequenceFlagType {
 public:
 	static const uint8_t FirstSegment = 0x01;
 	static const uint8_t ContinuedSegment = 0x00;
-	static const uint8_t LstSegment = 0x02;
+	static const uint8_t LastSegment = 0x02;
 	static const uint8_t CompleteSegment = 0x03;
 };
 
@@ -145,9 +145,30 @@ public:
  *
  * [Trailer] = [CRC] (2 bytes)
  *
+ *--------------------------------------
+ * ==Packet Type==
+ * 0 Data Packet
+ * 1 Data Ack Packet
+ * 2 Control Packet (Open Command)
+ * 3 Control Packet (Close Command)
+ * 4 Keep Alive Packet
+ * 5 Keep Alive Ack Packet
+ * 6 Flow Control Packet
+ * 7 Control Ack Packet
  *
  */
 class SpaceWireRPacket: public SpaceWirePacket {
+public:
+	enum {
+		DataPacketType = 0x00, //
+		DataAckPacketType = 0x01, //
+		ControlPacketOpenCommandType = 0x02, //
+		ControlPacketCloseCommandType = 0x03, //
+		KeepAlivePacketType = 0x04, //
+		KeepAliveAckPacketType = 0x05, //
+		FlowControlPacket = 0x06, //
+		ControlAckPacket = 0x07 //
+	};
 
 private:
 	std::vector<uint8_t> header;
@@ -158,6 +179,12 @@ private:
 	uint8_t channelNumber[2];
 	uint8_t sequenceNumber;
 	uint8_t prefixLength;
+
+private:
+	uint8_t destinationLogicalAddress;
+	std::vector<uint8_t> destinationSpaceWireAddress;
+
+private:
 	std::vector<uint8_t> prefix;
 	uint8_t sourceSpaceWireLogicalAddress;
 
@@ -171,6 +198,9 @@ private:
 private:
 	std::vector<uint8_t> payload;
 	uint16_t crc16;
+
+private:
+	double sentoutTimeStamp;
 
 public:
 	const static size_t MaxPayloadLength = 65535;
@@ -188,14 +218,13 @@ public:
 
 public:
 	std::vector<uint8_t>* getPacketBufferPointer() {
-		setByteArrayMode();
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>();
 		constructHeader();
 
 		//Target SpaceWire Address
-		size_t targetSpaceWireAddressSize = targetSpaceWireAddress.size();
-		for (size_t i = 0; i < targetSpaceWireAddressSize; i++) {
-			buffer->push_back(targetSpaceWireAddress[i]);
+		size_t destinationSpaceWireAddressSize = destinationSpaceWireAddress.size();
+		for (size_t i = 0; i < destinationSpaceWireAddressSize; i++) {
+			buffer->push_back(destinationSpaceWireAddress[i]);
 		}
 
 		//Header
@@ -222,23 +251,22 @@ public:
 
 public:
 	size_t getPacket(uint8_t* buffer, size_t maxLength) {
-		setByteArrayMode();
 		constructHeader();
 
 		//Check buffer length
-		size_t targetSpaceWireAddressSize = targetSpaceWireAddress.size();
+		size_t destinationSpaceWireAddressSize = destinationSpaceWireAddress.size();
 		size_t headerSize = header.size();
 		size_t payloadSize = payload.size();
 		const size_t crcSize = 2;
-		if (targetSpaceWireAddressSize + headerSize + payloadSize + crcSize > maxLength) {
+		if (destinationSpaceWireAddressSize + headerSize + payloadSize + crcSize > maxLength) {
 			return 0;
 		}
 
 		size_t index = 0;
 
-		//Target SpaceWire Address
-		for (size_t i = 0; i < targetSpaceWireAddressSize; i++) {
-			buffer[index] = targetSpaceWireAddress[i];
+		//SpaceWire Address
+		for (size_t i = 0; i < destinationSpaceWireAddressSize; i++) {
+			buffer[index] = destinationSpaceWireAddress[i];
 			index++;
 		}
 
@@ -255,7 +283,7 @@ public:
 		}
 
 		//Calculate CRC
-		crc16 = SpaceWireRUtility::calculateCRCForArray(buffer, index - targetSpaceWireAddressSize + 1);
+		crc16 = SpaceWireRUtility::calculateCRCForArray(buffer, index - destinationSpaceWireAddressSize + 1);
 
 		//Trailer
 		buffer[index] = crc16 / 0x100;
@@ -266,11 +294,76 @@ public:
 		return index;
 	}
 
+public:
+	bool isAckPacket() {
+		if (this->packetType == SpaceWireRPacketType::DataAckPacket
+				|| this->packetType == SpaceWireRPacketType::ControlAckPacket
+				|| this->packetType == SpaceWireRPacketType::KeepAliveAckPacket) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+public:
+	void constructAckForPacket(SpaceWireRPacket* packet, std::vector<uint8_t> prefix) {
+		this->constructAckForPacket(packet);
+		this->prefix = prefix;
+	}
+
+public:
+	void constructAckForPacket(SpaceWireRPacket* packet) {
+		if (packet->isAckPacket()) {
+			return;
+		}
+
+		//destination addresses
+		this->destinationSpaceWireAddress = packet->getPrefix();
+		this->destinationLogicalAddress = packet->getSourceSpaceWireLogicalAddress();
+
+		//secondary header flag
+		this->setSecondaryHeaderFlag(SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed);
+
+		//set sequence flag bits
+		this->setSequenceFlags(SpaceWireRSequenceFlagType::CompleteSegment);
+
+		//set packet type
+		if (packet->isControlPacketOpenCommand()) {
+			this->setPacketType(SpaceWireRPacketType::ControlAckPacket);
+		} else if (packet->isControlPacketCloseCommand()) {
+			this->setPacketType(SpaceWireRPacketType::ControlAckPacket);
+		} else if (packet->isDataPacket()) {
+			this->setPacketType(SpaceWireRPacketType::DataAckPacket);
+		} else if (packet->isKeepAlivePacketType()) {
+			this->setPacketType(SpaceWireRPacketType::KeepAliveAckPacket);
+		}
+
+		//set payload length
+		this->setPayloadLength(0);
+
+		//set channel number
+		this->setChannelNumber(packet->getChannelNumber());
+
+		//sequence number
+		this->setSequenceNumber(packet->getSequenceNumber());
+
+		//source addresses
+		this->sourceSpaceWireLogicalAddress = packet->destinationLogicalAddress;
+		this->prefix.clear();
+
+		//clear payload
+		this->clearPayload();
+
+	}
+
+private:
+	inline void clearPayload() {
+		payload.clear();
+	}
+
 private:
 	void constructHeader() {
 		header.clear();
-		//Destination SLA
-		header.push_back(this->getDestinationLogicalAddress());
+		header.push_back(this->destinationLogicalAddress);
 
 		//Protocol ID
 		header.push_back(SpaceWireRProtocol::ProtocolID);
@@ -294,11 +387,11 @@ private:
 		header.push_back(sequenceNumber);
 
 		//Address Control
-		header.push_back(0x0000 + targetSpaceWireAddress.size());
+		header.push_back(0x0000 + destinationSpaceWireAddress.size());
 
 		//Source Address
-		for (size_t i = 0; i < targetSpaceWireAddress.size(); i++) {
-			header.push_back(targetSpaceWireAddress[i]);
+		for (size_t i = 0; i < destinationSpaceWireAddress.size(); i++) {
+			header.push_back(destinationSpaceWireAddress[i]);
 		}
 		header.push_back(sourceSpaceWireLogicalAddress);
 	}
@@ -323,7 +416,7 @@ public:
 			}
 
 			//Destination SLA
-			this->targetLogicalAddress = buffer->at(index);
+			this->destinationLogicalAddress = buffer->at(index);
 			index++;
 
 			//Protocol ID
@@ -421,8 +514,8 @@ public:
 		return this->packetType;
 	}
 
-	std::vector<uint8_t> getPayload() const {
-		return payload;
+	std::vector<uint8_t>* getPayload() const {
+		return &payload;
 	}
 
 	uint16_t getPayloadLength() const {
@@ -434,7 +527,7 @@ public:
 	}
 
 	std::vector<uint8_t> getSourceAddressPrefix() const {
-		return targetSpaceWireAddress;
+		return prefix;
 	}
 
 	uint8_t getSourceSpaceWireLogicalAddress() const {
@@ -450,7 +543,7 @@ public:
 		this->crc16 = crc;
 	}
 
-	void setHeader(std::vector<uint8_t> header) {
+	void setHeader(std::vector<uint8_t>& header) {
 		this->header = header;
 	}
 
@@ -462,7 +555,7 @@ public:
 		this->packetType = packetType;
 	}
 
-	void setPayload(std::vector<uint8_t> payload) throw (SpaceWireRPacketException) {
+	void setPayload(std::vector<uint8_t>& payload) throw (SpaceWireRPacketException) {
 		if (payload.size() > SpaceWireRPacket::MaxPayloadLength) {
 			throw SpaceWireRPacketException::InvalidPayloadLength;
 		}
@@ -479,8 +572,8 @@ public:
 		this->sequenceNumber = sequenceNumber;
 	}
 
-	void setSourceAddressPrefix(std::vector<uint8_t> sourceAddressPrefix) {
-		this->targetSpaceWireAddress = sourceAddressPrefix;
+	void setSourceAddressPrefix(std::vector<uint8_t>& sourceAddressPrefix) {
+		this->prefix = sourceAddressPrefix;
 	}
 
 	void setSourceSpaceWireLogicalAddress(uint8_t sourceSpaceWireLogicalAddress) {
@@ -489,6 +582,16 @@ public:
 
 	void setTrailer(uint16_t trailer) {
 		setCRC(trailer);
+	}
+
+public:
+	void setDestinationLogicalAddress(uint8_t destinationLogicalAddress) {
+		this->destinationLogicalAddress = destinationLogicalAddress;
+	}
+
+public:
+	void setDestinationSpaceWireAddress(std::vector<uint8_t>& destinationSpaceWireAddress) {
+		this->destinationSpaceWireAddress = destinationSpaceWireAddress;
 	}
 
 ///Packet Control
@@ -510,84 +613,173 @@ public:
 
 public:
 	//set packet types
-	void setDataPacketFlag() {
+	inline void setDataPacketFlag() {
 		setPacketType(SpaceWireRPacketType::DataPacket);
 	}
 
-	void setDataAckPacketFlag() {
+	inline void setDataAckPacketFlag() {
 		setPacketType(SpaceWireRPacketType::DataAckPacket);
 	}
 
-	void setControlPacketOpenCommandFlag() {
+	inline void setControlPacketOpenCommandFlag() {
 		setPacketType(SpaceWireRPacketType::ControlPacketOpenCommand);
 	}
 
-	void setControlPacketCloseCommandFlag() {
+	inline void setControlPacketCloseCommandFlag() {
 		setPacketType(SpaceWireRPacketType::ControlPacketCloseCommand);
 	}
 
-	void setKeepAlivePacketFlag() {
+	inline void setKeepAlivePacketFlag() {
 		setPacketType(SpaceWireRPacketType::KeepAlivePacket);
 	}
 
-	void setKeepAliveAckPacketFlag() {
+	inline void setKeepAliveAckPacketFlag() {
 		setPacketType(SpaceWireRPacketType::KeepAliveAckPacket);
 	}
 
-	void setFlowControlPacketFlag() {
+	inline void setFlowControlPacketFlag() {
 		setPacketType(SpaceWireRPacketType::FlowControlPacket);
 	}
 
-	void setControlAckPacketFlag() {
+	inline void setControlAckPacketFlag() {
 		setPacketType(SpaceWireRPacketType::ControlAckPacket);
 	}
 
 public:
-	void unuseSecondaryHeader() {
+	inline void unuseSecondaryHeader() {
 		this->secondaryHeaderFlag = SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed;
 	}
 
-	void useSecondaryHeader() {
+	inline void useSecondaryHeader() {
 		this->secondaryHeaderFlag = SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed;
 	}
 
 public:
-	void setFirstSegmentFlag() {
+	inline void setFirstSegmentFlag() {
 		this->sequenceFlags = SpaceWireRSequenceFlagType::FirstSegment;
 	}
 
-	void setContinuedSegmentFlag() {
+public:
+	inline void setContinuedSegmentFlag() {
 		this->sequenceFlags = SpaceWireRSequenceFlagType::ContinuedSegment;
 	}
 
-	void setLstSegmentFlag() {
-		this->sequenceFlags = SpaceWireRSequenceFlagType::LstSegment;
+public:
+	inline void setLstSegmentFlag() {
+		this->sequenceFlags = SpaceWireRSequenceFlagType::LastSegment;
 	}
 
-	void setCompleteSegmentFlag() {
+public:
+	inline void setCompleteSegmentFlag() {
 		this->sequenceFlags = SpaceWireRSequenceFlagType::CompleteSegment;
 	}
 
 public:
+	inline bool isFirstSegment() {
+		return (this->sequenceFlags == SpaceWireRSequenceFlagType::FirstSegment) ? true : false;
+	}
+
+public:
+	inline bool isLastSegment() {
+		return (this->sequenceFlags == SpaceWireRSequenceFlagType::LastSegment) ? true : false;
+	}
+
+public:
+	inline bool isContinuedSegment() {
+		return (this->sequenceFlags == SpaceWireRSequenceFlagType::ContinuedSegment) ? true : false;
+	}
+
+public:
+	inline bool isCompleteSegment() {
+		return (this->sequenceFlags == SpaceWireRSequenceFlagType::CompleteSegment) ? true : false;
+	}
+
+public:
 	//prefix-related
-	size_t getPrefixLength() const {
+	inline size_t getPrefixLength() const {
 		return prefix.size();
 	}
 
-	std::vector<uint8_t> getPrefix() const {
+public:
+	inline std::vector<uint8_t> getPrefix() const {
 		return prefix;
 	}
 
-	void setPrefix(std::vector<uint8_t>& prefix) {
+public:
+	inline void setPrefix(std::vector<uint8_t>& prefix) {
 		this->prefix = prefix;
+		this->prefixLength = prefix.size();
 	}
 
+public:
+	inline bool isDataPacket() {
+		return (packetType == DataPacketType) ? true : false;
+	}
+
+public:
+	inline bool isDataAckPacket() {
+		return (packetType == DataAckPacketType) ? true : false;
+	}
+
+public:
+	inline bool isControlPacketOpenCommand() {
+		return (packetType == ControlPacketOpenCommandType) ? true : false;
+	}
+
+public:
+	inline bool isControlPacketCloseCommand() {
+		return (packetType == ControlPacketCloseCommandType) ? true : false;
+	}
+
+public:
+	inline bool isKeepAlivePacketType() {
+		return (packetType == KeepAlivePacketType) ? true : false;
+	}
+
+public:
+	inline bool isKeepAliveAckPacketType() {
+		return (packetType == KeepAliveAckPacketType) ? true : false;
+	}
+
+public:
+	inline bool isFlowControlPacket() {
+		return (packetType == FlowControlPacket) ? true : false;
+	}
+
+public:
+	inline bool isControlAckPacket() {
+		return (packetType == ControlAckPacket) ? true : false;
+	}
+
+public:
+	inline bool hasSecondaryHeader() {
+		return (secondaryHeaderFlag == 0x01) ? true : false;
+	}
+
+public:
+	inline double getSentoutTimeStamp() const {
+		return sentoutTimeStamp;
+	}
+
+public:
+	inline void setSentoutTimeStamp(double sentoutTimeStamp) {
+		this->sentoutTimeStamp = sentoutTimeStamp;
+	}
+
+public:
+	void setCurrentTimeToSentoutTimeStamp(){
+		this->sentoutTimeStamp=CxxUtilities::Time::getClockValueInMilliSec();
+	}
 };
 
 class SpaceWireRDataPacket: public SpaceWireRPacket {
 public:
 	SpaceWireRDataPacket() {
 		this->setDataPacketFlag();
+	}
+
+public:
+	virtual ~SpaceWireRDataPacket() {
 	}
 };
 
@@ -596,12 +788,20 @@ public:
 	SpaceWireRDataAckPacket() {
 		this->setDataAckPacketFlag();
 	}
+
+public:
+	virtual ~SpaceWireRDataAckPacket() {
+	}
 };
 
 class SpaceWireROpenCommandPacket: public SpaceWireRPacket {
 public:
 	SpaceWireROpenCommandPacket() {
 		this->setControlPacketOpenCommandFlag();
+	}
+
+public:
+	virtual ~SpaceWireROpenCommandPacket() {
 	}
 };
 
@@ -610,12 +810,20 @@ public:
 	SpaceWireRCloseCommandPacket() {
 		this->setControlPacketCloseCommandFlag();
 	}
+
+public:
+	virtual ~SpaceWireRCloseCommandPacket() {
+	}
 };
 
 class SpaceWireRKeepAlivePacket: public SpaceWireRPacket {
 public:
 	SpaceWireRKeepAlivePacket() {
 		this->setKeepAlivePacketFlag();
+	}
+
+public:
+	virtual ~SpaceWireRKeepAlivePacket() {
 	}
 };
 
@@ -624,6 +832,10 @@ public:
 	SpaceWireRKeepAliveAckPacket() {
 		this->setKeepAliveAckPacketFlag();
 	}
+
+public:
+	virtual ~SpaceWireRKeepAliveAckPacket() {
+	}
 };
 
 class SpaceWireRFlowControlPacket: public SpaceWireRPacket {
@@ -631,12 +843,20 @@ public:
 	SpaceWireRFlowControlPacket() {
 		this->setFlowControlPacketFlag();
 	}
+
+public:
+	virtual ~SpaceWireRFlowControlPacket() {
+	}
 };
 
 class SpaceWireRControlAckPacket: public SpaceWireRPacket {
 public:
 	SpaceWireRControlAckPacket() {
 		this->setControlAckPacketFlag();
+	}
+
+public:
+	virtual ~SpaceWireRControlAckPacket() {
 	}
 };
 

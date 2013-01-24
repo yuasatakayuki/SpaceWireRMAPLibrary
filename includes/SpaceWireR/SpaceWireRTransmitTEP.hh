@@ -8,225 +8,259 @@
 #ifndef SPACEWIRERTRANSMITTEP_HH_
 #define SPACEWIRERTRANSMITTEP_HH_
 
-#include "SpaceWireR/SpaceWireREngine.hh"
-#include "SpaceWireR/SpaceWireRPacket.hh"
-#include "CxxUtilities/Exception.hh"
+#include "SpaceWireR/SpaceWireRTEP.hh"
 
-class SpaceWireRTransmitTEPException: public CxxUtilities::Exception {
+class SpaceWireRTransmitTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
+
 public:
-	SpaceWireRTransmitTEPException(int status) :
-			CxxUtilities::Exception(status) {
+	SpaceWireRTransmitTEP(SpaceWireREngine* spwREngine, uint8_t channel, //
+			uint8_t destinationLogicalAddress, std::vector<uint8_t> destinationSpaceWireAddress, //
+			uint8_t sourceLogicalAddress, std::vector<uint8_t> sourceSpaceWireAddress) :
+			SpaceWireRTEP(SpaceWireRTEPType::TransmitTEP, spwREngine, channel) {
+		this->destinationLogicalAddress = destinationLogicalAddress;
+		this->destinationSpaceWireAddress = destinationSpaceWireAddress;
+		this->sourceLogicalAddress = destinationLogicalAddress;
+		this->sourceSpaceWireAddress = destinationSpaceWireAddress;
 	}
 
 public:
-	virtual ~SpaceWireRTransmitTEPException() {
+	virtual ~SpaceWireRTransmitTEP() {
 	}
 
+	/* --------------------------------------------- */
 public:
-	enum {
-		OpenFailed, IlleagalOpenDirectionWhileClosingASocket,
-	};
-};
+	static const double WaitDurationInMsForClosedLoop = 100; //m1s
 
-class SpaceWireRTEPType {
-public:
-	enum {
-		TransmitTEP, //
-		ReceiveTEP
-	};
-};
-
-class SpaceWireRTEPState {
-public:
-	enum {
-		Closed, Enabled, Open, Closing
-	};
-};
-
-class SpaceWireRTEP {
-private:
-	bool openCommandReceived;
-	uint32_t tepType;
+	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
+	static const double WaitDurationInMsForClosingLoop = 100; //ms
+	static const double WaitDurationInMsForEnabledLoop = 100; //m1s
+	static const double WaitDurationInMsForPacketRetransmission = 500; //ms
 
 private:
-	//routing information
-	std::vector<uint8_t> destinationSpaceWireAddress;
+	uint8_t sourceLogicalAddress;
 	std::vector<uint8_t> sourceSpaceWireAddress;
 	uint8_t destinationLogicalAddress;
-	uint8_t sourceLogicalAddress;
-
-public:
-	static const uint8_t DefaultLogicalAddress = 0xFE;
-
-protected:
-	SpaceWireRTEP(uint32_t tepType) {
-		this->tepType = tepType;
-		this->openCommandReceived = false;
-		this->sourceLogicalAddress = DefaultLogicalAddress;
-		this->destinationLogicalAddress = DefaultLogicalAddress;
-	}
-
-public:
-	virtual ~SpaceWireRTEP() {
-	}
-
-public:
-	bool isTransmitTEP() {
-		if (tepType == SpaceWireRTEPType::TransmitTEP) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-public:
-	bool isReceiveTEP() {
-		if (tepType == SpaceWireRTEPType::ReceiveTEP) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-protected:
-	void sendOpenCommandPacket() {
-		if (isTransmitTEP()) {
-
-		}
-	}
-
-protected:
-	void sendOpenCommandAckPacket() {
-
-	}
-
-protected:
-	void sendCloseCommandPacket() {
-
-	}
-
-protected:
-	void sendCloseCommandAckPacket() {
-
-	}
-
-protected:
-	void sendKeepAlivePacket() {
-
-	}
-
-protected:
-	void sendKeepAliveAckPacket() {
-
-	}
-
-protected:
-	void sendFlowControlPacket() {
-
-	}
-
-public:
-	void open() = 0;
-
-public:
-	void close() = 0;
-
-public:
-	virtual void openCommandPacketHasBeenReceived() = 0;
-
-public:
-	virtual void openCommandAckPacketHasBeenReceived() = 0;
-
-public:
-	virtual void closeCommandPacketHasBeenReceived() = 0;
-
-public:
-	virtual void closeCommandAckPacketHasBeenReceived() = 0;
-
-public:
-	virtual void keepAlivePacketHasBeenReceived() = 0;
-
-public:
-	virtual void keepAliveAckPacketHasBeenReceived() = 0;
-
-public:
-	virtual void flowControlPacketHasBeenReceived() = 0;
-
-};
-
-class SpaceWireRTransmitTEP: public SpaceWireRTEP {
+	std::vector<uint8_t> destinationSpaceWireAddress;
 
 private:
-	uint32_t state;
-	SpaceWireREngine* spwrEngine;
+	std::vector<CxxUtilities::Condition*> outstandingPacketTimers;
+	std::vector<SpaceWireRPacket*> outstandingPackets;
+	std::stack<CxxUtilities::Condition*> retryTimerInstancePool;
+	std::stack<SpaceWireRPacket*> packetInstancePool;
+
+private:
+	std::vector<size_t> retryCountsForSequenceNumber;
+
+private:
+
+	/* --------------------------------------------- */
 
 public:
-	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
-
-public:
-	SpaceWireRTransmitTEP(SpaceWireREngine* spwrEngine) {
-		this->spwrEngine = spwrEngine;
-		this->state = Closed;
+	void open(double timeoutDrationInMilliSec = DefaultTimeoutDurationInMilliSec) throw (SpaceWireRTEPException) {
+		if (this->state == SpaceWireRTEPState::Closed) {
+			this->state = SpaceWireRTEPState::Enabled;
+		} else if (state == SpaceWireRTEPState::Closing) {
+			throw SpaceWireRTEPException(SpaceWireRTEPException::IlleagalOpenDirectionWhileClosingASocket);
+		}
+		prepareRetryTimerInstances();
+		prepareSpaceWireRPacketInstances();
+		initializeRetryCounts();
+		registerMeToSpaceWireREngine();
 	}
 
 public:
-	void open(double timeoutDrationInMilliSec = DefaultTimeoutDurationInMilliSec) throw (SpaceWireRTransmitTEPException) {
-		if (state == Closed) {
+	void close() throw (SpaceWireRTEPException) {
+		if (state == SpaceWireRTEPState::Enabled || state == SpaceWireRTEPState::Open) {
+			this->state = SpaceWireRTEPState::Closing;
+			performClosingProcess();
+		}
+		initializeSlidingWindow();
+		initializeRetryCounts();
+	}
 
-		} else if (state == Closing) {
-			throw SpaceWireRTransmitTEPException(
-					SpaceWireRTransmitTEPException::IlleagalOpenDirectionWhileClosingASocket);
+private:
+	void closed() {
+		unregisterMeToSpaceWireREngine();
+	}
+
+private:
+	void registerMeToSpaceWireREngine() {
+		spwREngine->registerTransmitTEP(channel, &receivedPackets, &packetArrivalNotifier);
+	}
+
+private:
+	void unregisterMeToSpaceWireREngine() {
+		spwREngine->unregisterTransmitTEP(channel);
+	}
+
+private:
+	void initializeRetryCounts() {
+		retryCountsForSequenceNumber.clear();
+		retryCountsForSequenceNumber.resize(MaxOfSlidingWindow, 0);
+	}
+
+private:
+	void prepareRetryTimerInstances() {
+		while (retryTimerInstancePool.size() < this->slidingWindowSize) {
+			retryTimerInstancePool.push(new CxxUtilities::Condition);
 		}
 	}
 
-public:
-	void close() throw (SpaceWireRTransmitTEPException) {
-		if (state == Enabled) {
-			//todo
-		} else if (state == Open) {
-			//todo
+private:
+	void prepareSpaceWireRPacketInstances() {
+		while (packetInstancePool.size() < this->slidingWindowSize) {
+			SpaceWireRPacket* packet = new SpaceWireRPacket;
+			//set common parameters
+			packet->setChannelNumber(channel);
+			packet->setDestinationLogicalAddress(destinationLogicalAddress);
+			packet->setDestinationSpaceWireAddress(destinationSpaceWireAddress);
+			packet->setSecondaryHeaderFlag(SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed);
+			packet->setPrefix(this->sourceSpaceWireAddress);
+			packet->setSourceSpaceWireLogicalAddress(this->sourceLogicalAddress);
+			packetInstancePool.push(packet);
+
+			/* Note */
+			/* The following fields should be set packet by packet. */
+			//- sequence flag
+			//- packet type
+			//- payload length
+			//- sequence number
 		}
 	}
 
-public:
-	TransmitTEPState getCurrentState() {
-		return state;
-	}
-
-public:
-	bool isOpen() {
-		if (state == Open) {
-			return true;
+private:
+	SpaceWireRPacket* getAvailablePacketInstance() {
+		if (packetInstancePool.size() != 0) {
+			SpaceWireRPacket* packet = packetInstancePool.top();
+			packetInstancePool.pop();
+			return packet;
 		} else {
-			return false;
+			return NULL;
 		}
 	}
 
-public:
-	bool isEnabled() {
-		if (state == Enabled) {
-			return true;
-		} else {
-			return false;
+private:
+	void returnPacketInstance(SpaceWireRPacket* packet) {
+		packetInstancePool.push(packet);
+	}
+
+private:
+	CxxUtilities::Condition* getAvailableRetryTimerInstance(){
+		if(retryTimerInstancePool.size()!=0){
+			CxxUtilities::Condition* timer=retryTimerInstancePool.top();
+			retryTimerInstancePool.pop();
+			return timer;
+		}else{
+			return NULL;
 		}
 	}
 
-public:
-	bool isClosed() {
-		if (state == Closed) {
-			return true;
-		} else {
-			return false;
-		}
+private:
+	void returnRetryTimerInstance(CxxUtilities::Condition* timer){
+		retryTimerInstancePool.push(timer);
+	}
+
+private:
+	void malfunctioningTransportChannel() {
+		this->state = SpaceWireRTEPState::Closed;
+		closed();
+		//todo
+		//add message which should be sent to user
+	}
+
+private:
+	void malfunctioningSpaceWireIF() {
+		this->state = SpaceWireRTEPState::Closed;
+		closed();
+		//todo
+		//send message to user that SpaceWire IF is failing
+		//probably, Action mechanism is suitable.
 	}
 
 public:
-	bool isClosing() {
-		if (state == Closing) {
-			return true;
-		} else {
-			return false;
+	void run() {
+		static CxxUtilities::Condition waitTimer;
+		while (!stopped) {
+			switch (this->state) {
+			case SpaceWireRTEPState::Closed:
+				while (this->state == SpaceWireRTEPState::Closed && !stopped) {
+					stateTransitionNotifier.wait(WaitDurationInMsForClosedLoop);
+					if (this->state == SpaceWireRTEPState::Closed) {
+						discardReceivedPackets();
+					}
+				}
+				break;
+
+			case SpaceWireRTEPState::Enabled:
+				sendOpenCommand();
+				waitTimer.wait(WaitDurationInMsForEnabledLoop);
+				break;
+
+			case SpaceWireRTEPState::Open:
+				break;
+
+			case SpaceWireRTEPState::Closing:
+				break;
+
+			default:
+				this->stop();
+				break;
+			}
 		}
+	}
+
+private:
+	void performClosingProcess() {
+		//todo
+	}
+
+private:
+	void sendOpenCommand() {
+		SpaceWireRPacket* packet = getAvailablePacketInstance();
+		if (packet == NULL) {
+			malfunctioningTransportChannel();
+		}
+		CxxUtilities::Condition* timer=getAvailableRetryTimerInstance();
+
+		//set sequence flag
+		packet->setSequenceFlags(SpaceWireRSequenceFlagType::CompleteSegment);
+
+		//set packet type
+		packet->setPacketType(SpaceWireRPacketType::ControlPacketOpenCommand);
+
+		//set payload length
+		packet->setPayloadLength(0x00);
+
+		//set sequence number
+		packet->setSequenceNumber(0x00);
+
+		//send
+		spwREngine->sendPacket(packet);
+
+
+
+	}
+
+private:
+	void sendCloseCommand() {
+		SpaceWireRPacket* packet = getAvailablePacketInstance();
+		if (packet == NULL) {
+			malfunctioningTransportChannel();
+		}
+
+		//set sequence flag
+		packet->setSequenceFlags(SpaceWireRSequenceFlagType::CompleteSegment);
+
+		//set packet type
+		packet->setPacketType(SpaceWireRPacketType::ControlPacketOpenCommand);
+
+		//set payload length
+		packet->setPayloadLength(0x00);
+
+		//set sequence number
+		packet->setSequenceNumber(0x00);
+
+		spwREngine->sendPacket(packet);
 	}
 
 };
