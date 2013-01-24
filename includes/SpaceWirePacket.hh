@@ -11,15 +11,9 @@
 #include "SpaceWireEOPMarker.hh"
 #include <vector>
 
+/**
+ */
 class SpaceWirePacket {
-public:
-	enum AccessMode {
-		StructuredMode, ByteArrayMode
-	};
-
-private:
-	AccessMode mode;
-
 public:
 	static const uint8_t DefaultLogicalAddress = 0xFE;
 
@@ -31,83 +25,33 @@ protected:
 
 protected:
 	uint8_t protocolID;
-	std::vector<uint8_t> targetSpaceWireAddress;
-	uint8_t targetLogicalAddress;
-	std::vector<uint8_t> cargo;
+//	std::vector<uint8_t> cargo;
 	SpaceWireEOPMarker::EOPType eopType;
 
 public:
 	SpaceWirePacket() {
-		this->targetLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
 		this->protocolID = DefaultProtocolID;
 		eopType = SpaceWireEOPMarker::EOP;
-		mode = StructuredMode;
 	}
 
 public:
-	inline bool isStructuredMode() {
-		if (mode == StructuredMode) {
-			return true;
-		} else {
-			return false;
-		}
+	virtual ~SpaceWirePacket() {
 	}
 
 public:
-	inline bool isByteArrayMode() {
-		if (mode == ByteArrayMode) {
-			return true;
-		} else {
-			return false;
-		}
+	void setProtocolID(uint8_t protocolID) {
+		this->protocolID = protocolID;
 	}
-
-public:
-	inline void setStructuredMode() {
-		mode = StructuredMode;
-	}
-
-public:
-	inline void setByteArrayMode() {
-		mode = ByteArrayMode;
-	}
-
-public:
-	uint8_t getTargetLogicalAddress() const {
-		return targetLogicalAddress;
-	}
-
-	std::vector<uint8_t> getTargetSpaceWireAddress() const {
-		return targetSpaceWireAddress;
-	}
-
-	uint8_t getDestinationLogicalAddress() const {
-		return targetLogicalAddress;
-	}
-
-	std::vector<uint8_t> getDestinationSpaceWireAddress() const {
-		return targetSpaceWireAddress;
-	}
-
 	uint8_t getProtocolID() const {
 		return protocolID;
 	}
-
-	void setProtocolID(uint8_t protocolID) {
-		setStructuredMode();
-		this->protocolID = protocolID;
-	}
-
-	void setTargetLogicalAddress(uint8_t targetLogicalAddress) {
-		setStructuredMode();
-		this->targetLogicalAddress = targetLogicalAddress;
-	}
-
-	void setTargetSpaceWireAddress(std::vector<uint8_t> targetSpaceWireAddress) {
-		setStructuredMode();
-		this->targetSpaceWireAddress = targetSpaceWireAddress;
-	}
-
+//	uint8_t getDestinationLogicalAddress() const {
+//		return targetLogicalAddress;
+//	}
+	//	std::vector<uint8_t> getDestinationSpaceWireAddress() const {
+	//		return targetSpaceWireAddress;
+	//	}
+/*
 public:
 	void setCargo(std::vector<uint8_t>& cargo) {
 		setStructuredMode();
@@ -150,6 +94,7 @@ public:
 		setByteArrayMode();
 		this->wholePacket = packet;
 	}
+*/
 
 public:
 	SpaceWireEOPMarker::EOPType getEOPType() {
@@ -161,8 +106,9 @@ public:
 		this->eopType = eopType;
 	}
 
+	/*
 public:
-	std::vector<uint8_t>* getPacketBufferPointer() {
+	virtual std::vector<uint8_t>* getPacketBufferPointer() {
 		if (isStructuredMode()) {
 			constructPacket();
 			return &wholePacket;
@@ -170,7 +116,7 @@ public:
 			return &wholePacket;
 		}
 	}
-
+*/
 };
 
 #endif /* SPACEWIREPACKET_HH_ */
