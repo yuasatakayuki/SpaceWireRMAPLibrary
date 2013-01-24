@@ -9,7 +9,7 @@
 
 #include "SpaceWireIF.hh"
 
-/** Exception class for SpaceWireSSDTPModule.
+/** An exception class used by SpaceWireSSDTPModule.
  */
 class SpaceWireSSDTPException: public CxxUtilities::Exception {
 public:
@@ -28,6 +28,10 @@ public:
 public:
 	SpaceWireSSDTPException(uint32_t status) :
 			CxxUtilities::Exception(status) {
+	}
+
+public:
+	virtual ~SpaceWireSSDTPException() {
 	}
 
 public:
@@ -71,7 +75,7 @@ public:
 	}
 };
 
-/** This class performs synchronous data transfer via
+/** A class that performs synchronous data transfer via
  * TCP/IP network using "Simple- Synchronous- Data Transfer Protocol"
  * which is defined for this class.
  */
@@ -106,6 +110,7 @@ public:
 	size_t rbuf_index;
 
 public:
+	/** Constructor. */
 	SpaceWireSSDTPModule(CxxUtilities::TCPSocket* newdatasocket) {
 		datasocket = newdatasocket;
 		sendbuffer = (uint8_t*) malloc(SpaceWireSSDTPModule::BufferSize);
@@ -113,8 +118,12 @@ public:
 		internal_timecode = 0x00;
 		latest_sentsize = 0;
 		timecodeaction = NULL;
+		rbuf_index=0;
+		receivedsize=0;
 	}
 
+public:
+	/** Destructor. */
 	~SpaceWireSSDTPModule() {
 		if (sendbuffer != NULL) {
 			free(sendbuffer);
@@ -124,12 +133,24 @@ public:
 		}
 	}
 
+public:
+	/** Sends a SpaceWire packet via the SpaceWire interface.
+	 * This is a blocking method.
+	 * @param[in] data packet content.
+	 * @param[in] eopType End-of-Packet marker. SpaceWireEOPMarker::EOP or SpaceWireEOPMarker::EEP.
+	 */
 	void send(std::vector<uint8_t>& data, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		send(&data, eopType);
 		sendmutex.unlock();
 	}
 
+public:
+	/** Sends a SpaceWire packet via the SpaceWire interface.
+	 * This is a blocking method.
+	 * @param[in] data packet content.
+	 * @param[in] eopType End-of-Packet marker. SpaceWireEOPMarker::EOP or SpaceWireEOPMarker::EEP.
+	 */
 	void send(std::vector<uint8_t>* data, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		size_t size = data->size();
@@ -153,7 +174,14 @@ public:
 		sendmutex.unlock();
 	}
 
-	void send(uint8_t* data, size_t size, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
+public:
+	/** Sends a SpaceWire packet via the SpaceWire interface.
+	 * This is a blocking method.
+	 * @param[in] data packet content.
+	 * @param[in] the length length of the packet.
+	 * @param[in] eopType End-of-Packet marker. SpaceWireEOPMarker::EOP or SpaceWireEOPMarker::EEP.
+	 */
+	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		if (eopType == SpaceWireEOPMarker::EOP) {
 			sheader[0] = 0x00;
@@ -161,14 +189,14 @@ public:
 			sheader[0] = 0x01;
 		}
 		sheader[1] = 0x00;
-		size_t asize = size;
+		size_t asize = length;
 		for (size_t i = 11; i > 1; i--) {
 			sheader[i] = asize % 0x100;
 			asize = asize / 0x100;
 		}
 		try {
 			datasocket->send(sheader, 12);
-			datasocket->send(data, size);
+			datasocket->send(data, length);
 		} catch (...) {
 			sendmutex.unlock();
 			throw SpaceWireSSDTPException(SpaceWireSSDTPException::Disconnected);
@@ -177,6 +205,27 @@ public:
 	}
 
 public:
+	/** Tries to receive a pcket from the SpaceWire interface.
+	 * This method will block the thread for a certain length of time.
+	 * Timeout can happen via the TCPSocket provided to the instance.
+	 * The code below shows how the timeout duration can be changed.
+	 * @code
+	 * TCPClientSocket* socket=new TCPClientSocket("192.168.1.100", 10030);
+	 * socket->open();
+	 * socket->setTimeoutDuration(1000); //ms
+	 * SpaceWireSSDTPModule* ssdtpModule=new SpaceWireSSDTPModule(socket);
+	 * try{
+	 * 	ssdtpModule->receive();
+	 * }catch(SpaceWireSSDTPException& e){
+	 * 	if(e.getStatus()==SpaceWireSSDTPException::Timeout){
+	 * 	 std::cout << "Timeout" << std::endl;
+	 * 	}else{
+	 * 	 throw e;
+	 * 	}
+	 * }
+	 * @endcode
+	 * @returns packet content.
+	 */
 	std::vector<uint8_t> receive() throw (SpaceWireSSDTPException) {
 		receivemutex.lock();
 		std::vector<uint8_t> data;
@@ -186,6 +235,29 @@ public:
 		return data;
 	}
 
+public:
+	/** Tries to receive a pcket from the SpaceWire interface.
+	 * This method will block the thread for a certain length of time.
+	 * Timeout can happen via the TCPSocket provided to the instance.
+	 * The code below shows how the timeout duration can be changed.
+	 * @code
+	 * TCPClientSocket* socket=new TCPClientSocket("192.168.1.100", 10030);
+	 * socket->open();
+	 * socket->setTimeoutDuration(1000); //ms
+	 * SpaceWireSSDTPModule* ssdtpModule=new SpaceWireSSDTPModule(socket);
+	 * try{
+	 * 	ssdtpModule->receive();
+	 * }catch(SpaceWireSSDTPException& e){
+	 * 	if(e.getStatus()==SpaceWireSSDTPException::Timeout){
+	 * 	 std::cout << "Timeout" << std::endl;
+	 * 	}else{
+	 * 	 throw e;
+	 * 	}
+	 * }
+	 * @endcode
+	 * @param[out] data a vector instance which is used to store received data.
+	 * @param[out] eopType contains an EOP marker type (SpaceWireEOPMarker::EOP or SpaceWireEOPMarker::EEP).
+	 */
 	int receive(std::vector<uint8_t>* data, uint32_t& eopType) throw (SpaceWireSSDTPException) {
 		try {
 			using namespace std;
@@ -324,10 +396,10 @@ public:
 		}
 	}
 
-	void sendEEP() throw (SpaceWireSSDTPException) {
-		throw SpaceWireSSDTPException(SpaceWireSSDTPException::NotImplemented);
-	}
-
+public:
+	/** Emits a TimeCode.
+	 * @param[in] timecode timecode value.
+	 */
 	void sendTimeCode(uint8_t timecode) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		sendbuffer[0] = SpaceWireSSDTPModule::ControlFlag_SendTimeCode;
@@ -351,18 +423,45 @@ public:
 		}
 	}
 
+public:
+	/** Returns a time-code counter value.
+	 * The time-code counter will be updated when a TimeCode is
+	 * received from the SpaceWire interface. Receive of TimeCodes
+	 * is not automatic, but performed in received() method silently.
+	 * Therefore, to continuously receive TimeCodes, it is necessary to
+	 * invoke receive() method repeatedly in, for example, a dedicated
+	 * thread.
+	 * @returns a locally stored TimeCode value.
+	 */
 	uint8_t getTimeCode() throw (SpaceWireSSDTPException) {
 		return internal_timecode;
 	}
 
+public:
+	/** Registers an action instance which will be invoked when a TimeCode is received.
+	 * @param[in] SpaceWireIFActionTimecodeScynchronizedAction an action instance.
+	 */
 	void setTimeCodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action) {
 		timecodeaction = action;
 	}
 
+public:
+	/** Sets link frequency.
+	 * @attention This method is deprecated.
+	 * @attention 4-port SpaceWire-to-GigabitEther does not provides this function since
+	 * Link Speeds of external SpaceWire ports can be changed by updating
+	 * dedicated registers available at Router Configuration port via RMAP.
+	 */
 	void setTxFrequency(double frequencyInMHz) {
 		throw SpaceWireSSDTPException(SpaceWireSSDTPException::NotImplemented);
 	}
 
+public:
+	/** An action method which is internally invoked when a TimeCode is received.
+	 * This method is automatically called by SpaceWireSSDTP::receive() methods,
+	 * and users do not need to use this method.
+	 * @param[in] timecode a received TimeCode value.
+	 */
 	void gotTimeCode(uint8_t timecode) {
 		using namespace std;
 		if (timecodeaction != NULL) {
@@ -373,10 +472,12 @@ public:
 		}
 	}
 
+private:
 	void registerRead(uint32_t address) {
 		throw SpaceWireSSDTPException(SpaceWireSSDTPException::NotImplemented);
 	}
 
+private:
 	void registerWrite(uint32_t address, std::vector<uint8_t> data) {
 		//send command
 		sendmutex.lock();
@@ -384,6 +485,11 @@ public:
 		sendmutex.unlock();
 	}
 
+public:
+	/** @attention This method can be used only with 1-port SpaceWire-to-GigabitEther
+	 * (i.e. open-source version of SpaceWire-to-GigabitEther running with the ZestET1 FPGA board).
+	 * @param[in] txdivcount link frequency will be 200/(txdivcount+1) MHz.
+	 */
 	void setTxDivCount(uint8_t txdivcount) {
 		sendmutex.lock();
 		sendbuffer[0] = SpaceWireSSDTPModule::ControlFlag_ChangeTxSpeed;
@@ -408,6 +514,9 @@ public:
 	}
 
 public:
+	/** Sends raw byte array via the socket.
+	 * @attention Users should not use this method.
+	 */
 	void sendRawData(uint8_t* data, size_t length) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		try {
