@@ -142,6 +142,7 @@ public:
 public:
 	virtual void open() throw (SpaceWireIFException) =0;
 
+public:
 	virtual void close() throw (SpaceWireIFException) {
 		invokeSpaceWireIFCloseActions();
 	}
@@ -160,6 +161,7 @@ public:
 		}
 	}
 
+public:
 	virtual void send(std::vector<uint8_t>& data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data.size() == 0) {
@@ -169,6 +171,7 @@ public:
 		}
 	}
 
+public:
 	virtual void send(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType = SpaceWireEOPMarker::EOP)
 			throw (SpaceWireIFException) {
 		if (data->size() == 0) {
@@ -178,6 +181,7 @@ public:
 		}
 	}
 
+public:
 	virtual void sendVectorPointer(std::vector<uint8_t>* data, SpaceWireEOPMarker::EOPType eopType =
 			SpaceWireEOPMarker::EOP) throw (SpaceWireIFException) {
 		if (data->size() == 0) {
@@ -187,11 +191,13 @@ public:
 		}
 	}
 
-public:
-	void send(SpaceWirePacket* packet) throw (SpaceWireIFException) {
-		std::vector<uint8_t>* packetPointer = packet->getPacketBufferPointer();
-		sendVectorPointer(packetPointer, packet->getEOPType());
-	}
+	/*
+	 public:
+	 void send(SpaceWirePacket* packet) throw (SpaceWireIFException) {
+	 std::vector<uint8_t>* packetPointer = packet->getPacketBufferPointer();
+	 sendVectorPointer(packetPointer, packet->getEOPType());
+	 }
+	 */
 
 public:
 	virtual void receive(uint8_t* buffer, SpaceWireEOPMarker::EOPType& eopType, size_t maxLength, size_t& length)
@@ -212,7 +218,7 @@ public:
 		}
 		delete packet;
 	}
-
+public:
 	virtual std::vector<uint8_t>* receive() throw (SpaceWireIFException) {
 		std::vector<uint8_t>* buffer = new std::vector<uint8_t>();
 		try {
@@ -224,6 +230,7 @@ public:
 		}
 	}
 
+public:
 	virtual void receive(std::vector<uint8_t>* buffer) throw (SpaceWireIFException) =0;
 
 public:
@@ -232,6 +239,7 @@ public:
 public:
 	virtual void setTxLinkRate(uint32_t linkRateType) throw (SpaceWireIFException) =0;
 
+public:
 	virtual uint32_t getTxLinkRateType() throw (SpaceWireIFException) =0;
 
 private:
