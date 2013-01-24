@@ -17,7 +17,10 @@
 #include "SpaceWireIF.hh"
 #include "SpaceWireUtilities.hh"
 
-class RMAPEngineStoppedAction: public CxxUtilities::Action {
+class RMAPEngineStoppedAction : public CxxUtilities::Action<void> {
+public:
+	virtual ~RMAPEngineStoppedAction(){}
+
 public:
 	virtual void doAction(void* rmapEngine) = 0;
 };
@@ -44,6 +47,9 @@ public:
 		rmapPacketCausedThisException = NULL;
 		causeIsRegistered = false;
 	}
+
+public:
+	virtual ~RMAPEngineException(){}
 
 public:
 	RMAPEngineException(uint32_t status, RMAPPacket* packetCausedThisException) :
@@ -190,7 +196,7 @@ private:
 public:
 	bool stopped;
 	bool hasStopped;
-	CxxUtilities::Actions rmapEngineStoppedActions;
+	CxxUtilities::Actions<void> rmapEngineStoppedActions;
 
 public:
 	size_t nDiscardedReceivedPackets;
@@ -338,7 +344,6 @@ private:
 			} catch (RMAPEngineException e) {
 				//if not found, increment error counter
 				nErrorneousReplyPackets++;
-				transactionIDMutex.unlock();
 				return;
 			}
 			//register reply packet to the resolved transaction
@@ -475,11 +480,10 @@ public:
 		std::map<uint16_t, RMAPTransaction*>::iterator it = transactions.find(transactionID);
 		if (it != transactions.end()) { //found
 			transactions.erase(it);
+			//put back the transaction id to the available list
 			pushBackUtilizedTransactionID(transactionID);
 		}
 		transactionIDMutex.unlock();
-		//put back the transaction id to the available list
-		pushBackUtilizedTransactionID(transactionID);
 	}
 
 	void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
@@ -575,7 +579,7 @@ public:
 		rmapEngineStoppedActions.removeAction(rmapEngineStoppedAction);
 	}
 
-	CxxUtilities::Actions* getRMAPEngineStoppedActions() {
+	CxxUtilities::Actions<void>* getRMAPEngineStoppedActions() {
 		return &rmapEngineStoppedActions;
 	}
 
@@ -583,7 +587,7 @@ private:
 	void invokeRegisteredStopActions() {
 		using namespace std;
 		if (stopActionsHasBeenExecuted == false) {
-			rmapEngineStoppedActions.doEachAction(this);
+			rmapEngineStoppedActions.doEachAction((void*)this);
 			stopActionsHasBeenExecuted = true;
 		}
 	}
@@ -598,5 +602,6 @@ public:
 	}
 
 };
+
 
 #endif /* RMAPENGINE_HH_ */
