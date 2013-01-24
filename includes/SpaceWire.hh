@@ -8,6 +8,8 @@
 #ifndef SPACEWIRE_HH_
 #define SPACEWIRE_HH_
 
+#include "CxxUtilities/CommonHeader.hh"
+
 #include "SpaceWireEOPMarker.hh"
 #include "SpaceWirePacket.hh"
 #include "SpaceWireIF.hh"
