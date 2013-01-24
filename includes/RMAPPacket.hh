@@ -69,6 +69,10 @@ public:
 
 class RMAPPacket: public SpaceWirePacket {
 private:
+	std::vector<uint8_t> targetSpaceWireAddress;
+	uint8_t targetLogicalAddress;
+
+private:
 	uint8_t instruction;
 	uint8_t key;
 	std::vector<uint8_t> replyAddress;
@@ -119,29 +123,33 @@ public:
 		return useDraftECRC;
 	}
 
+public:
 	void setUseDraftECRC(bool useDraftEcrc) {
 		this->useDraftECRC = useDraftEcrc;
 	}
 
+public:
 	bool getDataCRCIsChecked() const {
 		return dataCRCIsChecked;
 	}
 
+public:
 	bool getHeaderCRCIsChecked() const {
 		return headerCRCIsChecked;
 	}
 
+public:
 	void setDataCRCIsChecked(bool dataCRCIsChecked) {
 		this->dataCRCIsChecked = dataCRCIsChecked;
 	}
 
+public:
 	void setHeaderCRCIsChecked(bool headerCRCIsChecked) {
 		this->headerCRCIsChecked = headerCRCIsChecked;
 	}
 
 public:
 	RMAPPacket() {
-		this->setByteArrayMode();
 		initiatorLogicalAddress = SpaceWireProtocol::DefaultLogicalAddress;
 		protocolID = RMAPProtocol::ProtocolIdentifier;
 		targetLogicalAddress = SpaceWireProtocol::DefaultLogicalAddress;
@@ -163,7 +171,6 @@ public:
 
 public:
 	void constructHeader() {
-		this->setByteArrayMode();
 		using namespace std;
 
 		header.clear();
@@ -214,11 +221,10 @@ public:
 			calculateHeaderCRC();
 		}
 		header.push_back(headerCRC);
-		this->setByteArrayMode();
 	}
 
+public:
 	inline void calculateHeaderCRC() {
-		this->setByteArrayMode();
 		if (!useDraftECRC) {
 			headerCRC = RMAPUtilities::calculateCRC(header);
 		} else {
@@ -226,8 +232,8 @@ public:
 		}
 	}
 
+public:
 	inline void calculateDataCRC() {
-		this->setByteArrayMode();
 		if (!useDraftECRC) {
 			dataCRC = RMAPUtilities::calculateCRC(data);
 		} else {
@@ -235,8 +241,8 @@ public:
 		}
 	}
 
+public:
 	void constructPacket() {
-		this->setByteArrayMode();
 		using namespace std;
 
 		constructHeader();
@@ -258,7 +264,6 @@ public:
 
 public:
 	void interpretAsAnRMAPPacket(uint8_t *packet, size_t length) throw (RMAPPacketException) {
-		this->setByteArrayMode();
 		using namespace std;
 
 		if (length < 8) {
@@ -441,6 +446,7 @@ public:
 		dataCRCMode = previousDataCRCMode;
 	}
 
+public:
 	void interpretAsAnRMAPPacket(std::vector<uint8_t> & data) throw (RMAPPacketException) {
 		if (data.size() == 0) {
 			throw RMAPPacketException(RMAPPacketException::PacketInterpretationFailed);
@@ -448,6 +454,7 @@ public:
 		interpretAsAnRMAPPacket(&(data[0]), data.size());
 	}
 
+public:
 	void interpretAsAnRMAPPacket(std::vector<uint8_t> *data) throw (RMAPPacketException) {
 		if (data->size() == 0) {
 			throw RMAPPacketException(RMAPPacketException::PacketInterpretationFailed);
@@ -466,6 +473,7 @@ public:
 		}
 	}
 
+public:
 	inline void setRMAPTargetInformation(RMAPTargetNode & rmapTargetNode) {
 		setRMAPTargetInformation(&rmapTargetNode);
 	}
@@ -479,10 +487,12 @@ public:
 		}
 	}
 
+public:
 	inline void setCommand() {
 		instruction = instruction | RMAPPacket::BitMaskForCommandReply;
 	}
 
+public:
 	inline bool isReply() {
 		if ((instruction & RMAPPacket::BitMaskForCommandReply) > 0) {
 			return false;
@@ -491,10 +501,12 @@ public:
 		}
 	}
 
+public:
 	inline void setReply() {
 		instruction = instruction & (~RMAPPacket::BitMaskForCommandReply);
 	}
 
+public:
 	inline bool isWrite() {
 		if ((instruction & RMAPPacket::BitMaskForWriteRead) > 0) {
 			return true;
@@ -503,10 +515,12 @@ public:
 		}
 	}
 
+public:
 	inline void setWrite() {
 		instruction = instruction | RMAPPacket::BitMaskForWriteRead;
 	}
 
+public:
 	inline bool isRead() {
 		if ((instruction & RMAPPacket::BitMaskForWriteRead) > 0) {
 			return false;
@@ -515,10 +529,12 @@ public:
 		}
 	}
 
+public:
 	inline void setRead() {
 		instruction = instruction & (~RMAPPacket::BitMaskForWriteRead);
 	}
 
+public:
 	inline bool isVerifyFlagSet() {
 		if ((instruction & RMAPPacket::BitMaskForVerifyFlag) > 0) {
 			return true;
@@ -527,22 +543,27 @@ public:
 		}
 	}
 
+public:
 	inline void setVerifyFlag() {
 		instruction = instruction | RMAPPacket::BitMaskForVerifyFlag;
 	}
 
+public:
 	inline void unsetVerifyFlag() {
 		instruction = instruction & (~RMAPPacket::BitMaskForVerifyFlag);
 	}
 
+public:
 	inline void setVerifyMode() {
 		setVerifyFlag();
 	}
 
+public:
 	inline void setNoVerifyMode() {
 		unsetVerifyFlag();
 	}
 
+public:
 	inline bool isReplyFlagSet() {
 		if ((instruction & RMAPPacket::BitMaskForReplyFlag) > 0) {
 			return true;
@@ -551,22 +572,27 @@ public:
 		}
 	}
 
+public:
 	inline void setReplyFlag() {
 		instruction = instruction | RMAPPacket::BitMaskForReplyFlag;
 	}
 
+public:
 	inline void unsetReplyFlag() {
 		instruction = instruction & (~RMAPPacket::BitMaskForReplyFlag);
 	}
 
+public:
 	inline void setReplyMode() {
 		setReplyFlag();
 	}
 
+public:
 	inline void setNoReplyMode() {
 		unsetReplyFlag();
 	}
 
+public:
 	inline bool isIncrementFlagSet() {
 		if ((instruction & RMAPPacket::BitMaskForIncrementFlag) > 0) {
 			return true;
@@ -575,26 +601,32 @@ public:
 		}
 	}
 
+public:
 	inline void setIncrementFlag() {
 		instruction = instruction | RMAPPacket::BitMaskForIncrementFlag;
 	}
 
+public:
 	inline void unsetIncrementFlag() {
 		instruction = instruction & (~RMAPPacket::BitMaskForIncrementFlag);
 	}
 
+public:
 	inline void setIncrementMode() {
 		setIncrementFlag();
 	}
 
+public:
 	inline void setNoIncrementMode() {
 		unsetIncrementFlag();
 	}
 
+public:
 	inline uint8_t getReplyPathAddressLength() {
 		return instruction & RMAPPacket::BitMaskForReplyPathAddressLength;
 	}
 
+public:
 	inline void setReplyPathAddressLength(uint8_t pathAddressLength) {
 		instruction = (instruction & ~(RMAPPacket::BitMaskForIncrementFlag)) + pathAddressLength
 				& RMAPPacket::BitMaskForIncrementFlag;
@@ -619,10 +651,12 @@ public:
 
 	}
 
+public:
 	std::vector<uint8_t> getData() const {
 		return data;
 	}
 
+public:
 	void getData(uint8_t *buffer, size_t maxLength) throw (RMAPPacketException) {
 		size_t length = data.size();
 		if (maxLength < length) {
@@ -633,71 +667,87 @@ public:
 		}
 	}
 
+public:
 	void getData(std::vector<uint8_t> & buffer) {
 		size_t length = data.size();
 		buffer.resize(length);
 		getData(&(buffer[0]), length);
 	}
 
+public:
 	void getData(std::vector<uint8_t> *buffer) {
 		size_t length = data.size();
 		buffer->resize(length);
 		getData(&(buffer->at(0)), length);
 	}
 
+public:
 	std::vector<uint8_t> *getDataBuffer() {
 		return &data;
 	}
 
+public:
 	uint8_t getDataCRC() const {
 		return dataCRC;
 	}
 
+public:
 	uint32_t getDataLength() const {
 		return dataLength;
 	}
 
+public:
 	uint32_t getLength() const {
 		return dataLength;
 	}
 
+public:
 	uint8_t getExtendedAddress() const {
 		return extendedAddress;
 	}
 
+public:
 	uint8_t getHeaderCRC() const {
 		return headerCRC;
 	}
 
+public:
 	uint8_t getInitiatorLogicalAddress() const {
 		return initiatorLogicalAddress;
 	}
 
+public:
 	uint8_t getInstruction() const {
 		return instruction;
 	}
 
+public:
 	uint8_t getKey() const {
 		return key;
 	}
 
+public:
 	std::vector<uint8_t> getReplyAddress() const {
 		return replyAddress;
 	}
 
+public:
 	uint16_t getTransactionID() const {
 		return transactionID;
 	}
 
+public:
 	void setAddress(uint32_t address) {
 		this->address = address;
 	}
 
+public:
 	void setData(std::vector<uint8_t> & data) {
 		this->data = data;
 		this->dataLength = data.size();
 	}
 
+public:
 	void setData(uint8_t *data, size_t length) {
 		this->data.clear();
 		for (size_t i = 0; i < length; i++) {
@@ -706,38 +756,47 @@ public:
 		this->dataLength = length;
 	}
 
+public:
 	void setDataCRC(uint8_t dataCRC) {
 		this->dataCRC = dataCRC;
 	}
 
+public:
 	void setDataLength(uint32_t dataLength) {
 		this->dataLength = dataLength;
 	}
 
+public:
 	void setLength(uint32_t dataLength) {
 		this->dataLength = dataLength;
 	}
 
+public:
 	void setExtendedAddress(uint8_t extendedAddress) {
 		this->extendedAddress = extendedAddress;
 	}
 
+public:
 	void setHeaderCRC(uint8_t headerCRC) {
 		this->headerCRC = headerCRC;
 	}
 
+public:
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
 	}
 
+public:
 	void setInstruction(uint8_t instruction) {
 		this->instruction = instruction;
 	}
 
+public:
 	void setKey(uint8_t key) {
 		this->key = key;
 	}
 
+public:
 	void setReplyAddress(std::vector<uint8_t> replyAddress, //
 			bool automaticallySetPathAddressLengthToInstructionField = true) {
 		this->replyAddress = replyAddress;
@@ -751,42 +810,52 @@ public:
 
 	}
 
+public:
 	void setTransactionID(uint16_t transactionID) {
 		this->transactionID = transactionID;
 	}
 
+public:
 	uint8_t getStatus() const {
 		return status;
 	}
 
+public:
 	void setStatus(uint8_t status) {
 		this->status = status;
 	}
 
+public:
 	uint32_t getHeaderCRCMode() const {
 		return headerCRCMode;
 	}
 
+public:
 	void setHeaderCRCMode(uint32_t headerCRCMode) {
 		this->headerCRCMode = headerCRCMode;
 	}
 
+public:
 	uint32_t getDataCRCMode() const {
 		return dataCRCMode;
 	}
 
+public:
 	void setDataCRCMode(uint32_t dataCRCMode) {
 		this->dataCRCMode = dataCRCMode;
 	}
 
+public:
 	inline void addData(uint8_t oneByte) {
 		this->data.push_back(oneByte);
 	}
 
+public:
 	inline void clearData() {
 		data.clear();
 	}
 
+public:
 	inline void addData(std::vector<uint8_t> array) {
 		size_t size = array.size();
 		for (size_t i = 0; i < size; i++) {
@@ -803,12 +872,33 @@ public:
 		}
 	}
 
+public:
 	std::string toXMLString() {
 		if (isCommand()) {
 			return toXMLStringCommandPacket();
 		} else {
 			return toXMLStringReplyPacket();
 		}
+	}
+
+public:
+	uint8_t getTargetLogicalAddress() const {
+		return targetLogicalAddress;
+	}
+
+public:
+	std::vector<uint8_t> getTargetSpaceWireAddress() const {
+		return targetSpaceWireAddress;
+	}
+
+public:
+	void setTargetLogicalAddress(uint8_t targetLogicalAddress) {
+		this->targetLogicalAddress = targetLogicalAddress;
+	}
+
+public:
+	void setTargetSpaceWireAddress(std::vector<uint8_t> targetSpaceWireAddress) {
+		this->targetSpaceWireAddress = targetSpaceWireAddress;
 	}
 
 private:
@@ -874,6 +964,7 @@ private:
 		return ss.str();
 	}
 
+public:
 	std::string toStringReplyPacket() {
 		using namespace std;
 
@@ -1078,6 +1169,7 @@ public:
 		return ss2.str();
 	}
 
+public:
 	std::string toXMLStringReplyPacket(int nTabs = 0) {
 		this->constructPacket();
 		using namespace std;
@@ -1199,6 +1291,12 @@ public:
 			ss2 << line << endl;
 		}
 		return ss2.str();
+	}
+
+public:
+	std::vector<uint8_t>* getPacketBufferPointer() {
+		constructPacket();
+		return &wholePacket;
 	}
 
 public:
