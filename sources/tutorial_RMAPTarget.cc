@@ -119,11 +119,11 @@ public:
 
 		//Construct instances
 		rmapTargetAccessAction0 = new RMAPTargetAccessActionImplementation(logicalAddresses[0], keys[0], data0);
-		addressRange0 = new RMAPAddressRange(addresses[0], addresses[0]+data0.size());
+		addressRange0 = new RMAPAddressRange(addresses[0], addresses[0] + data0.size());
 		rmapTargetAccessAction1 = new RMAPTargetAccessActionImplementation(logicalAddresses[1], keys[1], data1);
-		addressRange1 = new RMAPAddressRange(addresses[1], addresses[1]+data1.size());
+		addressRange1 = new RMAPAddressRange(addresses[1], addresses[1] + data1.size());
 		rmapTargetAccessAction2 = new RMAPTargetAccessActionImplementation(logicalAddresses[2], keys[2], data2);
-		addressRange2 = new RMAPAddressRange(addresses[2], addresses[2]+data2.size());
+		addressRange2 = new RMAPAddressRange(addresses[2], addresses[2] + data2.size());
 
 		//register instances to this (via the RMAPTarget::addAddressRangeAndAssociatedAction() method)
 		this->addAddressRangeAndAssociatedAction(addressRange0, rmapTargetAccessAction0);
