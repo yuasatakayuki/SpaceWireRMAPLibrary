@@ -17,9 +17,10 @@
 #include "SpaceWireIF.hh"
 #include "SpaceWireUtilities.hh"
 
-class RMAPEngineStoppedAction : public CxxUtilities::Action<void> {
+class RMAPEngineStoppedAction: public CxxUtilities::Action<void> {
 public:
-	virtual ~RMAPEngineStoppedAction(){}
+	virtual ~RMAPEngineStoppedAction() {
+	}
 
 public:
 	virtual void doAction(void* rmapEngine) = 0;
@@ -49,7 +50,8 @@ public:
 	}
 
 public:
-	virtual ~RMAPEngineException(){}
+	virtual ~RMAPEngineException() {
+	}
 
 public:
 	RMAPEngineException(uint32_t status, RMAPPacket* packetCausedThisException) :
@@ -184,7 +186,7 @@ private:
 
 public:
 	static const size_t MaximumTIDNumber = 65536;
-	static const double DefaultReceiveTimeoutDurationInMilliSec = 1000;
+	static const double DefaultReceiveTimeoutDurationInMicroSec = 1000000;//1s
 
 private:
 	SpaceWireIF* spwif;
@@ -253,7 +255,7 @@ public:
 		stopped = false;
 		hasStopped = false;
 		stopActionsHasBeenExecuted = false;
-		spwif->setTimeoutDuration(DefaultReceiveTimeoutDurationInMilliSec);
+		spwif->setTimeoutDuration(DefaultReceiveTimeoutDurationInMicroSec);
 		while (!stopped) {
 			try {
 				RMAPPacket* rmapPacket = receivePacket();
@@ -387,6 +389,7 @@ private:
 			spwif->receive(buffer);
 		} catch (SpaceWireIFException& e) {
 			delete buffer;
+			//cout << e.toString() << endl;
 			if (e.status == SpaceWireIFException::Disconnected) {
 				//tell run() that SpaceWireIF is disconnected
 				throw RMAPEngineException(RMAPEngineException::SpaceWireIFDisconnected);
@@ -517,7 +520,7 @@ public:
 		this->spwif->addSpaceWireIFCloseAction(spacewireIFActionCloseAction);
 	}
 
-	SpaceWireIF* getSpaceWireIF() {
+	SpaceWireIF * getSpaceWireIF() {
 		return spwif;
 	}
 
@@ -587,7 +590,7 @@ private:
 	void invokeRegisteredStopActions() {
 		using namespace std;
 		if (stopActionsHasBeenExecuted == false) {
-			rmapEngineStoppedActions.doEachAction((void*)this);
+			rmapEngineStoppedActions.doEachAction((void*) this);
 			stopActionsHasBeenExecuted = true;
 		}
 	}
@@ -601,7 +604,7 @@ public:
 		this->useDraftECRC = useDraftEcrc;
 	}
 
-};
-
+}
+;
 
 #endif /* RMAPENGINE_HH_ */
