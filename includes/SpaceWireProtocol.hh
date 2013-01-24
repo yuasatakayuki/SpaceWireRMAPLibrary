@@ -8,6 +8,7 @@
 #ifndef SPACEWIREPROTOCOL_HH_
 #define SPACEWIREPROTOCOL_HH_
 
+/** A class that collects constant parameters related to the SpaceWire protocol. */
 class SpaceWireProtocol {
 public:
 	static const uint8_t DefaultLogicalAddress=0xFE;
