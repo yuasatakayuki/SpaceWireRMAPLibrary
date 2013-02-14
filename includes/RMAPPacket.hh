@@ -314,9 +314,7 @@ public:
 				address_2 = packet[rmapIndexAfterSourcePathAddress + 5];
 				address_1 = packet[rmapIndexAfterSourcePathAddress + 6];
 				address_0 = packet[rmapIndexAfterSourcePathAddress + 7];
-				setAddress(
-						address_3 * 0x01000000 + address_2 * 0x00010000 + address_1 * 0x00000100
-								+ address_0 * 0x00000001);
+				setAddress(address_3 * 0x01000000 + address_2 * 0x00010000 + address_1 * 0x00000100 + address_0 * 0x00000001);
 				uint8_t length_2, length_1, length_0;
 				uint32_t lengthSpecifiedInPacket;
 				length_2 = packet[rmapIndexAfterSourcePathAddress + 8];
@@ -682,7 +680,17 @@ public:
 	}
 
 public:
-	std::vector<uint8_t> *getDataBuffer() {
+	uint8_t* getDataBufferAsArrayPointer() {
+		return (uint8_t*) (data[0]);
+	}
+
+public:
+	std::vector<uint8_t>* getDataBuffer() {
+		return &data;
+	}
+
+public:
+	std::vector<uint8_t>* getDataBufferAsVectorPointer() {
 		return &data;
 	}
 
@@ -925,8 +933,8 @@ private:
 		//Protocol Identifier
 		ss << "Protocol ID               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (1) << endl;
 		//Instruction
-		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex
-				<< (unsigned int) (instruction) << endl;
+		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (instruction)
+				<< endl;
 		toStringInstructionField(ss);
 		//Key
 		ss << "Key                       : 0x" << setw(2) << setfill('0') << hex << (unsigned int) (key) << endl;
@@ -937,8 +945,8 @@ private:
 		} else {
 			ss << "Reply Address         : --none--" << endl;
 		}
-		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex
-				<< (unsigned int) (transactionID) << endl;
+		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex << (unsigned int) (transactionID)
+				<< endl;
 		ss << "Extended Address          : 0x" << right << setw(2) << setfill('0') << hex
 				<< (unsigned int) (extendedAddress) << endl;
 		ss << "Address                   : 0x" << right << setw(8) << setfill('0') << hex << (unsigned int) (address)
@@ -991,8 +999,8 @@ public:
 		//Protocol Identifier
 		ss << "Protocol ID               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (1) << endl;
 		//Instruction
-		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex
-				<< (unsigned int) (instruction) << endl;
+		ss << "Instruction               : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (instruction)
+				<< endl;
 		toStringInstructionField(ss);
 		//Status
 		string statusstring;
@@ -1037,13 +1045,13 @@ public:
 			statusstring = "Reserved";
 			break;
 		}
-		ss << "Status                    : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (status)
-				<< " (" << statusstring << ")" << endl;
-		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex
-				<< (unsigned int) (transactionID) << endl;
+		ss << "Status                    : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (status) << " ("
+				<< statusstring << ")" << endl;
+		ss << "Transaction Identifier    : 0x" << right << setw(4) << setfill('0') << hex << (unsigned int) (transactionID)
+				<< endl;
 		if (isRead()) {
-			ss << "Data Length (bytes)       : 0x" << right << setw(6) << setfill('0') << hex
-					<< (unsigned int) (dataLength) << " (" << dec << dataLength << "dec)" << endl;
+			ss << "Data Length (bytes)       : 0x" << right << setw(6) << setfill('0') << hex << (unsigned int) (dataLength)
+					<< " (" << dec << dataLength << "dec)" << endl;
 		}
 		ss << "Header CRC                : 0x" << right << setw(2) << setfill('0') << hex << (unsigned int) (headerCRC)
 				<< endl;
@@ -1149,8 +1157,8 @@ public:
 				ss << "	<!-- DataCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC)
 						<< " (as long as the data part is intact) -->" << endl;
 			} else {
-				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC)
-						<< "</DataCRC>" << endl;
+				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC) << "</DataCRC>"
+						<< endl;
 			}
 		}
 
@@ -1195,8 +1203,7 @@ public:
 		ss << "	<Instruction>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (instruction)
 				<< "</Instruction>" << endl;
 		//Status
-		ss << "	<Status>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (status) << "</Status>"
-				<< endl;
+		ss << "	<Status>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (status) << "</Status>" << endl;
 		string statusstring;
 		switch (status) {
 		case 0x00:
@@ -1273,8 +1280,8 @@ public:
 				ss << "	<!-- DataCRC = " << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC)
 						<< " (as long as the data part is intact) -->" << endl;
 			} else {
-				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC)
-						<< "</DataCRC>" << endl;
+				ss << "	<DataCRC>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) (dataCRC) << "</DataCRC>"
+						<< endl;
 			}
 		}
 
@@ -1299,6 +1306,21 @@ public:
 		return &wholePacket;
 	}
 
+private:
+	static std::vector<uint8_t> removeLeadingZerosInReplyAddress(std::vector<uint8_t> replyAddress) {
+		bool nonZeroValueHasAppeared = false;
+		std::vector<uint8_t> result;
+		for (size_t i = 0; i < replyAddress.size(); i++) {
+			if (nonZeroValueHasAppeared == false && replyAddress[i] != 0x00) {
+				nonZeroValueHasAppeared = true;
+			}
+			if (nonZeroValueHasAppeared) {
+				result.push_back(replyAddress[i]);
+			}
+		}
+		return result;
+	}
+
 public:
 	/** Constructs a reply packet for a corresponding command packet.
 	 * @param[in] commandPacket a command packet of which reply packet will be constructed
@@ -1307,6 +1329,10 @@ public:
 			RMAPReplyStatus::CommandExcecutedSuccessfully) {
 		RMAPPacket* replyPacket = new RMAPPacket();
 		*replyPacket = *commandPacket;
+
+		//remove leading zeros in the Reply Address (Reply SpaceWire Address)
+		replyPacket->setReplyAddress(removeLeadingZerosInReplyAddress(replyPacket->getReplyAddress()));
+
 		replyPacket->clearData();
 		replyPacket->setReply();
 		replyPacket->setStatus(status);
