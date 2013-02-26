@@ -13,6 +13,8 @@
 #include "SpaceWirePacket.hh"
 #include "SpaceWireUtilities.hh"
 
+#undef debugSpaceWireRPacket
+
 class SpaceWireRUtility {
 public:
 	static uint16_t calculateCRCForHeaderAndData(const std::vector<uint8_t>& header, const std::vector<uint8_t>& data) {
@@ -59,6 +61,7 @@ class SpaceWireRPacketException: public CxxUtilities::Exception {
 public:
 	enum {
 		InvalidPacket, //
+		InvalidCRC, //
 		InvalidPayloadLength, //
 		TooShortPacketSize, //
 		InvalidHeaderFormat, //
@@ -186,7 +189,7 @@ private:
 
 private:
 	std::vector<uint8_t> prefix;
-	uint8_t sourceSpaceWireLogicalAddress;
+	uint8_t sourceLogicalAddress;
 
 private:
 	/// for Packet Control Field
@@ -213,7 +216,7 @@ public:
 		packetType = SpaceWireRPacketType::DataPacket; //dummy
 		unuseSecondaryHeader();
 		prefixLength = 0;
-		sourceSpaceWireLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
+		sourceLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
 	}
 
 public:
@@ -304,6 +307,7 @@ public:
 			return false;
 		}
 	}
+
 public:
 	void constructAckForPacket(SpaceWireRPacket* packet, std::vector<uint8_t> prefix) {
 		this->constructAckForPacket(packet);
@@ -318,7 +322,7 @@ public:
 
 		//destination addresses
 		this->destinationSpaceWireAddress = packet->getPrefix();
-		this->destinationLogicalAddress = packet->getSourceSpaceWireLogicalAddress();
+		this->destinationLogicalAddress = packet->getSourceLogicalAddress();
 
 		//secondary header flag
 		this->setSecondaryHeaderFlag(SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed);
@@ -347,7 +351,7 @@ public:
 		this->setSequenceNumber(packet->getSequenceNumber());
 
 		//source addresses
-		this->sourceSpaceWireLogicalAddress = packet->destinationLogicalAddress;
+		this->sourceLogicalAddress = packet->destinationLogicalAddress;
 		this->prefix.clear();
 
 		//clear payload
@@ -393,24 +397,36 @@ private:
 		for (size_t i = 0; i < destinationSpaceWireAddress.size(); i++) {
 			header.push_back(destinationSpaceWireAddress[i]);
 		}
-		header.push_back(sourceSpaceWireLogicalAddress);
+		header.push_back(sourceLogicalAddress);
 	}
 
 public:
 	void interpretPacket(std::vector<uint8_t>* buffer) throw (SpaceWireRPacketException) {
+		using namespace std;
+
 		if (buffer->size() < MinimumHeaderLength) {
 			throw SpaceWireRPacketException(SpaceWireRPacketException::TooShortPacketSize);
 		}
+
+#ifdef debugSpaceWireRPacket
+		cout << "SpaceWireRPacket::interpretPacket() #1" << endl;
+#endif
 
 		try {
 			//SpaceWire Address
 			size_t index = 0;
 			try {
+#ifdef debugSpaceWireRPacket
+				cout << "SpaceWireRPacket::interpretPacket() #2" << endl;
+#endif
 				std::vector<uint8_t> temporarySpaceWireAddress;
 				while (buffer->at(index) < 0x20) {
 					temporarySpaceWireAddress.push_back(buffer->at(index));
 					index++;
 				}
+#ifdef debugSpaceWireRPacket
+				cout << "SpaceWireRPacket::interpretPacket() #3" << endl;
+#endif
 			} catch (...) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidHeaderFormat);
 			}
@@ -420,11 +436,17 @@ public:
 			index++;
 
 			//Protocol ID
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #4" << endl;
+#endif
 			if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidProtocolID);
 			}
 			index++;
 
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #5" << endl;
+#endif
 			//Packet Control
 			this->packetControl = buffer->at(index);
 			interpretPacketControl();
@@ -448,10 +470,19 @@ public:
 			uint8_t prefixLength = buffer->at(index);
 			index++;
 
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #6" << endl;
+#endif
 			//Prefix
 			try {
 				prefix.clear();
+#ifdef debugSpaceWireRPacket
+				cout << "SpaceWireRPacket::interpretPacket() #7 prefixLength=" << (size_t) prefixLength << endl;
+#endif
 				for (size_t i = 0; i < prefixLength; i++) {
+#ifdef debugSpaceWireRPacket
+					cout << "SpaceWireRPacket::interpretPacket() #8" << endl;
+#endif
 					prefix.push_back(buffer->at(index));
 				}
 			} catch (...) {
@@ -459,28 +490,53 @@ public:
 			}
 
 			//Source SLA
-			this->sourceSpaceWireLogicalAddress = buffer->at(index);
+			this->sourceLogicalAddress = buffer->at(index);
 			index++;
 
 			//Payload
 			try {
 				size_t payloadLengthValue = payloadLength[0] * 0x100 + payloadLength[1];
 				payload.clear();
+#ifdef debugSpaceWireRPacket
+				cout << "SpaceWireRPacket::interpretPacket() #9 payloadLength=" << dec << payloadLengthValue << endl;
+#endif
 				for (size_t i = 0; i < payloadLengthValue; i++) {
 					payload.push_back(buffer->at(index));
 				}
+				index += payloadLengthValue;
 			} catch (...) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPayloadLength);
 			}
 
 			//Trailer
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #10" << endl;
+#endif
 			this->crc16 = buffer->at(index) * 0x100 + buffer->at(index + 1);
 			index += 2;
 
 			//Size check
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #11 index=" << dec << index << endl;
+#endif
 			if (index != buffer->size()) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::PacketHasExtraBytesAfterTrailer);
 			}
+
+			//CRC Check
+			uint16_t calculatedCRC = SpaceWireRUtility::calculateCRCForArray((uint8_t*) (&(buffer->at(0))),
+					buffer->size() - 2);
+#ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) calculatedCRC << endl;
+#endif
+			if(this->crc16!=calculatedCRC){
+				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidCRC);
+			}
+
+		} catch (SpaceWireRPacketException& e) {
+			throw e;
 		} catch (...) {
 			throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPacket);
 		}
@@ -494,68 +550,68 @@ private:
 	}
 
 public:
-	uint16_t getChannelNumber() const {
+	inline uint16_t getChannelNumber() const {
 		return channelNumber[0] * 0x100 + channelNumber[1];
 	}
 
-	uint16_t getCRC() const {
+	inline uint16_t getCRC() const {
 		return crc16;
 	}
 
-	std::vector<uint8_t> getHeader() const {
+	inline std::vector<uint8_t> getHeader() const {
 		return header;
 	}
 
-	uint8_t getPacketControl() const {
+	inline uint8_t getPacketControl() const {
 		return packetControl;
 	}
 
-	uint8_t getPacketType() const {
+	inline uint8_t getPacketType() const {
 		return this->packetType;
 	}
 
-	std::vector<uint8_t>* getPayload() const {
+	inline std::vector<uint8_t>* getPayload() {
 		return &payload;
 	}
 
-	uint16_t getPayloadLength() const {
+	inline uint16_t getPayloadLength() const {
 		return payloadLength[0] * 0x100 + payloadLength[1];
 	}
 
-	uint8_t getSequenceNumber() const {
+	inline uint8_t getSequenceNumber() const {
 		return sequenceNumber;
 	}
 
-	std::vector<uint8_t> getSourceAddressPrefix() const {
+	inline std::vector<uint8_t> getSourceAddressPrefix() const {
 		return prefix;
 	}
 
-	uint8_t getSourceSpaceWireLogicalAddress() const {
-		return sourceSpaceWireLogicalAddress;
+	inline uint8_t getSourceLogicalAddress() const {
+		return sourceLogicalAddress;
 	}
 
-	void setChannelNumber(uint16_t channelNumber) {
+	inline void setChannelNumber(uint16_t channelNumber) {
 		this->channelNumber[0] = channelNumber / 0x100;
 		this->channelNumber[1] = channelNumber % 0x100;
 	}
 
-	void setCRC(uint16_t crc) {
+	inline void setCRC(uint16_t crc) {
 		this->crc16 = crc;
 	}
 
-	void setHeader(std::vector<uint8_t>& header) {
+	inline void setHeader(std::vector<uint8_t>& header) {
 		this->header = header;
 	}
 
-	void setPacketControl(uint8_t packetControl) {
+	inline void setPacketControl(uint8_t packetControl) {
 		this->packetControl = packetControl;
 	}
 
-	void setPacketType(uint8_t packetType) {
+	inline void setPacketType(uint8_t packetType) {
 		this->packetType = packetType;
 	}
 
-	void setPayload(std::vector<uint8_t>& payload) throw (SpaceWireRPacketException) {
+	inline void setPayload(std::vector<uint8_t>& payload) throw (SpaceWireRPacketException) {
 		if (payload.size() > SpaceWireRPacket::MaxPayloadLength) {
 			throw SpaceWireRPacketException::InvalidPayloadLength;
 		}
@@ -563,51 +619,74 @@ public:
 		setPayloadLength(payload.size());
 	}
 
-	void setPayloadLength(uint16_t payloadLength) {
+	inline void setPayload(uint8_t* payload, size_t length) throw (SpaceWireRPacketException) {
+		if (length > SpaceWireRPacket::MaxPayloadLength) {
+			throw SpaceWireRPacketException::InvalidPayloadLength;
+		}
+		this->payload.clear();
+		for (size_t i = 0; i < length; i++) {
+			this->payload.push_back(payload[i]);
+		}
+		setPayloadLength(length);
+	}
+
+	inline void setPayload(std::vector<uint8_t>* payload, size_t index, size_t length) throw (SpaceWireRPacketException) {
+		if (length > SpaceWireRPacket::MaxPayloadLength) {
+			throw SpaceWireRPacketException::InvalidPayloadLength;
+		}
+		this->payload.clear();
+		size_t loopEnd = length + index;
+		for (size_t i = index; i < loopEnd; i++) {
+			this->payload.push_back(payload->at(i));
+		}
+		setPayloadLength(length);
+	}
+
+	inline void setPayloadLength(uint16_t payloadLength) {
 		this->payloadLength[0] = payloadLength / 0x100;
 		this->payloadLength[1] = payloadLength % 0x100;
 	}
 
-	void setSequenceNumber(uint8_t sequenceNumber) {
+	inline void setSequenceNumber(uint8_t sequenceNumber) {
 		this->sequenceNumber = sequenceNumber;
 	}
 
-	void setSourceAddressPrefix(std::vector<uint8_t>& sourceAddressPrefix) {
+	inline void setSourceAddressPrefix(std::vector<uint8_t>& sourceAddressPrefix) {
 		this->prefix = sourceAddressPrefix;
 	}
 
-	void setSourceSpaceWireLogicalAddress(uint8_t sourceSpaceWireLogicalAddress) {
-		this->sourceSpaceWireLogicalAddress = sourceSpaceWireLogicalAddress;
+	inline void setSourceLogicalAddress(uint8_t sourceSpaceWireLogicalAddress) {
+		this->sourceLogicalAddress = sourceSpaceWireLogicalAddress;
 	}
 
-	void setTrailer(uint16_t trailer) {
+	inline void setTrailer(uint16_t trailer) {
 		setCRC(trailer);
 	}
 
 public:
-	void setDestinationLogicalAddress(uint8_t destinationLogicalAddress) {
+	inline void setDestinationLogicalAddress(uint8_t destinationLogicalAddress) {
 		this->destinationLogicalAddress = destinationLogicalAddress;
 	}
 
 public:
-	void setDestinationSpaceWireAddress(std::vector<uint8_t>& destinationSpaceWireAddress) {
+	inline void setDestinationSpaceWireAddress(std::vector<uint8_t>& destinationSpaceWireAddress) {
 		this->destinationSpaceWireAddress = destinationSpaceWireAddress;
 	}
 
 ///Packet Control
-	uint8_t getSecondaryHeaderFlag() const {
+	inline uint8_t getSecondaryHeaderFlag() const {
 		return secondaryHeaderFlag;
 	}
 
-	void setSecondaryHeaderFlag(uint8_t secondaryHeaderFlag) {
+	inline void setSecondaryHeaderFlag(uint8_t secondaryHeaderFlag) {
 		this->secondaryHeaderFlag = secondaryHeaderFlag;
 	}
 
-	uint8_t getSequenceFlags() const {
+	inline uint8_t getSequenceFlags() const {
 		return sequenceFlags;
 	}
 
-	void setSequenceFlags(uint8_t sequenceFlags) {
+	inline void setSequenceFlags(uint8_t sequenceFlags) {
 		this->sequenceFlags = sequenceFlags;
 	}
 
@@ -665,7 +744,7 @@ public:
 	}
 
 public:
-	inline void setLstSegmentFlag() {
+	inline void setLastSegmentFlag() {
 		this->sequenceFlags = SpaceWireRSequenceFlagType::LastSegment;
 	}
 
@@ -767,8 +846,8 @@ public:
 	}
 
 public:
-	void setCurrentTimeToSentoutTimeStamp(){
-		this->sentoutTimeStamp=CxxUtilities::Time::getClockValueInMilliSec();
+	void setCurrentTimeToSentoutTimeStamp() {
+		this->sentoutTimeStamp = CxxUtilities::Time::getClockValueInMilliSec();
 	}
 };
 

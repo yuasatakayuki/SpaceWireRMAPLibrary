@@ -32,20 +32,28 @@ public:
 		isErrorFilenameSet_ = false;
 	}
 
+public:
 	RMAPTargetNodeException(int status, std::string errorFilename) :
 			CxxUtilities::Exception(status) {
 		setErrorFilename(errorFilename);
 	}
 
+public:
+	virtual ~RMAPTargetNodeException() {
+	}
+
+public:
 	void setErrorFilename(std::string errorFilename) {
 		this->errorFilename = errorFilename;
 		isErrorFilenameSet_ = true;
 	}
 
+public:
 	std::string getErrorFilename() {
 		return errorFilename;
 	}
 
+public:
 	bool isErrorFilenameSet() {
 		return isErrorFilenameSet_;
 	}
@@ -134,6 +142,7 @@ public:
 		}
 	}
 
+public:
 	static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException,
 			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
@@ -164,6 +173,7 @@ public:
 		return result;
 	}
 
+public:
 	static RMAPTargetNode* constructFromXMLNode(XMLNode* node) throw (XMLLoader::XMLLoaderException,
 			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		using namespace std;
@@ -265,48 +275,59 @@ public:
 		return defaultKey;
 	}
 
+public:
 	std::vector<uint8_t> getReplyAddress() const {
 		return replyAddress;
 	}
 
+public:
 	uint8_t getTargetLogicalAddress() const {
 		return targetLogicalAddress;
 	}
 
+public:
 	std::vector<uint8_t> getTargetSpaceWireAddress() const {
 		return targetSpaceWireAddress;
 	}
 
+public:
 	void setDefaultKey(uint8_t defaultKey) {
 		this->defaultKey = defaultKey;
 	}
 
+public:
 	void setReplyAddress(std::vector<uint8_t>& replyAddress) {
 		this->replyAddress = replyAddress;
 	}
 
+public:
 	void setTargetLogicalAddress(uint8_t targetLogicalAddress) {
 		this->targetLogicalAddress = targetLogicalAddress;
 	}
 
+public:
 	void setTargetSpaceWireAddress(std::vector<uint8_t>& targetSpaceWireAddress) {
 		this->targetSpaceWireAddress = targetSpaceWireAddress;
 	}
 
+public:
 	void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress) {
 		this->isInitiatorLogicalAddressSet_ = true;
 		this->initiatorLogicalAddress = initiatorLogicalAddress;
 	}
 
+public:
 	void unsetInitiatorLogicalAddress() {
 		this->isInitiatorLogicalAddressSet_ = false;
 		this->initiatorLogicalAddress = 0xFE;
 	}
 
+public:
 	bool isInitiatorLogicalAddressSet() {
 		return isInitiatorLogicalAddressSet_;
 	}
 
+public:
 	uint8_t getInitiatorLogicalAddress() {
 		return initiatorLogicalAddress;
 	}
@@ -316,10 +337,12 @@ public:
 		memoryObjects[memoryObject->getID()] = memoryObject;
 	}
 
+public:
 	std::map<std::string, RMAPMemoryObject*>* getMemoryObjects() {
 		return &memoryObjects;
 	}
 
+public:
 	/** This method does not return NULL even when not found, but throws an exception. */
 	RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.find(memoryObjectID);
@@ -330,6 +353,7 @@ public:
 		}
 	}
 
+public:
 	/** This method can return NULL when not found.*/
 	RMAPMemoryObject* findMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException) {
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.find(memoryObjectID);
@@ -339,6 +363,7 @@ public:
 			return NULL;
 		}
 	}
+
 public:
 	std::string toString(int nTabs = 0) {
 		using namespace std;
@@ -348,12 +373,11 @@ public:
 			ss << "Initiator Logical Address : 0x" << right << hex << setw(2) << setfill('0')
 					<< (uint32_t) initiatorLogicalAddress << endl;
 		}
-		ss << "Target Logical Address    : 0x" << right << hex << setw(2) << setfill('0')
-				<< (uint32_t) targetLogicalAddress << endl;
+		ss << "Target Logical Address    : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t) targetLogicalAddress
+				<< endl;
 		ss << "Target SpaceWire Address  : " << SpaceWireUtilities::packetToString(&targetSpaceWireAddress) << endl;
 		ss << "Reply Address             : " << SpaceWireUtilities::packetToString(&replyAddress) << endl;
-		ss << "Default Key               : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t) defaultKey
-				<< endl;
+		ss << "Default Key               : 0x" << right << hex << setw(2) << setfill('0') << (uint32_t) defaultKey << endl;
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.begin();
 		for (; it != memoryObjects.end(); it++) {
 			ss << it->second->toString(nTabs + 1);
@@ -370,6 +394,7 @@ public:
 		return ss2.str();
 	}
 
+public:
 	std::string toXMLString(int nTabs = 0) {
 		using namespace std;
 		stringstream ss;
@@ -383,8 +408,8 @@ public:
 		ss << "	<TargetSpaceWireAddress>" << SpaceWireUtilities::packetToString(&targetSpaceWireAddress)
 				<< "</TargetSpaceWireAddress>" << endl;
 		ss << "	<ReplyAddress>" << SpaceWireUtilities::packetToString(&replyAddress) << "</ReplyAddress>" << endl;
-		ss << "	<DefaultKey>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) defaultKey
-				<< "</DefaultKey>" << endl;
+		ss << "	<DefaultKey>" << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) defaultKey << "</DefaultKey>"
+				<< endl;
 		std::map<std::string, RMAPMemoryObject*>::iterator it = memoryObjects.begin();
 		for (; it != memoryObjects.end(); it++) {
 			ss << it->second->toXMLString(nTabs + 1);
@@ -440,10 +465,12 @@ public:
 
 	}
 
+public:
 	RMAPTargetNodeDB(std::vector<RMAPTargetNode*> rmapTargetNodes) {
 		addRMAPTargetNodes(rmapTargetNodes);
 	}
 
+public:
 	RMAPTargetNodeDB(std::string filename) {
 		try {
 			addRMAPTargetNodes(RMAPTargetNode::constructFromXMLFile(filename));
@@ -452,6 +479,7 @@ public:
 		}
 	}
 
+public:
 	~RMAPTargetNodeDB() {
 		//deletion of RMAPTargetNode* will be done outside this class.
 	}
@@ -461,6 +489,7 @@ public:
 		db[rmapTargetNode->getID()] = rmapTargetNode;
 	}
 
+public:
 	void addRMAPTargetNodes(std::vector<RMAPTargetNode*> rmapTargetNodes) {
 		for (size_t i = 0; i < rmapTargetNodes.size(); i++) {
 			addRMAPTargetNode(rmapTargetNodes[i]);
@@ -491,6 +520,7 @@ public:
 		}
 	}
 
+public:
 	/** This method can return NULL when an RMAPTargetNode with a specified ID is not found.
 	 */
 	RMAPTargetNode* findRMAPTargetNode(std::string id) {

@@ -114,6 +114,9 @@ public:
 			statusstring = "RMAP Command Not Implemented or Not Authorized";
 			break;
 		case 0x0b:
+			statusstring = "RMW Data Length Error";
+			break;
+		case 0x0c:
 			statusstring = "Invalid Target Logical Address";
 			break;
 		default:

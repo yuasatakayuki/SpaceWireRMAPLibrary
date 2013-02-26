@@ -36,6 +36,10 @@ public:
 	}
 
 public:
+	virtual ~RMAPPacketException() {
+	}
+
+public:
 	virtual std::string toString() {
 		//return ClassInformation::demangle(typeid(*this).name());
 		using namespace std;

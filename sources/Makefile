@@ -20,6 +20,7 @@ main_RMAP_replyStatusToString \
 main_RouterConfigurator \
 main_SpaceWire_packetSink \
 tutorial_SimpleRMAPTarget \
+tutorial_RMAPTarget \
 tutorial_RMAPLayer \
 tutorial_RMAPPacket_creationInterpretation \
 tutorial_SpaceWireLayer \

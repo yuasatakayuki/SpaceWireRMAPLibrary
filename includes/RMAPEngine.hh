@@ -65,6 +65,7 @@ public:
 		return rmapPacketCausedThisException;
 	}
 
+public:
 	bool isRMAPPacketCausedThisExceptionRegistered() {
 		return causeIsRegistered;
 	}
@@ -186,7 +187,7 @@ private:
 
 public:
 	static const size_t MaximumTIDNumber = 65536;
-	static const double DefaultReceiveTimeoutDurationInMicroSec = 1000000;//1s
+	static const double DefaultReceiveTimeoutDurationInMicroSec = 10000; //1s
 
 private:
 	SpaceWireIF* spwif;
@@ -216,11 +217,13 @@ public:
 		initialize();
 	}
 
+public:
 	RMAPEngine(SpaceWireIF* spwif) {
 		initialize();
 		this->setSpaceWireIF(spwif);
 	}
 
+public:
 	~RMAPEngine() {
 
 	}
@@ -241,6 +244,7 @@ private:
 		initializeCounters();
 	}
 
+private:
 	void initializeCounters() {
 		nDiscardedReceivedPackets = 0;
 		nErrorneousReplyPackets = 0;
@@ -291,10 +295,12 @@ public:
 		}
 	}
 
+public:
 	bool isStopped() {
 		return stopped;
 	}
 
+public:
 	bool isStarted() {
 		if (stopped == false) {
 			return true;
@@ -336,6 +342,7 @@ private:
 		receivedCommandPacketDiscarded();
 	}
 
+private:
 	void rmapReplyPacketReceived(RMAPPacket* packet) throw (RMAPEngineException) {
 		using namespace std;
 		try {
@@ -343,7 +350,7 @@ private:
 			RMAPTransaction* transaction;
 			try {
 				transaction = this->resolveTransaction(packet);
-			} catch (RMAPEngineException e) {
+			} catch (RMAPEngineException& e) {
 				//if not found, increment error counter
 				nErrorneousReplyPackets++;
 				return;
@@ -365,6 +372,7 @@ private:
 		}
 	}
 
+private:
 	void receivedPacketDiscarded() {
 		nDiscardedReceivedPackets++;
 	}
@@ -374,6 +382,7 @@ protected:
 		nErrorneousCommandPackets++;
 	}
 
+protected:
 	void replyToReceivedCommandPacketCouldNotBeSent() {
 		nTransactionsAbortedWhenReplying++;
 	}
@@ -409,7 +418,6 @@ private:
 		} else {
 			packet->setUseDraftECRC(true);
 		}
-
 		try {
 			packet->interpretAsAnRMAPPacket(buffer);
 		} catch (RMAPPacketException& e) {
@@ -440,7 +448,6 @@ private:
 			//return resolved transaction
 			return transaction;
 		}
-		transactionIDMutex.unlock();
 	}
 
 public:
@@ -448,6 +455,7 @@ public:
 		initiateTransaction(&transaction);
 	}
 
+public:
 	void initiateTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
 		using namespace std;
 		uint16_t transactionID;
@@ -477,6 +485,7 @@ public:
 		}
 	}
 
+public:
 	inline void deleteTransactionIDFromDB(uint16_t transactionID) {
 		//remove tid from management list
 		transactionIDMutex.lock();
@@ -489,6 +498,7 @@ public:
 		transactionIDMutex.unlock();
 	}
 
+public:
 	void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
 		using namespace std;
 		RMAPPacket* commandPacket = transaction->getCommandPacket();
@@ -538,6 +548,7 @@ private:
 		}
 	}
 
+private:
 	void pushBackUtilizedTransactionID(uint16_t transactionID) {
 		transactionIDMutex.lock();
 		availableTransactionIDList.push_back(transactionID);
@@ -563,7 +574,8 @@ public:
 		rmapTargets.push_back(rmapTarget);
 	}
 
-	void removeRMAPTarget(RMAPTarget* rmapTarget) {
+
+public:	void removeRMAPTarget(RMAPTarget* rmapTarget) {
 		std::vector<RMAPTarget*> aVector;
 		for (size_t i = 0; i < rmapTargets.size(); i++) {
 			if (rmapTargets[i] != rmapTarget) {
@@ -578,11 +590,13 @@ public:
 		rmapEngineStoppedActions.addAction(rmapEngineStoppedAction);
 	}
 
-	void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction) {
+
+public:	void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction) {
 		rmapEngineStoppedActions.removeAction(rmapEngineStoppedAction);
 	}
 
-	CxxUtilities::Actions<void>* getRMAPEngineStoppedActions() {
+
+public:	CxxUtilities::Actions<void>* getRMAPEngineStoppedActions() {
 		return &rmapEngineStoppedActions;
 	}
 
@@ -600,7 +614,8 @@ public:
 		return useDraftECRC;
 	}
 
-	void setUseDraftECRC(bool useDraftEcrc = true) {
+
+public:	void setUseDraftECRC(bool useDraftEcrc = true) {
 		this->useDraftECRC = useDraftEcrc;
 	}
 
