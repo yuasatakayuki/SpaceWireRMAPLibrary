@@ -223,11 +223,13 @@ public:
 
 public:
 	void tellDisconnectionToAllTEPs() {
-		for (size_t i = 0; i < receiveTEPs.size(); i++) {
-			receiveTEPs[i]->closeDueToSpaceWireIFFailure();
+		std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it1=receiveTEPs.begin();
+		while(it1!=receiveTEPs.end()){
+			it1->second->closeDueToSpaceWireIFFailure();
 		}
-		for (size_t i = 0; i < transmitTEPs.size(); i++) {
-			transmitTEPs[i]->closeDueToSpaceWireIFFailure();
+		std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it=transmitTEPs.begin();
+		while(it!=transmitTEPs.end()){
+			it->second->closeDueToSpaceWireIFFailure();
 		}
 	}
 

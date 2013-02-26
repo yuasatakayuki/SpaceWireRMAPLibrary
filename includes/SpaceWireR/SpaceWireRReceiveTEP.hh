@@ -25,6 +25,7 @@ public:
 
 public:
 	virtual ~SpaceWireRReceiveTEP() {
+		unregisterMeToSpaceWireREngine();
 		this->stop();
 		this->waitUntilRunMethodComplets();
 
