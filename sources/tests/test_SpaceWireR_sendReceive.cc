@@ -13,7 +13,39 @@ public:
 	virtual std::string toString() =0;
 };
 
-class Sender: public CxxUtilities::StoppableThread, public ToStringInterface {
+class SpaceWireIFInterface {
+protected:
+	SpaceWireIFOverTCP* spwif;
+protected:
+	std::string url;
+	int port;
+	bool isSpaceWireIFOverTCPClientMode;
+
+public:
+	SpaceWireIFInterface(std::string url, int port) {
+		this->url = url;
+		this->port = port;
+		this->isSpaceWireIFOverTCPClientMode = isSpaceWireIFOverTCPClientMode = true;
+	}
+
+public:
+	SpaceWireIFInterface(int port) {
+		this->port = port;
+		this->isSpaceWireIFOverTCPClientMode = isSpaceWireIFOverTCPClientMode = false;
+	}
+
+public:
+	void openSpaceWireIF() throw (SpaceWireIFException) {
+		if (isSpaceWireIFOverTCPClientMode) {
+			spwif = new SpaceWireIFOverTCP(url, port);
+		} else {
+			spwif = new SpaceWireIFOverTCP(port);
+		}
+		spwif->open();
+	}
+};
+
+class Sender: public CxxUtilities::StoppableThread, public ToStringInterface, public SpaceWireIFInterface {
 private:
 	uint8_t channelID;
 
@@ -21,7 +53,14 @@ public:
 	SpaceWireRTransmitTEP* tep;
 
 public:
-	Sender(uint8_t channelID = 0x00) {
+	Sender(uint8_t channelID, std::string url, int port) :
+			SpaceWireIFInterface(url, port) {
+		this->channelID = channelID;
+	}
+
+public:
+	Sender(uint8_t channelID, int port) :
+			SpaceWireIFInterface(port) {
 		this->channelID = channelID;
 	}
 
@@ -35,8 +74,7 @@ public:
 
 		//create SpaceWire IF
 		cout << "Waiting for a new connection." << endl;
-		SpaceWireIFOverTCP* spwif = new SpaceWireIFOverTCP("localhost", 10030);
-		spwif->open();
+		this->openSpaceWireIF();
 		cout << "Connected." << endl;
 
 		//start SpaceWireR Engine
@@ -59,7 +97,7 @@ public:
 			while (!stopped) {
 				std::vector<uint8_t> data;
 				for (size_t i = 0; i < 1024; i++) {
-					data.push_back((uint8_t)i);
+					data.push_back((uint8_t) i);
 				}
 				tep->send(&data);
 				cout << "Sent " << data.size() << " bytes." << endl;
@@ -88,7 +126,7 @@ public:
 	}
 };
 
-class Receiver: public CxxUtilities::StoppableThread, public ToStringInterface {
+class Receiver: public CxxUtilities::StoppableThread, public ToStringInterface, public SpaceWireIFInterface {
 private:
 	uint8_t channelID;
 
@@ -96,7 +134,14 @@ public:
 	SpaceWireRReceiveTEP* tep;
 
 public:
-	Receiver(uint8_t channelID = 0x00) {
+	Receiver(uint8_t channelID, std::string url, int port) :
+			SpaceWireIFInterface(url, port) {
+		this->channelID = channelID;
+	}
+
+public:
+	Receiver(uint8_t channelID, int port) :
+			SpaceWireIFInterface(port) {
 		this->channelID = channelID;
 	}
 
@@ -110,9 +155,8 @@ public:
 
 		//create SpaceWire IF
 		cout << "Waiting for a new connection." << endl;
-		SpaceWireIFOverTCP* spwif = new SpaceWireIFOverTCP(10030);
 		openLoop: try {
-			spwif->open();
+			this->openSpaceWireIF();
 		} catch (...) {
 			cout << "Timeout " << endl;
 			goto openLoop;
@@ -178,18 +222,61 @@ public:
 	}
 };
 
+void showUsage() {
+	using namespace std;
+	cout << "test_SpaceWireR_sendReceive receivetep/transmittep client (ip address) (port)" << endl;
+	cout << "test_SpaceWireR_sendReceive receivetep/transmittep server (port)" << endl;
+
+}
 int main(int argc, char* argv[]) {
-	if (argc != 1) {
-		Receiver r(0x03);
-		r.start();
-		DumpThread dumper(&r);
+	using namespace std;
+	if (argc < 4) {
+		showUsage();
+		exit(-1);
+	}
+
+	std::string tepType(argv[1]);
+	if (tepType != "receivetep" && tepType != "transmittep") {
+		cerr << "the first argument should be either of receivetep/transmittep." << endl;
+		exit(-1);
+	}
+
+	std::string clientOrServer(argv[2]);
+	int port;
+	std::string url;
+	bool isSpaceWireIFOverTCPClientMode;
+	if (clientOrServer == "client") {
+		url = argv[3];
+		port = atoi(argv[4]);
+		isSpaceWireIFOverTCPClientMode = true;
+	} else if (clientOrServer == "server") {
+		port = atoi(argv[3]);
+		isSpaceWireIFOverTCPClientMode = false;
+	} else {
+		cerr << "the second argument should be either of client/server." << endl;
+	}
+
+	if (tepType == "receivetep") {
+		Receiver* r;
+		if (isSpaceWireIFOverTCPClientMode) {
+			r = new Receiver(0x03, url, port);
+		} else {
+			r = new Receiver(0x03, port);
+		}
+		r->start();
+		DumpThread dumper(r);
 		dumper.start();
 		CxxUtilities::Condition c;
 		c.wait();
 	} else {
-		Sender s(0x03);
-		s.start();
-		DumpThread dumper(&s);
+		Sender* s;
+		if (isSpaceWireIFOverTCPClientMode) {
+			s = new Sender(0x03, url, port);
+		} else {
+			s = new Sender(0x03, port);
+		}
+		s->start();
+		DumpThread dumper(s);
 		dumper.start();
 		CxxUtilities::Condition c;
 		c.wait();
