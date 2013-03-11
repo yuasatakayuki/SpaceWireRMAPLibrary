@@ -76,14 +76,14 @@ private:
 	 std::map<uint8_t, std::list<SpaceWireRPacket*>*> receiveTEPPacketListMap;
 	 std::map<uint8_t, CxxUtilities::Condition*> receiveTEPNotificationMap;
 	 */
-	std::map<uint8_t, SpaceWireRTEPInterface*> receiveTEPs;
+	std::map<uint16_t, SpaceWireRTEPInterface*> receiveTEPs;
 
 private:
 	/*
 	 std::map<uint8_t, std::list<SpaceWireRPacket*>*> transmitTEPPacketListMap;
 	 std::map<uint8_t, CxxUtilities::Condition*> transmitTEPNotificationMap;
 	 */
-	std::map<uint8_t, SpaceWireRTEPInterface*> transmitTEPs;
+	std::map<uint16_t, SpaceWireRTEPInterface*> transmitTEPs;
 
 private:
 	size_t nDiscardedReceivedPackets;
@@ -111,15 +111,15 @@ public:
 #ifdef DebugSpaceWireREngine
 		cout << "SpaceWireREngine::processReceivedSpaceWireRPacket()" << endl;
 #endif
-		uint8_t channel = packet->getChannelNumber();
+		uint16_t channel = packet->getChannelNumber();
 		if (!packet->isAckPacket()) { //command/data packet
 #ifdef DebugSpaceWireREngine
 			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is Command/Data packet." << endl;
 #endif
-			std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it_find = receiveTEPs.find(channel);
+			std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it_find = receiveTEPs.find(channel);
 			if (it_find != receiveTEPs.end()) {
 				//if there is ReceiveTEP corresponding to the channel number in the received packet.
-				it_find->second->receivedPackets.push_back(packet); //pass the received packet to the ReceiveTEP
+				it_find->second->pushReceivedSpaceWireRPacket(packet); //pass the received packet to the ReceiveTEP
 				//tell the ReceiveTEP that a packet has arrived.
 				it_find->second->packetArrivalNotifier.signal();
 #ifdef DebugSpaceWireREngine
@@ -139,10 +139,10 @@ public:
 #ifdef DebugSpaceWireREngine
 			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is Ack packet." << endl;
 #endif
-			std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it_find = transmitTEPs.find(channel);
+			std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it_find = transmitTEPs.find(channel);
 			if (it_find != transmitTEPs.end()) {
 				//if there is TransmitTEP corresponding to the channel number in the received packet.
-				it_find->second->receivedPackets.push_back(packet); //pass the received packet to the ReceiveTEP
+				it_find->second->pushReceivedSpaceWireRPacket(packet); //pass the received packet to the ReceiveTEP
 				//tell the ReceiveTEP that a packet has arrived.
 				it_find->second->packetArrivalNotifier.signal();
 #ifdef DebugSpaceWireREngine
@@ -198,7 +198,7 @@ public:
 	}
 
 public:
-	void unregisterReceiveTEP(uint8_t channel) {
+	void unregisterReceiveTEP(uint16_t channel) {
 		if (receiveTEPs.find(channel) != receiveTEPs.end()) {
 			receiveTEPs.erase(receiveTEPs.find(channel));
 		}
@@ -215,7 +215,7 @@ public:
 	}
 
 public:
-	void unregisterTransmitTEP(uint8_t channel) {
+	void unregisterTransmitTEP(uint16_t channel) {
 		if (transmitTEPs.find(channel) != transmitTEPs.end()) {
 			transmitTEPs.erase(transmitTEPs.find(channel));
 		}
@@ -223,11 +223,11 @@ public:
 
 public:
 	void tellDisconnectionToAllTEPs() {
-		std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it1=receiveTEPs.begin();
+		std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it1=receiveTEPs.begin();
 		while(it1!=receiveTEPs.end()){
 			it1->second->closeDueToSpaceWireIFFailure();
 		}
-		std::map<uint8_t, SpaceWireRTEPInterface*>::iterator it=transmitTEPs.begin();
+		std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it=transmitTEPs.begin();
 		while(it!=transmitTEPs.end()){
 			it->second->closeDueToSpaceWireIFFailure();
 		}

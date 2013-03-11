@@ -8,6 +8,11 @@
 #include "SpaceWireR.hh"
 #include "CxxUtilities/CxxUtilities.hh"
 
+
+const uint16_t channelID=0x6342;
+const size_t SendSize = 4096*1024;
+
+
 class ToStringInterface {
 public:
 	virtual std::string toString() =0;
@@ -89,17 +94,14 @@ public:
 		cout << "SpaceWireRTransmitTEP opened." << endl;
 
 		std::vector<uint8_t> data;
-		for (size_t i = 0; i < 1024; i++) {
+		for (size_t i = 0; i < SendSize; i++) {
 			data.push_back(i);
 		}
 
+		tep->setSegmentSize(1024);
 		sendloop: try {
 			while (!stopped) {
-				std::vector<uint8_t> data;
-				for (size_t i = 0; i < 1024; i++) {
-					data.push_back((uint8_t) i);
-				}
-				tep->send(&data);
+				tep->send(&data,5000);
 				cout << "Sent " << data.size() << " bytes." << endl;
 			}
 		} catch (SpaceWireRTEPException& e) {
@@ -228,6 +230,8 @@ void showUsage() {
 	cout << "test_SpaceWireR_sendReceive receivetep/transmittep server (port)" << endl;
 
 }
+
+
 int main(int argc, char* argv[]) {
 	using namespace std;
 	if (argc < 4) {
@@ -259,9 +263,9 @@ int main(int argc, char* argv[]) {
 	if (tepType == "receivetep") {
 		Receiver* r;
 		if (isSpaceWireIFOverTCPClientMode) {
-			r = new Receiver(0x03, url, port);
+			r = new Receiver(channelID, url, port);
 		} else {
-			r = new Receiver(0x03, port);
+			r = new Receiver(channelID, port);
 		}
 		r->start();
 		DumpThread dumper(r);
@@ -271,9 +275,9 @@ int main(int argc, char* argv[]) {
 	} else {
 		Sender* s;
 		if (isSpaceWireIFOverTCPClientMode) {
-			s = new Sender(0x03, url, port);
+			s = new Sender(channelID, url, port);
 		} else {
-			s = new Sender(0x03, port);
+			s = new Sender(channelID, port);
 		}
 		s->start();
 		DumpThread dumper(s);

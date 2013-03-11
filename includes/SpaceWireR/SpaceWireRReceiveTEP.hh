@@ -10,16 +10,20 @@
 
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
+#undef DebugSpaceWireRReceiveTEP
+#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+
 class SpaceWireRReceiveTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 
 public:
-	SpaceWireRReceiveTEP(SpaceWireREngine* spwREngine, uint8_t channel) :
+	SpaceWireRReceiveTEP(SpaceWireREngine* spwREngine, uint16_t channel) :
 			SpaceWireRTEP(SpaceWireRTEPType::ReceiveTEP, spwREngine, channel) {
 		registerMeToSpaceWireREngine();
 		initializeCounters();
 		isReceivingSegmentedApplicationData = false;
 		ackPacket = new SpaceWireRPacket();
 		hasReceivedDataPacket = false;
+		randomMT = new CxxUtilities::RandomMT();
 		this->start();
 	}
 
@@ -42,6 +46,7 @@ public:
 
 private:
 	SpaceWireRPacket* ackPacket;
+	CxxUtilities::RandomMT* randomMT;
 
 private:
 	std::vector<uint8_t>* currentApplicationData;
@@ -58,6 +63,10 @@ private:
 	size_t nDiscardedControlPackets;
 	size_t nDiscardedDataPackets;
 	size_t nDiscardedKeepAlivePackets;
+	size_t nErrorInjectionNoReply;
+	size_t nReceivedDataBytes;
+	size_t nReceivedSegments;
+	size_t nReceivedApplicationData;
 
 private:
 	bool hasReceivedDataPacket;
@@ -70,6 +79,10 @@ public:
 		this->nDiscardedControlPackets = 0;
 		this->nDiscardedDataPackets = 0;
 		this->nDiscardedKeepAlivePackets = 0;
+		this->nErrorInjectionNoReply = 0;
+		this->nReceivedDataBytes=0;
+		this->nReceivedApplicationData=0;
+		this->nReceivedSegments=0;
 	}
 
 private:
@@ -86,13 +99,6 @@ private:
 	std::vector<uint8_t>* popApplicationData() {
 		std::vector<uint8_t>* result = *(receivedApplicationData.begin());
 		receivedApplicationData.pop_front();
-		return result;
-	}
-
-private:
-	SpaceWireRPacket* popReceivedSpaceWireRPacket() {
-		SpaceWireRPacket* result = *(receivedPackets.begin());
-		receivedPackets.pop_front();
 		return result;
 	}
 
@@ -135,9 +141,6 @@ public:
 	void open() throw (SpaceWireRTEPException) {
 		state = SpaceWireRTEPState::Enabled;
 		stateTransitionNotifier.signal();
-		if (stopped) {
-			this->start();
-		}
 		CxxUtilities::Condition c;
 		while (this->state != SpaceWireRTEPState::Open) {
 			c.wait(WaitDurationInMsForOpenWaitLoop);
@@ -183,17 +186,47 @@ public:
 	}
 
 private:
-	void replyAckForPacket(SpaceWireRPacket* controlPacket) {
+	static const double ProbabilityOfErrorInjectionNoReply = 0;
+	static const double ProbabilityOfErrorInjectionCRCError = 0;
+
+private:
+	bool errorInjectionNoReply(uint8_t sequenceNumber) {
 		using namespace std;
-		ackPacket->constructAckForPacket(controlPacket);
-		try {
-			cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
-					<< (uint32_t) ackPacket->getSequenceNumber() << endl;
-			spwREngine->sendPacket(ackPacket);
-			cout << "SpaceWireRReceiveTEP::replyAckForPacket() ack for sequence number = "
-					<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
-		} catch (...) {
-			malfunctioningSpaceWireIF();
+		if (randomMT->generateRandomDoubleFrom0To1() < ProbabilityOfErrorInjectionNoReply) {
+#ifdef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+			std::stringstream ss;
+			ss << "SpaceWireRReceiveTEP::errorInjectionNoReply() for sequence number = " << dec << right << (uint32_t) sequenceNumber << " !!!"
+			<< endl;
+			CxxUtilities::TerminalControl::displayInRed(ss.str());
+			nErrorInjectionNoReply++;
+#endif
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+private:
+	void replyAckForPacket(SpaceWireRPacket* packet) {
+		if (!errorInjectionNoReply(packet->getSequenceNumber())) {
+			using namespace std;
+			ackPacket->constructAckForPacket(packet);
+			try {
+#ifdef DebugSpaceWireRReceiveTEP
+				cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
+				<< (uint32_t) ackPacket->getSequenceNumber() << endl;
+#endif
+
+				//todo: inject CRC error
+
+				spwREngine->sendPacket(ackPacket);
+#ifdef DebugSpaceWireRReceiveTEP
+				cout << "SpaceWireRReceiveTEP::replyAckForPacket() ack for sequence number = "
+				<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
+#endif
+			} catch (...) {
+				malfunctioningSpaceWireIF();
+			}
 		}
 	}
 
@@ -203,8 +236,9 @@ private:
 
 private:
 	void consumeReceivedPackets() {
+		using namespace std;
 		mutexForConsumeReceivedPacketes.lock();
-		if(isConsumingReceivedPacketes){
+		if (isConsumingReceivedPacketes) {
 			mutexForConsumeReceivedPacketes.unlock();
 			//another thread is in this method
 			return;
@@ -212,31 +246,43 @@ private:
 		mutexForConsumeReceivedPacketes.unlock();
 
 		mutexForConsumeReceivedPacketes.lock();
-		isConsumingReceivedPacketes=true;
+		isConsumingReceivedPacketes = true;
 		mutexForConsumeReceivedPacketes.unlock();
 
 		using namespace std;
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::consumeReceivedPackets()" << endl;
-		while (receivedPackets.size() != 0) {
+#endif
+
+		size_t loopSize = receivedPackets.size();
+
+		for (size_t i = 0; i < loopSize; i++) {
+#ifdef DebugSpaceWireRReceiveTEP
 			cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() consuming one packet." << endl;
-			SpaceWireRPacket* packet = receivedPackets.front();
-			receivedPackets.pop_front();
+#endif
+			SpaceWireRPacket* packet = this->popReceivedSpaceWireRPacket();
 
 			if (packet->isDataPacket()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Data Packet." << endl;
+#endif
 				processDataPacket(packet);
 				continue;
 			}
 
 			if (packet->isControlPacketOpenCommand()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Open command." << endl;
+#endif
 				if (this->hasReceivedDataPacket == false && this->state == SpaceWireRTEPState::Enabled) {
 					processOpenComand(packet);
 				} else {
 					//Open packet was already received, and one or more Data packet have been received.
 					//Therefore this Open packet is invalid.
 					//Moves to the Closing state.
+#ifdef DebugSpaceWireRReceiveTEP
 					cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() invalid Open command." << endl;
+#endif
 					malfunctioningTransportChannel();
 				}
 				continue;
@@ -251,21 +297,25 @@ private:
 			}
 
 			if (packet->isKeepAlivePacketType()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Keep Alive command." << endl;
+#endif
 				processKeepAlivePacket(packet);
 				delete packet;
 				continue;
 			}
 		}
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() completed." << endl;
+#endif
 
 		mutexForConsumeReceivedPacketes.lock();
-		isConsumingReceivedPacketes=false;
+		isConsumingReceivedPacketes = false;
 		mutexForConsumeReceivedPacketes.unlock();
 	}
 
 private:
-	void processOpenComand(SpaceWireRPacket* packet){
+	void processOpenComand(SpaceWireRPacket* packet) {
 		this->state = SpaceWireRTEPState::Open;
 		replyAckForPacket(packet);
 		this->slidingWindowBuffer[packet->getSequenceNumber()] = packet;
@@ -276,9 +326,15 @@ private:
 	void processDataPacket(SpaceWireRPacket* packet) {
 		using namespace std;
 		uint8_t sequenceNumber = packet->getSequenceNumber();
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::processDataPacket() sequenceNumber=" <<(uint32_t)sequenceNumber << endl;
+#endif
+		nReceivedDataBytes+=packet->getPayloadLength();
+		nReceivedSegments++;
 		if (insideForwardSlidingWindow(sequenceNumber)) {
+#ifdef DebugSpaceWireRReceiveTEP
 			cout << "SpaceWireRReceiveTEP::processDataPacket() insideForwardSlidingWindow" << endl;
+#endif
 			if (this->slidingWindowBuffer[sequenceNumber] == NULL) {
 				replyAckForPacket(packet);
 				this->slidingWindowBuffer[sequenceNumber] = packet;
@@ -288,7 +344,9 @@ private:
 				delete packet;
 			}
 		} else if (insideBackwardSlidingWindow(sequenceNumber)) {
+#ifdef DebugSpaceWireRReceiveTEP
 			cout << "SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow" << endl;
+#endif
 			replyAckForPacket(packet);
 			delete packet;
 		} else {
@@ -300,40 +358,53 @@ private:
 private:
 	void slideSlidingWindow() {
 		using namespace std;
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::slideSlidingWindow()" << endl;
+#endif
 		uint8_t n = this->slidingWindowFrom;
 		while (this->slidingWindowBuffer[n] != NULL) {
+#ifdef DebugSpaceWireRReceiveTEP
 			cout << "SpaceWireRReceiveTEP::slideSlidingWindow() n=" << (uint32_t)n << endl;
+#endif
 			reconstructApplicationData(this->slidingWindowBuffer[n]);
 			delete this->slidingWindowBuffer[n];
 			this->slidingWindowBuffer[n] = NULL;
 			n = (uint8_t) (n + 1);
 		}
 		this->slidingWindowFrom = n;
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t)this->slidingWindowFrom << endl;
+#endif
 	}
 
 private:
-void reconstructApplicationData(SpaceWireRPacket* packet) {
-	using namespace std;
+	void reconstructApplicationData(SpaceWireRPacket* packet) {
+		using namespace std;
 		this->hasReceivedDataPacket = true;
+#ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::reconstructApplicationData() isReceivingSegmentedApplicationData=";
-		if(isReceivingSegmentedApplicationData){
+		if(isReceivingSegmentedApplicationData) {
 			cout << "true" << endl;
-		}else{
+		} else {
 			cout << "false"
-					<< endl;
+			<< endl;
 		}
+#endif
 
 		if (isReceivingSegmentedApplicationData) {
 			//normal cases
 			if (packet->isContinuedSegment()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received continuous segment. " << endl;
+#endif
 				appendDataToCurrentApplicationDataInstance(packet);
+				nReceivedApplicationData++;
 				isReceivingSegmentedApplicationData = true;
 				return;
 			} else if (packet->isLastSegment()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received the last segment. " << endl;
+#endif
 				appendDataToCurrentApplicationDataInstance(packet);
 				completeServiceDataUnitHasBeenReceived();
 				isReceivingSegmentedApplicationData = false;
@@ -341,13 +412,14 @@ void reconstructApplicationData(SpaceWireRPacket* packet) {
 			}
 			//error cases
 			if (packet->isCompleteSegment() || packet->isFirstSegment()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received invalid segment: ";
-				if (packet->isCompleteSegment()){
+				if (packet->isCompleteSegment()) {
 					cout << "Complete Segment." << endl;
-				}else{
+				} else {
 					cout << "The First Segment." << endl;
 				}
-
+#endif
 				//something is wrong with segmented data
 				malfunctioningTransportChannel();
 				return;
@@ -355,13 +427,17 @@ void reconstructApplicationData(SpaceWireRPacket* packet) {
 		} else {
 			//normal case
 			if (packet->isCompleteSegment()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received complete segment. " << endl;
+#endif
 				completeServiceDataUnitHasBeenReceived(packet);
 				isReceivingSegmentedApplicationData = false;
 				return;
 			}
 			if (packet->isFirstSegment()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received the first segment. " << endl;
+#endif
 				//start new segmented application data
 				currentApplicationData = new std::vector<uint8_t>;
 				appendDataToCurrentApplicationDataInstance(packet);
@@ -453,22 +529,22 @@ public:
 					packetArrivalNotifier.wait(WaitDurationForPacketReceiveLoop);
 					consumeReceivedPackets();
 					/*
-					cout << "SpaceWireRReceiveTEP::run() Enabled state. receivedPackets.size()=" << receivedPackets.size()
-							<< endl;
-					if (receivedPackets.size() == 0) {
-						packetArrivalNotifier.wait(WaitDurationForPacketReceiveLoop);
-					} else {
-						SpaceWireRPacket* packet = receivedPackets.front();
-						receivedPackets.pop_front();
-						if (packet->isControlPacketOpenCommand()) {
-							this->state = SpaceWireRTEPState::Open;
-							replyAckForPacket(packet);
-							delete packet;
-						} else if (packet->isControlPacketCloseCommand()) {
-							this->state = SpaceWireRTEPState::Closing;
-							delete packet;
-						}
-					}*/
+					 cout << "SpaceWireRReceiveTEP::run() Enabled state. receivedPackets.size()=" << receivedPackets.size()
+					 << endl;
+					 if (receivedPackets.size() == 0) {
+					 packetArrivalNotifier.wait(WaitDurationForPacketReceiveLoop);
+					 } else {
+					 SpaceWireRPacket* packet = receivedPackets.front();
+					 receivedPackets.pop_front();
+					 if (packet->isControlPacketOpenCommand()) {
+					 this->state = SpaceWireRTEPState::Open;
+					 replyAckForPacket(packet);
+					 delete packet;
+					 } else if (packet->isControlPacketCloseCommand()) {
+					 this->state = SpaceWireRTEPState::Closing;
+					 delete packet;
+					 }
+					 }*/
 				}
 				break;
 
@@ -485,11 +561,10 @@ public:
 
 			case SpaceWireRTEPState::Closing:
 				while (receivedPackets.size() != 0) {
-					SpaceWireRPacket* packet = receivedPackets.front();
+					SpaceWireRPacket* packet = this->popReceivedSpaceWireRPacket();
 					if (packet->isControlPacketCloseCommand()) {
 						replyAckForPacket(packet);
 					}
-					receivedPackets.pop_front();
 					delete packet;
 				}
 				waitTimer.wait(WaitDurationForTransitionFromClosingToClosed);
@@ -514,6 +589,17 @@ public:
 		ss << "slidingWindowFrom : (dec)" << dec << (uint32_t) this->slidingWindowFrom << endl;
 		ss << "slidingWindowSize : (dec)" << dec << (uint32_t) this->slidingWindowSize << endl;
 		ss << "receivedPackets.size() : (dec)" << dec << receivedPackets.size() << endl;
+		ss << "ProbabilityOfErrorInjectionNoReply : " << ProbabilityOfErrorInjectionNoReply << endl;
+		ss << "nErrorInjectionNoReply : (dec)" << dec << nErrorInjectionNoReply << endl;
+		ss << "remaining received ApplicationData : " << dec << receivedApplicationData.size() << endl;
+		ss << "nDiscardedApplicationData : " << dec << nDiscardedApplicationData << endl;
+		ss << "nDiscardedApplicationDataBytes : " << dec << nDiscardedApplicationDataBytes << endl;
+		ss << "nDiscardedControlPackets : " << dec << nDiscardedControlPackets << endl;
+		ss << "nDiscardedDataPackets : " << dec << nDiscardedControlPackets << endl;
+		ss << "nDiscardedKeepAlivePackets : " << dec << nDiscardedKeepAlivePackets << endl;
+		ss << "nReceivedBytes : " << nReceivedDataBytes/1024 << "kB" << endl;
+		ss << "nReceivedSegments : " << nReceivedSegments << endl;
+		ss << "nReceivedApplicationData : " << nReceivedApplicationData << endl;
 		ss << "---------------------------------------------" << endl;
 		return ss.str();
 	}
