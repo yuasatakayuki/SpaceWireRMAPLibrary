@@ -57,7 +57,7 @@ private:
 public:
 	static const size_t MaxReceivedApplicationData = 1000;
 
-private:
+public:
 	size_t nDiscardedApplicationData;
 	size_t nDiscardedApplicationDataBytes;
 	size_t nDiscardedControlPackets;
@@ -347,6 +347,13 @@ private:
 #ifdef DebugSpaceWireRReceiveTEP
 			cout << "SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow" << endl;
 #endif
+			//debug
+			CxxUtilities::TerminalControl::displayInCyan("SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow");
+			std::stringstream ss;
+			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)packet->getSequenceNumber() << endl;
+			ss << "packetType:" << ((packet->isDataPacket())? "Data":"Other than data") << endl;
+			ss << "segment   :" << ((packet->isFirstSegment())? "First": ((packet->isContinuedSegment())? "Continued":"Last") ) << endl;
+			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			replyAckForPacket(packet);
 			delete packet;
 		} else {

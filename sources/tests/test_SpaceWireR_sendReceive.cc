@@ -7,11 +7,47 @@
 
 #include "SpaceWireR.hh"
 #include "CxxUtilities/CxxUtilities.hh"
+//parameters for SpaceCube2 test
+/*
+ const uint16_t channelID = 0x6342;
+ const size_t SendSize = 1024;
+ const size_t SegmentSize = 256;
+ const size_t SlidingWindowSize=8;
+ */
+
+//parameters for higher speed test
+
+const uint16_t channelID = 0x6342;
+const size_t SendSize = 4096 * 1024;
+const size_t SegmentSize = 4096;
+const size_t SlidingWindowSize = 32;
 
 
-const uint16_t channelID=0x6342;
-const size_t SendSize = 4096*1024;
+//parameters for memory-leak test
+/*
+const uint16_t channelID = 0x6342;
+const size_t SendSize =  1024;
+const size_t SegmentSize = 256;
+const size_t SlidingWindowSize = 32;
+*/
 
+std::vector<uint8_t> destinationPathAddress;
+std::vector<uint8_t> sourcePathAddress;
+
+void initializeParameters() {
+	/*	//ReceiveTEP on SpaceCube2
+	 destinationPathAddress.push_back(1);
+	 destinationPathAddress.push_back(16);
+	 sourcePathAddress.push_back(1);
+	 sourcePathAddress.push_back(6);*/
+
+	//SpaceWire-to-GigabitEther 1-4 loopback
+	destinationPathAddress.push_back(4);
+	destinationPathAddress.push_back(7);
+	sourcePathAddress.push_back(1);
+	sourcePathAddress.push_back(6);
+
+}
 
 class ToStringInterface {
 public:
@@ -85,11 +121,10 @@ public:
 		//start SpaceWireR Engine
 		SpaceWireREngine* spwREngine = new SpaceWireREngine(spwif);
 		spwREngine->start();
-		cout << "SpaceWireREngine stated" << endl;
+		cout << "SpaceWireREngine started" << endl;
 
 		//create a TEP instance
-		std::vector<uint8_t> emptyVector;
-		tep = new SpaceWireRTransmitTEP(spwREngine, channelID, 0xFE, emptyVector, 0xFE, emptyVector);
+		tep = new SpaceWireRTransmitTEP(spwREngine, channelID, 0xFE, destinationPathAddress, 0xFE, sourcePathAddress);
 		tep->open();
 		cout << "SpaceWireRTransmitTEP opened." << endl;
 
@@ -98,11 +133,14 @@ public:
 			data.push_back(i);
 		}
 
-		tep->setSegmentSize(1024);
+		//setting
+		tep->setSegmentSize(SegmentSize);
+		tep->setSlidingWindowSize(SlidingWindowSize);
+
 		sendloop: try {
 			while (!stopped) {
-				tep->send(&data,5000);
-				cout << "Sent " << data.size() << " bytes." << endl;
+				tep->send(&data, 5000);
+				cout << data.size() << " ";
 			}
 		} catch (SpaceWireRTEPException& e) {
 			cout << "Sender: " << e.toString() << endl;
@@ -120,12 +158,21 @@ public:
 	}
 
 	std::string toString() {
+		using namespace std;
 		if (tep != NULL) {
-			return tep->toString();
+			std::stringstream ss;
+			ss << endl;
+			ss << (tep->nSentUserDataInBytes - nBytes) / 1024 * 8 << "kbps " << setprecision(4)
+					<< (tep->nSentUserDataInBytes - nBytes) / 1024.0 / 1024.0 * 8 << "Mbps" << endl;
+			nBytes = tep->nSentUserDataInBytes;
+			ss << tep->toString();
+			return ss.str();
 		} else {
 			return "";
 		}
 	}
+private:
+	size_t nBytes;
 };
 
 class Receiver: public CxxUtilities::StoppableThread, public ToStringInterface, public SpaceWireIFInterface {
@@ -168,17 +215,31 @@ public:
 		//start SpaceWireR Engine
 		SpaceWireREngine* spwREngine = new SpaceWireREngine(spwif);
 		spwREngine->start();
-		cout << "SpaceWireREngine stated" << endl;
+		cout << "SpaceWireREngine started" << endl;
 
 		//create receive TEP
 		tep = new SpaceWireRReceiveTEP(spwREngine, channelID);
 		tep->open();
 		cout << "SpaceWireRReceiveTEP opened." << endl;
 
-		receiveloop: try {
+		receiveloop: //
+		size_t receivedSize=0;
+		try {
 			while (!stopped) {
 				std::vector<uint8_t>* data = tep->receive(1000);
-				cout << "Received " << data->size() << " bytes." << endl;
+				cout << data->size() << " ";
+				receivedSize+=data->size();
+				if (data->size() != 0) {
+					cerr << "deleted" << endl;
+					delete data;
+				}else{
+					cerr << "Size 0" << endl;
+				}
+				//for memory-leak test
+				/*
+				if(receivedSize>10*1024){
+					goto _finalize;
+				}*/
 			}
 		} catch (SpaceWireRTEPException& e) {
 			cout << "Receiver: " << e.toString() << endl;
@@ -188,20 +249,41 @@ public:
 		}
 
 		//finalize
+		_finalize:
+		cout << "stopping tep" << endl;
+		tep->stop();
+		cout << "stopping SpaceWireREngine" << endl;
 		spwREngine->stop();
-		spwREngine->waitUntilRunMethodComplets();
+		tep->waitUntilRunMethodComplets();
+		cout << "stop tep done" << endl;
+		//spwREngine->waitUntilRunMethodComplets();
+		//cout << "stop SpaceWireREngine done" << endl;
+		delete tep;
 		delete spwREngine;
 		spwif->close();
 		delete spwif;
+		this->stop();
+		cout << "Receiver finalized." << endl;
+		::exit(-1);
 	}
 
 	std::string toString() {
+		using namespace std;
 		if (tep != NULL) {
-			return tep->toString();
+			std::stringstream ss;
+			ss << endl;
+			ss << (tep->nReceivedDataBytes - nBytes) / 1024 * 8 << "kbps " << setprecision(4)
+					<< (tep->nReceivedDataBytes - nBytes) / 1024.0 / 1024.0 * 8 << "Mbps" << endl;
+			nBytes = tep->nReceivedDataBytes;
+			ss << tep->toString();
+			return ss.str();
 		} else {
 			return "";
 		}
 	}
+
+private:
+	size_t nBytes;
 };
 
 class DumpThread: public CxxUtilities::StoppableThread {
@@ -231,9 +313,10 @@ void showUsage() {
 
 }
 
-
 int main(int argc, char* argv[]) {
 	using namespace std;
+	initializeParameters();
+
 	if (argc < 4) {
 		showUsage();
 		exit(-1);

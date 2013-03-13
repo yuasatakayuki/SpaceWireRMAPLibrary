@@ -38,6 +38,18 @@ public:
 	}
 
 public:
+	void applyNewPathAddresses(std::vector<uint8_t> targetSpaceWireAddress,
+			std::vector<uint8_t> replyAddress) {
+		if(targetSpaceWireAddress.size()==0){
+			targetSpaceWireAddress.push_back(0x00);
+		}else if(targetSpaceWireAddress[targetSpaceWireAddress.size()-1]!=0x00){
+			targetSpaceWireAddress.push_back(0x00);
+		}
+		routerConfigurationPort->setTargetSpaceWireAddress(targetSpaceWireAddress);
+		routerConfigurationPort->setReplyAddress(replyAddress);
+	}
+
+public:
 	std::vector<uint8_t> getConfigurablePorts() {
 		std::vector<uint8_t> result;
 		result.push_back(0x01);

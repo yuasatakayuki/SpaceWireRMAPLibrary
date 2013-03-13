@@ -172,7 +172,9 @@ public:
 #ifdef DebugSpaceWireREngine
 			cout << "SpaceWireREngine::sendPacket() sending packet." << endl;
 #endif
-			spwif->send(packet->getPacketBufferPointer());
+			std::vector<uint8_t>* packetBuffer=packet->getPacketBufferPointer();
+			spwif->send(packetBuffer);
+			delete packetBuffer;
 #ifdef SpaceWireREngineDumpPacket
 			SpaceWireUtilities::dumpPacket(packet->getPacketBufferPointer());
 #endif

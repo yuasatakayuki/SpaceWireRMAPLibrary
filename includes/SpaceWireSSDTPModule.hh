@@ -81,7 +81,7 @@ public:
  */
 class SpaceWireSSDTPModule {
 public:
-	static const uint32_t BufferSize = 1024 * 1024;
+	static const uint32_t BufferSize = 10 * 1024 * 1024;
 
 private:
 	CxxUtilities::TCPSocket* datasocket;
@@ -118,8 +118,8 @@ public:
 		internal_timecode = 0x00;
 		latest_sentsize = 0;
 		timecodeaction = NULL;
-		rbuf_index=0;
-		receivedsize=0;
+		rbuf_index = 0;
+		receivedsize = 0;
 	}
 
 public:
@@ -259,19 +259,22 @@ public:
 	 * @param[out] eopType contains an EOP marker type (SpaceWireEOPMarker::EOP or SpaceWireEOPMarker::EEP).
 	 */
 	int receive(std::vector<uint8_t>* data, uint32_t& eopType) throw (SpaceWireSSDTPException) {
+		size_t size = 0;
+		size_t hsize = 0;
+		size_t flagment_size = 0;
+		size_t received_size = 0;
+
 		try {
 			using namespace std;
 //		cout << "#1" << endl;
-			size_t size = 0;
-			size_t hsize = 0;
-			size_t flagment_size = 0;
-			size_t received_size = 0;
+			receivemutex.lock();
 			//header
-			receive_header: rheader[0] = 0xFF;
+			receive_header: //
+			rheader[0] = 0xFF;
 			rheader[1] = 0x00;
 			while (rheader[0] != DataFlag_Complete_EOP && rheader[0] != DataFlag_Complete_EEP) {
 //			cout << "#2" << endl;
-				receivemutex.lock();
+
 //			cout << "#2-1" << endl;
 				hsize = 0;
 				flagment_size = 0;
@@ -287,7 +290,6 @@ public:
 					}
 				} catch (CxxUtilities::TCPSocketException e) {
 //				cout << "#2-5" << endl;
-					receivemutex.unlock();
 					if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 //					cout << "#2-6" << endl;
 						throw SpaceWireSSDTPException(SpaceWireSSDTPException::Timeout);
@@ -296,7 +298,6 @@ public:
 						throw SpaceWireSSDTPException(SpaceWireSSDTPException::Disconnected);
 					}
 				} catch (...) {
-					receivemutex.unlock();
 					throw SpaceWireSSDTPException(SpaceWireSSDTPException::Disconnected);
 				}
 
@@ -317,8 +318,7 @@ public:
 						long result;
 						_loop_receiveDataPart: //
 						try {
-							result = datasocket->receive(data_pointer + size + received_size,
-									flagment_size - received_size);
+							result = datasocket->receive(data_pointer + size + received_size, flagment_size - received_size);
 						} catch (CxxUtilities::TCPSocketException e) {
 							if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
 								goto _loop_receiveDataPart;
@@ -345,18 +345,15 @@ public:
 							tmp_size += result;
 						}
 					} catch (...) {
-						receivemutex.unlock();
 						throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
 					}
 					switch (rheader[0]) {
 					case ControlFlag_SendTimeCode:
 						internal_timecode = timecode_and_reserved[0];
-						receivemutex.unlock();
 						gotTimeCode(internal_timecode);
 						break;
 					case ControlFlag_GotTimeCode:
 						internal_timecode = timecode_and_reserved[0];
-						receivemutex.unlock();
 						gotTimeCode(internal_timecode);
 						break;
 					}
@@ -384,16 +381,28 @@ public:
 			receivemutex.unlock();
 			return size;
 		} catch (SpaceWireSSDTPException& e) {
+			receivemutex.unlock();
 			throw e;
 		} catch (CxxUtilities::TCPSocketException& e) {
 			using namespace std;
 //			cout << "#SpaceWireSSDTPModule::receive() caught TCPSocketException(" << e.toString() << ")" << endl;
+			receivemutex.unlock();
 			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
-		} catch (...) {
+		}/* catch (...) {
 			using namespace std;
 			cout << "#SpaceWireSSDTPModule::receive() caught an unexpected exception" << endl;
+			cout << "Receive Header: ";
+			for (size_t i = 0; i < 12; i++) {
+				cout << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) rheader[i] << " ";
+			}
+			cout << endl;
+			cout << "size=" << size << endl;
+			cout << "hsize=" << hsize << endl;
+			cout << "flagment_size=" << flagment_size << endl;
+			cout << "received_size=" << received_size << endl;
+			receivemutex.unlock();
 			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
-		}
+		}*/
 	}
 
 public:

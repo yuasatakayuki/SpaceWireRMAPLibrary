@@ -55,9 +55,6 @@ public:
 };
 
 class RouterConfigurationPort {
-protected:
-	std::vector<uint8_t> additionalTargetSpaceWireAddress;
-	std::vector<uint8_t> additionalReplyAddress;
 
 protected:
 	RMAPInitiator* rmapInitiator;
@@ -82,15 +79,13 @@ public:
 	virtual uint32_t getRoutingTableAddress(uint8_t logicalAddress) throw (RouterConfigurationPortException) = 0;
 
 public:
-	virtual RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress)
-			throw (RouterConfigurationPortException) = 0;
+	virtual RMAPMemoryObject* getRoutingTableMemoryObject(uint8_t logicalAddress) throw (RouterConfigurationPortException) = 0;
 
 public:
 	virtual uint32_t getLinkFrequencyRegisterAddress(uint8_t port) throw (RouterConfigurationPortException) = 0;
 
 public:
-	virtual RMAPMemoryObject* getLinkFrequencyRegisterMemoryObject(uint8_t port)
-			throw (RouterConfigurationPortException) = 0;
+	virtual RMAPMemoryObject* getLinkFrequencyRegisterMemoryObject(uint8_t port) throw (RouterConfigurationPortException) = 0;
 
 public:
 	virtual std::vector<double> getAvailableLinkFrequencies(uint8_t port) = 0;
@@ -138,24 +133,7 @@ public:
 	}
 
 public:
-	const std::vector<uint8_t>& getAdditionalReplyAddress() const {
-		return additionalReplyAddress;
-	}
-
-public:
-	void setAdditionalReplyAddress(std::vector<uint8_t>& additionalReplyAddress) {
-		this->additionalReplyAddress = additionalReplyAddress;
-	}
-
-public:
-	const std::vector<uint8_t>& getAdditionalTargetSpaceWireAddress() const {
-		return additionalTargetSpaceWireAddress;
-	}
-
-public:
-	void setAdditionalTargetSpaceWireAddress(std::vector<uint8_t>& additionalTargetSpaceWireAddress) {
-		this->additionalTargetSpaceWireAddress = additionalTargetSpaceWireAddress;
-	}
+	virtual void applyNewPathAddresses(std::vector<uint8_t> targetSpaceWireAddress, std::vector<uint8_t> replyAddress) =0;
 
 public:
 	RMAPInitiator* getRMAPInitiator() const {

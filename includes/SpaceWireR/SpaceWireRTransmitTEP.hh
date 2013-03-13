@@ -44,8 +44,8 @@ public:
 		retryTimerUpdater = new RetryTimerUpdater(this);
 		this->destinationLogicalAddress = destinationLogicalAddress;
 		this->destinationSpaceWireAddress = destinationSpaceWireAddress;
-		this->sourceLogicalAddress = destinationLogicalAddress;
-		this->sourceSpaceWireAddress = destinationSpaceWireAddress;
+		this->sourceLogicalAddress = sourceLogicalAddress;
+		this->sourceSpaceWireAddress = sourceSpaceWireAddress;
 		this->maximumSegmentSize = DefaultMaximumSegmentSize;
 		this->initializeSlidingWindowRelatedBuffers();
 		this->initializeCounters();
@@ -70,7 +70,7 @@ public:
 	static const double WaitDurationInMsForPacketRetransmission = 1000; //ms
 	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
 
-private:
+public:
 	//statistics counters
 	size_t nRetriedSegments;
 	size_t nSentSegments;
@@ -119,6 +119,7 @@ public:
 		} else if (state == SpaceWireRTEPState::Closing) {
 			throw SpaceWireRTEPException(SpaceWireRTEPException::IlleagalOpenDirectionWhileClosingASocket);
 		}
+		this->sequenceNumber = 0;
 		this->nOfOutstandingPackets = 0;
 		this->state = SpaceWireRTEPState::Enabled;
 		initializeRetryCounts();
@@ -186,13 +187,17 @@ private:
 private:
 	inline SpaceWireRPacket* getAvailablePacketInstance() {
 		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRTransmitTEP::getAvailablePacketInstance() nOfOutstandingPackets=" << dec << nOfOutstandingPackets
-				<< endl;
+		<< endl;
+#endif
 		if (nOfOutstandingPackets < this->slidingWindowSize) {
 			SpaceWireRPacket* packet = slidingWindowBuffer[this->sequenceNumber];
 			return packet;
 		} else {
+#ifdef DebugSpaceWireRTransmitTEP
 			cout << "SpaceWireRTransmitTEP::getAvailablePacketInstance() Returns NULL!!!" << endl;
+#endif
 			return NULL;
 		}
 	}
@@ -460,7 +465,8 @@ public:
 		sendMutex.lock();
 		sendTimeoutCounter = 0;
 		nOfOutstandingPackets = 0;
-		sequenceNumber = this->getSlidingWindowFrom();
+		//slideSlidingWindow();
+		//sequenceNumber = this->getSlidingWindowFrom();
 		size_t dataSize = data->size();
 		size_t remainingSize = dataSize;
 		size_t payloadSize;
@@ -537,6 +543,7 @@ public:
 				packetHasBeenSent[packet->getSequenceNumber()] = true;
 				//slidingWindowBuffer[packet->getSequenceNumber()] = packet;
 			} catch (...) {
+				sendMutex.unlock();
 				this->malfunctioningSpaceWireIF();
 				throw SpaceWireRTEPException(SpaceWireRTEPException::SpaceWireIFIsNotWorking);
 			}
@@ -644,6 +651,7 @@ private:
 		}
 		//update state if open command is acknowledged
 		this->state = SpaceWireRTEPState::Open;
+		this->sequenceNumber = 1;
 	}
 
 private:

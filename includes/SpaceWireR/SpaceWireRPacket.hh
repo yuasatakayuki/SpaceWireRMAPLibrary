@@ -12,24 +12,9 @@
 #include "SpaceWireR/SpaceWireRProtocol.hh"
 #include "SpaceWirePacket.hh"
 #include "SpaceWireUtilities.hh"
+#include "SpaceWireR/SpaceWireRUtilities.hh"
 
 #undef debugSpaceWireRPacket
-
-class SpaceWireRUtility {
-public:
-	static uint16_t calculateCRCForHeaderAndData(const std::vector<uint8_t>& header, const std::vector<uint8_t>& data) {
-		uint16_t crc16 = 0xFFFF;
-		//todo
-		return crc16;
-	}
-
-public:
-	static uint16_t calculateCRCForArray(uint8_t* buffer, size_t length) {
-		uint16_t crc16 = 0xFFFF;
-		//todo
-		return crc16;
-	}
-};
 
 class SpaceWireRPacketType {
 public:
@@ -243,7 +228,7 @@ public:
 		}
 
 		//Calculate CRC
-		crc16 = SpaceWireRUtility::calculateCRCForHeaderAndData(header, payload);
+		crc16 = SpaceWireRUtilities::calculateCRCForHeaderAndData(header, payload);
 
 		//Trailer
 		buffer->push_back(crc16 / 0x100);
@@ -286,7 +271,7 @@ public:
 		}
 
 		//Calculate CRC
-		crc16 = SpaceWireRUtility::calculateCRCForArray(buffer, index - destinationSpaceWireAddressSize + 1);
+		crc16 = SpaceWireRUtilities::calculateCRCForArray(buffer, index - destinationSpaceWireAddressSize + 1);
 
 		//Trailer
 		buffer[index] = crc16 / 0x100;
@@ -391,11 +376,11 @@ private:
 		header.push_back(sequenceNumber);
 
 		//Address Control
-		header.push_back(0x0000 + destinationSpaceWireAddress.size());
+		header.push_back(0x0000 + prefix.size());
 
 		//Source Address
-		for (size_t i = 0; i < destinationSpaceWireAddress.size(); i++) {
-			header.push_back(destinationSpaceWireAddress[i]);
+		for (size_t i = 0; i < prefix.size(); i++) {
+			header.push_back(prefix[i]);
 		}
 		header.push_back(sourceLogicalAddress);
 	}
@@ -415,21 +400,28 @@ public:
 		try {
 			//SpaceWire Address
 			size_t index = 0;
+			std::vector<uint8_t> temporarySpaceWireAddress;
+			size_t destinationSpaceWireAddressLength=0;
 			try {
 #ifdef debugSpaceWireRPacket
 				cout << "SpaceWireRPacket::interpretPacket() #2" << endl;
 #endif
-				std::vector<uint8_t> temporarySpaceWireAddress;
 				while (buffer->at(index) < 0x20) {
 					temporarySpaceWireAddress.push_back(buffer->at(index));
 					index++;
 				}
 #ifdef debugSpaceWireRPacket
-				cout << "SpaceWireRPacket::interpretPacket() #3" << endl;
+				cout << "SpaceWireRPacket::interpretPacket() #3 Remaining path address " << index << " bytes [";
+				for (size_t i = 0; i < temporarySpaceWireAddress.size(); i++) {
+					cout << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) temporarySpaceWireAddress[i] << " ";
+				}
+				cout << "]" << endl;
 #endif
 			} catch (...) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidHeaderFormat);
 			}
+			this->destinationSpaceWireAddress = temporarySpaceWireAddress;
+			destinationSpaceWireAddressLength=index;
 
 			//Destination SLA
 			this->destinationLogicalAddress = buffer->at(index);
@@ -437,7 +429,8 @@ public:
 
 			//Protocol ID
 #ifdef debugSpaceWireRPacket
-			cout << "SpaceWireRPacket::interpretPacket() #4" << endl;
+			cout << "SpaceWireRPacket::interpretPacket() #4 ProtocolID=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) buffer->at(index) << endl;
 #endif
 			if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidProtocolID);
@@ -471,6 +464,15 @@ public:
 			index++;
 
 #ifdef debugSpaceWireRPacket
+			cout << "SpaceWireRPacket::interpretPacket() packetControl=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) packetControl << endl;
+			cout << "SpaceWireRPacket::interpretPacket() channel number=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< channelNumber << endl;
+			cout << "SpaceWireRPacket::interpretPacket() sequenceNumber=" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) sequenceNumber << endl;
+#endif
+
+#ifdef debugSpaceWireRPacket
 			cout << "SpaceWireRPacket::interpretPacket() #6" << endl;
 #endif
 			//Prefix
@@ -484,7 +486,16 @@ public:
 					cout << "SpaceWireRPacket::interpretPacket() #8" << endl;
 #endif
 					prefix.push_back(buffer->at(index));
+					index++;
 				}
+#ifdef debugSpaceWireRPacket
+				cout << "SpaceWireRPacket::interpretPacket() #8-1 prefix = ";
+				for (size_t i = 0; i < prefix.size(); i++) {
+					cout << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) prefix[i] << " ";
+				}
+				cout << endl;
+#endif
+
 			} catch (...) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPrefixLength);
 			}
@@ -517,21 +528,22 @@ public:
 
 			//Size check
 #ifdef debugSpaceWireRPacket
-			cout << "SpaceWireRPacket::interpretPacket() #11 index=" << dec << index << endl;
+			cout << "SpaceWireRPacket::interpretPacket() #11 index=" << dec << index << " buffer.size()=" << buffer->size()
+					<< endl;
 #endif
 			if (index != buffer->size()) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::PacketHasExtraBytesAfterTrailer);
 			}
 
 			//CRC Check
-			uint16_t calculatedCRC = SpaceWireRUtility::calculateCRCForArray((uint8_t*) (&(buffer->at(0))),
-					buffer->size() - 2);
+			uint16_t calculatedCRC = SpaceWireRUtilities::calculateCRCForArray((uint8_t*) (&(buffer->at(destinationSpaceWireAddressLength))),
+					buffer->size() - 2 - destinationSpaceWireAddressLength);
 #ifdef debugSpaceWireRPacket
 			cout << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2) << setfill('0')
 					<< (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2) << setfill('0')
 					<< (uint32_t) calculatedCRC << endl;
 #endif
-			if(this->crc16!=calculatedCRC){
+			if (this->crc16 != calculatedCRC) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidCRC);
 			}
 
