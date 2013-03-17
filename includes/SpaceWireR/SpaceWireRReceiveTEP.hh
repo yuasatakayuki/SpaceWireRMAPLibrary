@@ -37,7 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
 #undef DebugSpaceWireRReceiveTEP
-#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+#define DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 
 class SpaceWireRReceiveTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 
@@ -379,10 +379,19 @@ private:
 			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)packet->getSequenceNumber() << endl;
 			ss << "packetType:" << ((packet->isDataPacket())? "Data":"Other than data") << endl;
 			ss << "segment   :" << ((packet->isFirstSegment())? "First": ((packet->isContinuedSegment())? "Continued":"Last") ) << endl;
+			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)this->slidingWindowFrom << endl;
 			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			replyAckForPacket(packet);
 			delete packet;
-		} else {
+		} else { //outside sliding window
+			//debug
+			CxxUtilities::TerminalControl::displayInCyan("SpaceWireRReceiveTEP::processDataPacket() outside sliding window");
+			std::stringstream ss;
+			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)packet->getSequenceNumber() << endl;
+			ss << "packetType:" << ((packet->isDataPacket())? "Data":"Other than data") << endl;
+			ss << "segment   :" << ((packet->isFirstSegment())? "First": ((packet->isContinuedSegment())? "Continued":"Last") ) << endl;
+			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)this->slidingWindowFrom << endl;
+			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			malfunctioningTransportChannel();
 			nDiscardedDataPackets++;
 		}

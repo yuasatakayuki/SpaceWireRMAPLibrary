@@ -37,7 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
 #undef DebugSpaceWireRTransmitTEP
-#undef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
+#define DebugSpaceWireRTransmitTEPDumpCriticalIncidents
 
 class SpaceWireRTransmitTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 private:
