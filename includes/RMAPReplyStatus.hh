@@ -53,7 +53,7 @@ public:
 	static std::string replyStatusToString(uint8_t status) {
 		using namespace std;
 		//Status
-		string statusstring;
+		std::string statusstring;
 		stringstream ss;
 		switch (status) {
 		case 0x00:
@@ -103,7 +103,7 @@ public:
 	static std::string replyStatusToStringWithoutCodeValue(uint8_t status) {
 		using namespace std;
 		//Status
-		string statusstring;
+		std::string statusstring;
 		stringstream ss;
 		switch (status) {
 		case 0x00:

@@ -1033,7 +1033,7 @@ public:
 				<< endl;
 		toStringInstructionField(ss);
 		//Status
-		string statusstring;
+		std::string statusstring;
 		switch (status) {
 		case 0x00:
 			statusstring = "Successfully Executed";
