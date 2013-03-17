@@ -7,46 +7,46 @@
 
 #include "SpaceWireR.hh"
 #include "CxxUtilities/CxxUtilities.hh"
+
 //parameters for SpaceCube2 test
-/*
- const uint16_t channelID = 0x6342;
- const size_t SendSize = 1024;
- const size_t SegmentSize = 256;
- const size_t SlidingWindowSize=8;
- */
+const uint16_t channelID = 0x6342;
+const size_t SendSize = 1024;
+const size_t SegmentSize = 256;
+const size_t SlidingWindowSize = 5;
 
 //parameters for higher speed test
-
-const uint16_t channelID = 0x6342;
-const size_t SendSize = 4096 * 1024;
-const size_t SegmentSize = 4096;
-const size_t SlidingWindowSize = 32;
-
+/*
+ const uint16_t channelID = 0x6342;
+ const size_t SendSize = 4096 * 1024;
+ const size_t SegmentSize = 4096;
+ const size_t SlidingWindowSize = 32;
+ */
 
 //parameters for memory-leak test
 /*
-const uint16_t channelID = 0x6342;
-const size_t SendSize =  1024;
-const size_t SegmentSize = 256;
-const size_t SlidingWindowSize = 32;
-*/
+ const uint16_t channelID = 0x6342;
+ const size_t SendSize =  1024;
+ const size_t SegmentSize = 256;
+ const size_t SlidingWindowSize = 32;
+ */
 
 std::vector<uint8_t> destinationPathAddress;
 std::vector<uint8_t> sourcePathAddress;
 
 void initializeParameters() {
-	/*	//ReceiveTEP on SpaceCube2
-	 destinationPathAddress.push_back(1);
-	 destinationPathAddress.push_back(16);
-	 sourcePathAddress.push_back(1);
-	 sourcePathAddress.push_back(6);*/
-
-	//SpaceWire-to-GigabitEther 1-4 loopback
-	destinationPathAddress.push_back(4);
-	destinationPathAddress.push_back(7);
+	//ReceiveTEP on SpaceCube2
+	destinationPathAddress.push_back(1);
+	destinationPathAddress.push_back(16);
 	sourcePathAddress.push_back(1);
 	sourcePathAddress.push_back(6);
 
+	//SpaceWire-to-GigabitEther 3-4 loopback
+	/*
+	 destinationPathAddress.push_back(4);
+	 destinationPathAddress.push_back(7);
+	 sourcePathAddress.push_back(3);
+	 sourcePathAddress.push_back(6);
+	 */
 }
 
 class ToStringInterface {
@@ -223,23 +223,23 @@ public:
 		cout << "SpaceWireRReceiveTEP opened." << endl;
 
 		receiveloop: //
-		size_t receivedSize=0;
+		size_t receivedSize = 0;
 		try {
 			while (!stopped) {
 				std::vector<uint8_t>* data = tep->receive(1000);
 				cout << data->size() << " ";
-				receivedSize+=data->size();
+				receivedSize += data->size();
 				if (data->size() != 0) {
 					cerr << "deleted" << endl;
 					delete data;
-				}else{
+				} else {
 					cerr << "Size 0" << endl;
 				}
 				//for memory-leak test
 				/*
-				if(receivedSize>10*1024){
-					goto _finalize;
-				}*/
+				 if(receivedSize>10*1024){
+				 goto _finalize;
+				 }*/
 			}
 		} catch (SpaceWireRTEPException& e) {
 			cout << "Receiver: " << e.toString() << endl;
@@ -249,8 +249,7 @@ public:
 		}
 
 		//finalize
-		_finalize:
-		cout << "stopping tep" << endl;
+		_finalize: cout << "stopping tep" << endl;
 		tep->stop();
 		cout << "stopping SpaceWireREngine" << endl;
 		spwREngine->stop();
