@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * RMAPInitiator.hh
  *
@@ -216,9 +216,8 @@ public:
 	}
 
 public:
-	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-					RMAPReplyException) {
+	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
@@ -512,9 +511,8 @@ public:
 	}
 
 public:
-	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length,
-			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
-					RMAPReplyException) {
+	void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		if (targetNodeDB == NULL) {
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
 		}
@@ -525,6 +523,26 @@ public:
 			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
 		}
 		write(targetNode, memoryAddress, data, length, timeoutDuration);
+	}
+
+public:
+	void write(std::string targetNodeID, uint32_t memoryAddress, std::vector<uint8_t>* data, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
+		if (targetNodeDB == NULL) {
+			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTargetNodeDBIsNotRegistered);
+		}
+		RMAPTargetNode *targetNode;
+		try {
+			targetNode = targetNodeDB->getRMAPTargetNode(targetNodeID);
+		} catch (RMAPTargetNodeDBException& e) {
+			throw RMAPInitiatorException(RMAPInitiatorException::NoSuchRMAPMemoryObject);
+		}
+		if (data->size() != 0) {
+			write(targetNode, memoryAddress, &(data->at(0)), data->size(), timeoutDuration);
+		}else{
+			uint8_t dummyValue;
+			write(targetNode, memoryAddress, &dummyValue, 0, timeoutDuration);
+		}
 	}
 
 	void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration =
