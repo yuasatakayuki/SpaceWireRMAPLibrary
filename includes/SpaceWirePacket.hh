@@ -46,7 +46,7 @@ public:
 public:
 	static const uint8_t DefaultProtocolID = 0x00;
 
-protected:
+public:
 	std::vector<uint8_t> wholePacket;
 
 protected:
