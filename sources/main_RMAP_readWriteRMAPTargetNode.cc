@@ -16,30 +16,33 @@ int main(int argc, char* argv[]) {
 	using namespace std;
 	using namespace CxxUtilities;
 
-	if (argc < 6) {
+	if (argc < 7) {
 		cerr << "usage : RMAP_readWriteRMAPTargetNode arg1 arg2 arg3 arg4 arg5...(optional)" << endl;
 		cerr << "argv1 = IP Address of SpaceWire-to-GigabitEther" << endl;
-		cerr << "argv2 = xml filename" << endl;
-		cerr << "argv3 = RMAP Target Node ID" << endl;
-		cerr << "argv4 = Memory Object ID" << endl;
-		cerr << "argv5 = read/write" << endl;
-		cerr << "argv6... = data (when write) e.g. 0x0a 0x12 0xbd 0x44" << endl;
+		cerr << "argv2 = TCP Port number" << endl;
+		cerr << "argv3 = xml filename" << endl;
+		cerr << "argv4 = RMAP Target Node ID" << endl;
+		cerr << "argv5 = Memory Object ID" << endl;
+		cerr << "argv6 = read/write" << endl;
+		cerr << "argv7... = data (when write) e.g. 0x0a 0x12 0xbd 0x44" << endl;
 		cerr << endl;
 		exit(-1);
 	}
 
 	//initialize parameter
 	string ipAddress(argv[1]);
-	string xmlfilename(argv[2]);
-	string rmapTargetNodeID(argv[3]);
-	string memoryObjectID(argv[4]);
-	string instruction(argv[5]);
+	int port=CxxUtilities::String::toInteger(argv[2]);
+	string xmlfilename(argv[3]);
+	string rmapTargetNodeID(argv[4]);
+	string memoryObjectID(argv[5]);
+	string instruction(argv[6]);
 	vector<uint8_t> data;
-	for (int i = 6; i < argc; i++) {
+	for (int i = 7; i < argc; i++) {
 		data.push_back(String::toUInt8(string(argv[i])));
 	}
 	if (instruction != "read" && instruction != "write") {
 		cerr << "instruction should be either of read or write" << endl;
+		cerr << "('" << instruction << "' was provided)" << endl;
 		exit(-1);
 	}
 
@@ -66,8 +69,8 @@ int main(int argc, char* argv[]) {
 	try {
 		memoryObject = targetNode->getMemoryObject(memoryObjectID);
 	} catch (...) {
-		cerr << "It seems Mmeory Object named " << memoryObjectID << " of " << rmapTargetNodeID
-				<< " is not defined in " << xmlfilename << endl;
+		cerr << "It seems Mmeory Object named " << memoryObjectID << " of " << rmapTargetNodeID << " is not defined in "
+				<< xmlfilename << endl;
 		exit(-1);
 	}
 	cout << "Memory Object named " << memoryObjectID << " was found." << endl;
@@ -81,7 +84,7 @@ int main(int argc, char* argv[]) {
 
 	//SpaceWire part
 	cout << "Opening SpaceWireIF...";
-	SpaceWireIFOverTCP* spwif = new SpaceWireIFOverTCP(ipAddress, 10030);
+	SpaceWireIFOverTCP* spwif = new SpaceWireIFOverTCP(ipAddress, port);
 	try {
 		spwif->open();
 	} catch (...) {
@@ -100,17 +103,10 @@ int main(int argc, char* argv[]) {
 
 	//perform read/write
 	cout << "Performing " << instruction << " instruction." << endl;
-	if (instruction == "read") {//do read
+	if (instruction == "read") { //do read
 		uint8_t* buffer = new uint8_t(memoryObject->getLength());
 		try {
 			rmapInitiator->read(targetNode, memoryObjectID, buffer, 300000.0);
-			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
-			rmapInitiator->read(targetNode, memoryObjectID, buffer, 300000.0);
-			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
-			rmapInitiator->read(targetNode, memoryObjectID, buffer, 300000.0);
-			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
-			rmapInitiator->read(targetNode, memoryObjectID, buffer, 300000.0);
-			cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
 		} catch (RMAPInitiatorException& e) {
 			if (e.getStatus() == RMAPInitiatorException::Timeout) {
 				cerr << "Timeout." << endl;
@@ -123,11 +119,8 @@ int main(int argc, char* argv[]) {
 		}
 		cout << "Read successfully done." << endl;
 		cout << SpaceWireUtilities::packetToString(buffer, memoryObject->getLength()) << endl;
-		for(int i=0;i<8;i++){
-		cout << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)buffer[i] << endl;
-		}
 		delete buffer;
-	} else {//do write
+	} else { //do write
 		try {
 			if (data.size() != 0) {
 				rmapInitiator->write(targetNode, memoryObjectID, (uint8_t*) &(data[0]), (uint32_t) data.size());
