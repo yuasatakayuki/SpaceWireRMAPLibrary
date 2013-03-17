@@ -581,6 +581,26 @@ public:
 		}
 		return targetNodes;
 	}
+
+public:
+	std::string toString(){
+		using namespace std;
+		std::stringstream ss;
+		std::map<std::string, RMAPTargetNode*>::iterator it=db.begin();
+		while(it!=db.end()){
+			RMAPTargetNode* rmapTargetNode=it->second;
+			std::vector<uint8_t> targetSpaceWireAddress=rmapTargetNode->getTargetSpaceWireAddress();
+			std::vector<uint8_t> replyAddress=rmapTargetNode->getReplyAddress();
+			ss << rmapTargetNode->getID() //
+					<<
+					" Logical Address = " << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)rmapTargetNode->getTargetLogicalAddress() //
+					<< "Target SpaceWire Address = [" << CxxUtilities::Array<uint8_t >::toString(targetSpaceWireAddress,"hex",128) << "]"//
+					<< "Reply Address = [" << CxxUtilities::Array<uint8_t >::toString(replyAddress,"hex",128) << "]"//
+					<< endl;
+			it++;
+		}
+		return ss.str();
+	}
 };
 
 #endif /* RMAPTARGETNODE_HH_ */
