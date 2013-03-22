@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * SpaceWireRReceiveTEP.hh
  *
@@ -37,7 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
 #undef DebugSpaceWireRReceiveTEP
-#define DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 
 class SpaceWireRReceiveTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 
@@ -106,9 +106,9 @@ public:
 		this->nDiscardedDataPackets = 0;
 		this->nDiscardedKeepAlivePackets = 0;
 		this->nErrorInjectionNoReply = 0;
-		this->nReceivedDataBytes=0;
-		this->nReceivedApplicationData=0;
-		this->nReceivedSegments=0;
+		this->nReceivedDataBytes = 0;
+		this->nReceivedApplicationData = 0;
+		this->nReceivedSegments = 0;
 	}
 
 private:
@@ -221,8 +221,8 @@ private:
 		if (randomMT->generateRandomDoubleFrom0To1() < ProbabilityOfErrorInjectionNoReply) {
 #ifdef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 			std::stringstream ss;
-			ss << "SpaceWireRReceiveTEP::errorInjectionNoReply() for sequence number = " << dec << right << (uint32_t) sequenceNumber << " !!!"
-			<< endl;
+			ss << "SpaceWireRReceiveTEP::errorInjectionNoReply() for sequence number = " << dec << right
+					<< (uint32_t) sequenceNumber << " !!!" << endl;
 			CxxUtilities::TerminalControl::displayInRed(ss.str());
 			nErrorInjectionNoReply++;
 #endif
@@ -240,7 +240,7 @@ private:
 			try {
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
-				<< (uint32_t) ackPacket->getSequenceNumber() << endl;
+						<< (uint32_t) ackPacket->getSequenceNumber() << endl;
 #endif
 
 				//todo: inject CRC error
@@ -248,7 +248,7 @@ private:
 				spwREngine->sendPacket(ackPacket);
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() ack for sequence number = "
-				<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
+						<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
 #endif
 			} catch (...) {
 				malfunctioningSpaceWireIF();
@@ -353,9 +353,9 @@ private:
 		using namespace std;
 		uint8_t sequenceNumber = packet->getSequenceNumber();
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::processDataPacket() sequenceNumber=" <<(uint32_t)sequenceNumber << endl;
+		cout << "SpaceWireRReceiveTEP::processDataPacket() sequenceNumber=" << (uint32_t) sequenceNumber << endl;
 #endif
-		nReceivedDataBytes+=packet->getPayloadLength();
+		nReceivedDataBytes += packet->getPayloadLength();
 		nReceivedSegments++;
 		if (insideForwardSlidingWindow(sequenceNumber)) {
 #ifdef DebugSpaceWireRReceiveTEP
@@ -374,12 +374,16 @@ private:
 			cout << "SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow" << endl;
 #endif
 			//debug
-			CxxUtilities::TerminalControl::displayInCyan("SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow");
+			CxxUtilities::TerminalControl::displayInCyan(
+					"SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow");
 			std::stringstream ss;
-			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)packet->getSequenceNumber() << endl;
-			ss << "packetType:" << ((packet->isDataPacket())? "Data":"Other than data") << endl;
-			ss << "segment   :" << ((packet->isFirstSegment())? "First": ((packet->isContinuedSegment())? "Continued":"Last") ) << endl;
-			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)this->slidingWindowFrom << endl;
+			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) packet->getSequenceNumber() << endl;
+			ss << "packetType:" << ((packet->isDataPacket()) ? "Data" : "Other than data") << endl;
+			ss << "segment   :"
+					<< ((packet->isFirstSegment()) ? "First" : ((packet->isContinuedSegment()) ? "Continued" : "Last")) << endl;
+			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) this->slidingWindowFrom << endl;
 			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			replyAckForPacket(packet);
 			delete packet;
@@ -387,10 +391,13 @@ private:
 			//debug
 			CxxUtilities::TerminalControl::displayInCyan("SpaceWireRReceiveTEP::processDataPacket() outside sliding window");
 			std::stringstream ss;
-			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)packet->getSequenceNumber() << endl;
-			ss << "packetType:" << ((packet->isDataPacket())? "Data":"Other than data") << endl;
-			ss << "segment   :" << ((packet->isFirstSegment())? "First": ((packet->isContinuedSegment())? "Continued":"Last") ) << endl;
-			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)this->slidingWindowFrom << endl;
+			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) packet->getSequenceNumber() << endl;
+			ss << "packetType:" << ((packet->isDataPacket()) ? "Data" : "Other than data") << endl;
+			ss << "segment   :"
+					<< ((packet->isFirstSegment()) ? "First" : ((packet->isContinuedSegment()) ? "Continued" : "Last")) << endl;
+			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) this->slidingWindowFrom << endl;
 			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			malfunctioningTransportChannel();
 			nDiscardedDataPackets++;
@@ -406,7 +413,7 @@ private:
 		uint8_t n = this->slidingWindowFrom;
 		while (this->slidingWindowBuffer[n] != NULL) {
 #ifdef DebugSpaceWireRReceiveTEP
-			cout << "SpaceWireRReceiveTEP::slideSlidingWindow() n=" << (uint32_t)n << endl;
+			cout << "SpaceWireRReceiveTEP::slideSlidingWindow() n=" << (uint32_t) n << endl;
 #endif
 			reconstructApplicationData(this->slidingWindowBuffer[n]);
 			delete this->slidingWindowBuffer[n];
@@ -415,7 +422,8 @@ private:
 		}
 		this->slidingWindowFrom = n;
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t)this->slidingWindowFrom << endl;
+		cout << "SpaceWireRReceiveTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t) this->slidingWindowFrom
+				<< endl;
 #endif
 	}
 
@@ -425,11 +433,10 @@ private:
 		this->hasReceivedDataPacket = true;
 #ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::reconstructApplicationData() isReceivingSegmentedApplicationData=";
-		if(isReceivingSegmentedApplicationData) {
+		if (isReceivingSegmentedApplicationData) {
 			cout << "true" << endl;
 		} else {
-			cout << "false"
-			<< endl;
+			cout << "false" << endl;
 		}
 #endif
 
@@ -489,6 +496,18 @@ private:
 			//error cases
 			if (packet->isContinuedSegment() || packet->isLastSegment()) {
 				//something is wrong with segmented data
+#ifdef DebugSpaceWireRReceiveTEP
+				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() : ";
+				if (packet->isContinuedSegment()) {
+					cout << "Continuous segment. " << endl;
+				} else if (packet->isLastSegment()) {
+					cout << "The Last Segment." << endl;
+				} else if (packet->isCompleteSegment()) {
+					cout << "Complete Segment." << endl;
+				} else {
+					cout << "The First Segment." << endl;
+				}
+#endif
 				malfunctioningTransportChannel();
 				return;
 			}
@@ -538,7 +557,7 @@ private:
 		//add message which should be sent to user
 		using namespace std;
 		cout << "SpaceWireRReceiveTEP::malfunctioningTransportChannel() !!! MALFUNCTIONING TEP !!!" << endl;
-		cout << ((SpaceWireRTEPInterface*)(NULL))->channel << endl;
+		cout << ((SpaceWireRTEPInterface*) (NULL))->channel << endl;
 	}
 
 private:
@@ -639,7 +658,7 @@ public:
 		ss << "nDiscardedControlPackets : " << dec << nDiscardedControlPackets << endl;
 		ss << "nDiscardedDataPackets : " << dec << nDiscardedControlPackets << endl;
 		ss << "nDiscardedKeepAlivePackets : " << dec << nDiscardedKeepAlivePackets << endl;
-		ss << "nReceivedBytes : " << nReceivedDataBytes/1024 << "kB" << endl;
+		ss << "nReceivedBytes : " << nReceivedDataBytes / 1024 << "kB" << endl;
 		ss << "nReceivedSegments : " << nReceivedSegments << endl;
 		ss << "nReceivedApplicationData : " << nReceivedApplicationData << endl;
 		ss << "---------------------------------------------" << endl;

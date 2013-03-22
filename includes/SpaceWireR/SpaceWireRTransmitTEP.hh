@@ -93,7 +93,7 @@ public:
 	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
 	static const double WaitDurationInMsForClosingLoop = 100; //ms
 	static const double WaitDurationInMsForEnabledLoop = 100; //m1s
-	static const double WaitDurationInMsForPacketRetransmission = 1000; //ms
+	static const double WaitDurationInMsForPacketRetransmission = 2000; //ms
 	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
 
 public:

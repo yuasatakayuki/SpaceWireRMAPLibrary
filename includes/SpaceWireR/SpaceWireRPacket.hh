@@ -97,6 +97,9 @@ public:
 		case InvalidPacket:
 			str = "InvalidPacket";
 			break;
+		case InvalidCRC:
+			str = "InvalidCRC";
+			break;
 		case InvalidPayloadLength:
 			str = "InvalidPayloadLength";
 			break;
@@ -228,6 +231,12 @@ public:
 		unuseSecondaryHeader();
 		prefixLength = 0;
 		sourceLogicalAddress = SpaceWirePacket::DefaultLogicalAddress;
+	}
+
+public:
+	std::string  toString(){
+		return "";
+		//todo implement toString()
 	}
 
 public:
@@ -459,6 +468,7 @@ public:
 					<< (uint32_t) buffer->at(index) << endl;
 #endif
 			if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
+				cerr << "Invalid Protocol ID: " << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)buffer->at(index) << endl;
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidProtocolID);
 			}
 			index++;
@@ -564,12 +574,10 @@ public:
 			//CRC Check
 			uint16_t calculatedCRC = SpaceWireRUtilities::calculateCRCForArray((uint8_t*) (&(buffer->at(destinationSpaceWireAddressLength))),
 					buffer->size() - 2 - destinationSpaceWireAddressLength);
-#ifdef debugSpaceWireRPacket
-			cout << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) calculatedCRC << endl;
-#endif
 			if (this->crc16 != calculatedCRC) {
+				cerr << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2) << setfill('0')
+						<< (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2) << setfill('0')
+						<< (uint32_t) calculatedCRC << endl;
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidCRC);
 			}
 

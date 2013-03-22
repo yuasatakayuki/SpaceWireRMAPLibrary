@@ -9,18 +9,22 @@
 #include "CxxUtilities/CxxUtilities.hh"
 
 //parameters for SpaceCube2 test
-const uint16_t channelID = 0x6342;
-const size_t SendSize = 1024;
-const size_t SegmentSize = 256;
-const size_t SlidingWindowSize = 5;
-
-//parameters for higher speed test
 /*
  const uint16_t channelID = 0x6342;
- const size_t SendSize = 4096 * 1024;
- const size_t SegmentSize = 4096;
- const size_t SlidingWindowSize = 32;
+ const size_t SendSize = 10240;
+ const size_t SegmentSize = 1024;
+ const size_t SlidingWindowSize = 20;
+ const uint8_t destinationLAForTransmitTEP = 35;
+ const uint8_t sourceLAForTransmitTEP = 34;
  */
+
+//parameters for higher speed test
+const uint16_t channelID = 0x6342;
+const size_t SendSize = 4096 * 1024;
+const size_t SegmentSize = 4096;
+const size_t SlidingWindowSize = 32;
+const uint8_t destinationLAForTransmitTEP = 35;
+const uint8_t sourceLAForTransmitTEP = 34;
 
 //parameters for memory-leak test
 /*
@@ -35,18 +39,18 @@ std::vector<uint8_t> sourcePathAddress;
 
 void initializeParameters() {
 	//ReceiveTEP on SpaceCube2
-	destinationPathAddress.push_back(1);
-	destinationPathAddress.push_back(16);
-	sourcePathAddress.push_back(1);
-	sourcePathAddress.push_back(6);
-
-	//SpaceWire-to-GigabitEther 3-4 loopback
 	/*
-	 destinationPathAddress.push_back(4);
-	 destinationPathAddress.push_back(7);
-	 sourcePathAddress.push_back(3);
+	 destinationPathAddress.push_back(1);
+	 destinationPathAddress.push_back(16);
+	 sourcePathAddress.push_back(1);
 	 sourcePathAddress.push_back(6);
 	 */
+	//SpaceWire-to-GigabitEther 3-4 loopback
+	destinationPathAddress.push_back(4);
+	destinationPathAddress.push_back(7);
+	sourcePathAddress.push_back(3);
+	sourcePathAddress.push_back(6);
+
 }
 
 class ToStringInterface {
@@ -88,19 +92,19 @@ public:
 
 class Sender: public CxxUtilities::StoppableThread, public ToStringInterface, public SpaceWireIFInterface {
 private:
-	uint8_t channelID;
+	uint16_t channelID;
 
 public:
 	SpaceWireRTransmitTEP* tep;
 
 public:
-	Sender(uint8_t channelID, std::string url, int port) :
+	Sender(uint16_t channelID, std::string url, int port) :
 			SpaceWireIFInterface(url, port) {
 		this->channelID = channelID;
 	}
 
 public:
-	Sender(uint8_t channelID, int port) :
+	Sender(uint16_t channelID, int port) :
 			SpaceWireIFInterface(port) {
 		this->channelID = channelID;
 	}
@@ -124,7 +128,8 @@ public:
 		cout << "SpaceWireREngine started" << endl;
 
 		//create a TEP instance
-		tep = new SpaceWireRTransmitTEP(spwREngine, channelID, 0xFE, destinationPathAddress, 0xFE, sourcePathAddress);
+		tep = new SpaceWireRTransmitTEP(spwREngine, channelID, destinationLAForTransmitTEP, destinationPathAddress,
+				sourceLAForTransmitTEP, sourcePathAddress);
 		tep->open();
 		cout << "SpaceWireRTransmitTEP opened." << endl;
 
@@ -177,19 +182,19 @@ private:
 
 class Receiver: public CxxUtilities::StoppableThread, public ToStringInterface, public SpaceWireIFInterface {
 private:
-	uint8_t channelID;
+	uint16_t channelID;
 
 public:
 	SpaceWireRReceiveTEP* tep;
 
 public:
-	Receiver(uint8_t channelID, std::string url, int port) :
+	Receiver(uint16_t channelID, std::string url, int port) :
 			SpaceWireIFInterface(url, port) {
 		this->channelID = channelID;
 	}
 
 public:
-	Receiver(uint8_t channelID, int port) :
+	Receiver(uint16_t channelID, int port) :
 			SpaceWireIFInterface(port) {
 		this->channelID = channelID;
 	}
@@ -219,6 +224,7 @@ public:
 
 		//create receive TEP
 		tep = new SpaceWireRReceiveTEP(spwREngine, channelID);
+		tep->setSlidingWindowSize(SlidingWindowSize);
 		tep->open();
 		cout << "SpaceWireRReceiveTEP opened." << endl;
 

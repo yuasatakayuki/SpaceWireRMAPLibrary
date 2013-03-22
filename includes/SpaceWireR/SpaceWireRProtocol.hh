@@ -40,6 +40,6 @@ public:
 	static const size_t SizeOfSlidingWindow = 256;
 };
 
-uint8_t SpaceWireRProtocol::ProtocolID=0x10;
+uint8_t SpaceWireRProtocol::ProtocolID=0x52;
 
 #endif /* SPACEWIRERPROTOCOL_HH_ */

@@ -277,6 +277,9 @@ public:
 #ifdef DebugSpaceWireREngine
 				cout << "SpaceWireREngine::run() A packet was received." << endl;
 #endif
+#ifdef SpaceWireREngineDumpPacket
+			SpaceWireUtilities::dumpPacket(data);
+#endif
 				nReceivedPackets++;
 				packet = new SpaceWireRPacket;
 				packet->interpretPacket(data);
@@ -291,6 +294,9 @@ public:
 #ifdef DebugSpaceWireREngine
 				cerr << "SpaceWireREngine::run() got SpaceWireIF " << e.toString() << endl;
 #endif
+				if(e.getStatus()==SpaceWireIFException::Timeout){
+					goto _SpaceWireREngine_run_loop;
+				}else
 				if (e.getStatus() == SpaceWireIFException::Disconnected) {
 					tellDisconnectionToAllTEPs();
 					this->stop();
@@ -306,10 +312,16 @@ public:
 				goto _SpaceWireREngine_run_loop;
 			} catch (...) {
 				//todo
+				std::stringstream ss;
+				ss << "SpaceWireREngine::run() got an exception." << endl;
+				CxxUtilities::TerminalControl::displayInRed(ss.str());
 				break;
 			}
 
 		}
+#ifdef DebugSpaceWireREngine
+		cerr << "SpaceWireREngine::run() Stops." << endl;
+#endif
 		stopped = true;
 		//todo
 		//invokeRegisteredStopActions();
