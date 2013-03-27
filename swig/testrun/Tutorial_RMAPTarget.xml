@@ -1,0 +1,18 @@
+<Configuration>
+
+  <RMAPTargetNode id="SampleRMAPTargetNode">
+	  <TargetLogicalAddress>0xFE</TargetLogicalAddress>
+	  <TargetSpaceWireAddress></TargetSpaceWireAddress>
+	  <ReplyAddress></ReplyAddress>
+	  <Key>0x00</Key>
+    
+	  <RMAPMemoryObject id="SampleRegister">
+		  <ExtendedAddress>0x00</ExtendedAddress>
+		  <Address>0x0000</Address>
+		  <Length>0x10</Length>
+		  <Key>0x00</Key>
+		  <AccessMode>ReadWrite</AccessMode>
+	  </RMAPMemoryObject>
+    
+  </RMAPTargetNode>
+</Configuration>
