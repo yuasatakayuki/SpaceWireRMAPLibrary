@@ -109,7 +109,7 @@ public:
 			try {
 				datasocket = new TCPClientSocket(iphostname, portnumber);
 				((TCPClientSocket*) datasocket)->open(1000);
-				setTimeoutDuration(1000000);
+				setTimeoutDuration(500000);
 			} catch (CxxUtilities::TCPSocketException& e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
@@ -123,7 +123,7 @@ public:
 				serverSocket = new TCPServerSocket(portnumber);
 				serverSocket->open();
 				datasocket = serverSocket->accept();
-				setTimeoutDuration(1000000);
+				setTimeoutDuration(500000);
 			} catch (CxxUtilities::TCPSocketException& e) {
 				throw SpaceWireIFException(SpaceWireIFException::OpeningConnectionFailed);
 			} catch (...) {
@@ -280,7 +280,7 @@ public:
 
 public:
 	void setTimeoutDuration(double microsecond) throw (SpaceWireIFException) {
-		datasocket->setTimeout(microsecond / 1000);
+		datasocket->setTimeout(microsecond / 1000.);
 		timeoutDurationInMicroSec = microsecond;
 	}
 

@@ -1,29 +1,3 @@
-/* 
-============================================================================
-Java Binding of SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
-
-Copyright (c) 2013 Takayuki Yuasa
-
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
-
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
 
 // SWIG Java interface to SpaceWireRMAPLibrary
 // @author Takayuki Yuasa
@@ -31,7 +5,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 %module SpaceWireRMAP
 %{
-
 #include "CxxUtilities/Exception.hh"
 #include "SpaceWireIF.hh"
 #include "SpaceWireIFOverTCP.hh"
@@ -40,7 +13,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "RMAPEngine.hh"
 #include "RMAPInitiator.hh"
 #include "RMAPPacket.hh"
-
 %}
 
 %include "std_string.i"
@@ -51,8 +23,8 @@ typedef unsigned int uint32_t;
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 
-//%template(VectorUInt8) std::vector<uint8_t>;
-//%template(ByteArray) std::vector<uint8_t>;
+%template(ByteArray) std::vector<uint8_t>;
+//%typemap(jstype) std::vector<uint8_t>  "byte[]"
 
 //============================================
 // Namespace CxxUtilities
@@ -147,4 +119,33 @@ public:
 
 %include "RMAPMemoryObject.hh"
 %include "RMAPTargetNode.hh"
-%include "RMAPPacket.hh"
+//%include "RMAPPacket.hh"
+
+class RMAPInitiator{};
+
+/* 
+============================================================================
+Java Binding of SpaceWire/RMAP Library is provided under the MIT License.
+============================================================================
+
+Copyright (c) 2013 Takayuki Yuasa
+
+Permission is hereby granted, free of charge, to any person obtaining a 
+copy of this software and associated documentation files (the 
+"Software"), to deal in the Software without restriction, including 
+without limitation the rights to use, copy, modify, merge, publish, 
+distribute, sublicense, and/or sell copies of the Software, and to 
+permit persons to whom the Software is furnished to do so, subject to 
+the following conditions:
+
+The above copyright notice and this permission notice shall be included 
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+*/
