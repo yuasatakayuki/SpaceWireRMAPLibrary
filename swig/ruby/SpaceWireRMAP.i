@@ -43,7 +43,8 @@ const int __TMP_RUBY_T_STRING = T_STRING;
 #include "RMAPEngine.hh"
 #include "RMAPInitiator.hh"
 #include "RMAPPacket.hh"
-
+#include "RouterConfigurationPort.hh"
+#include "ConfigurationPorts/ShimafujiElectricSpaceWireToGigabitEthernetStandalone.hh"
 #define T_STRING __TMP_RUBY_T_STRING
 
 %}
@@ -57,7 +58,7 @@ typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 
 %template(VectorUInt8) std::vector<uint8_t>;
-%template(ByteArray) std::vector<uint8_t>;
+//%template(ByteArray) std::vector<uint8_t>;
 
 //============================================
 // Namespace CxxUtilities
@@ -153,3 +154,5 @@ public:
 %include "RMAPMemoryObject.hh"
 %include "RMAPTargetNode.hh"
 %include "RMAPPacket.hh"
+%include "RouterConfigurationPort.hh"
+%include "ConfigurationPorts/ShimafujiElectricSpaceWireToGigabitEthernetStandalone.hh"
