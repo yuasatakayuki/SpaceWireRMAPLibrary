@@ -12,6 +12,7 @@ p.setReplyAddress(targetPathAddress)
 
 p.setCommand()
 p.setWrite()
+p.setIncrementFlag()
 p.unsetVerifyFlag()
 
 writeData=VectorUInt8.new
