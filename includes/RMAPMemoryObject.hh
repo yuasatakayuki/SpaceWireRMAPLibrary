@@ -38,7 +38,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <CxxUtilities/Exception.hh>
 #include <CxxUtilities/String.hh>
 #ifndef NO_XMLLODER
-#include "XMLLoader.hpp"
+#include "XMLUtilities/XMLUtilities.hh"
 #endif
 
 class RMAPMemoryObjectException: public CxxUtilities::Exception {
