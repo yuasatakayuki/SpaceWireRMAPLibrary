@@ -39,7 +39,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "RMAPMemoryObject.hh"
 #include "RMAPNode.hh"
 #ifndef NO_XMLLODER
-#include "XMLLoader.hpp"
+#include "XMLUtilities/XMLUtilities.hh"
 #endif
 
 class RMAPTargetNodeException: public CxxUtilities::Exception {
