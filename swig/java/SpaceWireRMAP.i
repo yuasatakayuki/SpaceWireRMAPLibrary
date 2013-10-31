@@ -37,6 +37,11 @@ namespace CxxUtilities {
 	  std::string toString();
 	};
 
+	class Condition {
+	public:
+		void wait(double time) ;
+		Condition();
+	};
 %default;
 
 }

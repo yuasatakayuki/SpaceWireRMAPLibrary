@@ -1,6 +1,7 @@
 ########################################################
-set(TARGET_EXT_LIBRARY SpaceWireRMAP)
-set(SWIG_IF_FILE ${TARGET_EXT_LIBRARY}.i)
+set(PROJECTNAME SpaceWireRMAP)
+set(TARGET_EXT_LIBRARY lib${PROJECTNAME})
+set(SWIG_IF_FILE ${PROJECTNAME}.i)
 ########################################################
 
 set(XERCES_LIB "xerces-c")
