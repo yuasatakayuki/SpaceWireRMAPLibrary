@@ -624,7 +624,7 @@ public:
 
 		if (!replyMode) { //if reply is not expected
 			if (transaction.state == RMAPTransaction::Initiated) {
-				transaction.state = RMAPTransaction::NotInitiated;
+				transaction.state = RMAPTransaction::Initiated;
 				unlock();
 				return;
 			} else {
@@ -645,7 +645,7 @@ public:
 				rmapEngine->cancelTransaction(&transaction);
 				//reply packet is not created, and therefore the line below is not necessary
 				//deleteReplyPacket();
-				transaction.state = RMAPTransaction::NotInitiated;
+				transaction.state = RMAPTransaction::Initiated;
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
 				transaction.state = RMAPTransaction::NotInitiated;
@@ -751,6 +751,11 @@ public:
 
 	void setReplyMode(bool replyMode) {
 		this->replyMode = replyMode;
+		this->isReplyModeSet_ = true;
+	}
+
+	void setNoReplyMode() {
+		this->replyMode = false;
 		this->isReplyModeSet_ = true;
 	}
 
