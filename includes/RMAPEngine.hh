@@ -201,6 +201,7 @@ public:
 			rmapEngine->stop();
 		}
 	};
+
 private:
 	std::map<uint16_t, RMAPTransaction*> transactions;
 	CxxUtilities::Mutex transactionIDMutex;
@@ -483,6 +484,7 @@ public:
 public:
 	void initiateTransaction(RMAPTransaction* transaction) throw (RMAPEngineException) {
 		using namespace std;
+		transaction->state = RMAPTransaction::NotInitiated;
 		uint16_t transactionID;
 		RMAPPacket* commandPacket = transaction->getCommandPacket();
 		if (transaction->getTransactionIDMode() == RMAPTransaction::AutoTransactionID) {
@@ -501,6 +503,9 @@ public:
 			transactionIDMutex.lock();
 			transactions[transactionID] = transaction;
 			transactionIDMutex.unlock();
+		} else {
+			//otherwise put back transaction Id to available id list
+			pushBackUtilizedTransactionID(transactionID);
 		}
 		//send a command packet
 		commandPacket->setTransactionID(transactionID);
@@ -647,7 +652,16 @@ public:
 		this->useDraftECRC = useDraftEcrc;
 	}
 
-}
-;
+public:
+	size_t getNTransactions() {
+		return transactions.size();
+	}
+
+public:
+	size_t getNAvailableTransactionIDs() {
+		return availableTransactionIDList.size();
+	}
+
+};
 
 #endif /* RMAPENGINE_HH_ */
