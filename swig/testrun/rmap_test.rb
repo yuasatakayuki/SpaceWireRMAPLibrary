@@ -4,10 +4,11 @@
 # 2013-03-22 Hirokazu Odaka
 # RMAP demo of the Ruby binding of SpaceWireRMAPLibrary
 # - based on main_RMAP_readWireRMAPTargetNode.cc by Takayuki Yuasa
-#
+# 2013-11-24 Takayuki Yuasa
+# - require and include sentences were updated
 
-require 'spaceWire'
-include SpaceWire
+require "SpaceWireRMAP"
+include SpaceWireRMAP
 
 ### initialize parameters
 ConfigurationFile = "Tutorial_RMAPTarget.xml"
