@@ -43,7 +43,7 @@ set(CMAKE_SWIG_FLAGS "")
 
 set_source_files_properties(${SWIG_IF_FILE} PROPERTIES CPLUSPLUS ON)
 # set_source_files_properties(${SWIG_IF_FILE} PROPERTIES SWIG_FLAGS "-includeall")
-add_definitions(-DHAVE_STRUCT_TIMESPEC -DHAVE_SIGNBIT)
+add_definitions(-DHAVE_STRUCT_TIMESPEC -DHAVE_SIGNBIT -DHAVE_STRUCT_TIMEVAL)
 swig_add_module(${TARGET_EXT_LIBRARY} ruby ${SWIG_IF_FILE})
 swig_link_libraries(${TARGET_EXT_LIBRARY} ${RUBY_LIBRARY} ${XERCES_LIB})
 

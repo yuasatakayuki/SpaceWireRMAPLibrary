@@ -148,6 +148,9 @@ public:
 			std::vector<uint8_t>* data,
 			double timeoutDuration =DefaultTimeoutDuration
 		) throw (CxxUtilities::Exception);
+		
+	void setUseDraftECRC(bool useDraftEcrc = true);
+		
 };
 
 
