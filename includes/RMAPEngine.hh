@@ -369,6 +369,19 @@ private:
 	}
 
 private:
+	std::vector<RMAPPacket*> discardedRMAPReplyPackets;
+
+private:
+	size_t getNDiscardedRMAPReplyPackets(){
+		return discardedRMAPReplyPackets.size();
+	}
+
+public:
+	std::vector<RMAPPacket*>* getDiscardedRMAPReplyPackets(){
+		return &discardedRMAPReplyPackets;
+	}
+
+private:
 	void rmapReplyPacketReceived(RMAPPacket* packet) throw (RMAPEngineException) {
 		using namespace std;
 		try {
@@ -379,6 +392,9 @@ private:
 			} catch (RMAPEngineException& e) {
 				//if not found, increment error counter
 				nErrorneousReplyPackets++;
+				discardedRMAPReplyPackets.push_back(packet);
+				std::cerr << "RMAP Reply packet was received but no corresponding transaction was found." << std::endl;
+				std::cerr << "RMAPEngine tries to recover normal operation, but may fail continuously." << std::endl;
 				return;
 			}
 			//register reply packet to the resolved transaction
