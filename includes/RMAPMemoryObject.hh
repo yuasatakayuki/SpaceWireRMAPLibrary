@@ -179,7 +179,6 @@ public:
 		}
 		ifs.close();
 		XMLNode *topnode;
-		XMLLoader::XMLLoader(&topnode, filename.c_str());
 		std::vector<RMAPMemoryObject*> result;
 		try {
 			result=constructFromXMLFile(topnode);
