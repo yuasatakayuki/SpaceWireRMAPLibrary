@@ -117,7 +117,7 @@ public:
 			RMAPTargetNodeException, RMAPMemoryObjectException) {
 		std::vector<RMAPTargetNode*> result;
 		XMLNode *topNode;
-		XMLLoader::XMLLoader xmlLoader;
+		XMLLoader xmlLoader;
 		try {
 			xmlLoader.loadFromString(&topNode, str);
 			if (topNode != NULL) {
@@ -148,7 +148,7 @@ public:
 		}
 		ifs.close();
 		XMLNode *topNode;
-		XMLLoader::XMLLoader(&topNode, filename.c_str());
+		XMLLoader(&topNode, filename.c_str());
 		std::vector<RMAPTargetNode*> result;
 		try {
 			if (topNode != NULL) {
