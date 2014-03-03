@@ -132,6 +132,8 @@ public:
 		this->doNotRespondToReceivedHeartBeatPacket_ = false;
 		this->heartBeatTimer = new HeartBeatTimer(this);
 		this->heartBeatAckPacket = new SpaceWireRPacket();
+		retryTimerUpdater = new RetryTimerUpdater(this);
+		retryTimerUpdater->start();
 		this->nOfOutstandingPackets = 0;
 		this->initializeSlidingWindow();
 		this->initializeSlidingWindowRelatedBuffers();
@@ -143,6 +145,9 @@ public:
 	virtual ~SpaceWireRTEP() {
 		delete heartBeatAckPacket;
 		this->finalizeSlidingWindowRelatedBuffers();
+		retryTimerUpdater->stop();
+		retryTimerUpdater->waitUntilRunMethodComplets();
+		delete retryTimerUpdater;
 	}
 
 protected:
@@ -566,8 +571,8 @@ protected:
 		for (size_t i = 0; i < this->slidingWindowSize; i++) {
 			uint8_t index = (uint8_t) (this->slidingWindowFrom + i);
 #ifdef DebugSpaceWireRTEP
-			/* cout << "SpaceWireRTEP::checkRetryTimerThenRetry() Window=" << (size_t) index << " TimeoutCounter="
-			 << retryTimeoutCounters[index] << endl; */
+			cout << "SpaceWireRTEP::checkRetryTimerThenRetry() Window=" << (size_t) index << " TimeoutCounter="
+			 << retryTimeoutCounters[index] << endl;
 #endif
 			if (packetHasBeenSent[index] == true && packetWasAcknowledged[index] == false
 					&& retryTimeoutCounters[index] > WaitDurationInMsForPacketRetransmission) {
@@ -576,8 +581,8 @@ protected:
 				ss << "SpaceWireRTEP::checkRetryTimerThenRetry() Timer expired for sequence number = " << dec << right
 				<< (uint32_t) index << " !!!" << endl;
 				CxxUtilities::TerminalControl::displayInRed(ss.str());
-				nLostAckPackets++;
 #endif
+				nLostAckPackets++;
 				retryTimeoutCounters[index] = 0;
 				retryCountsForSequenceNumber[index]++;
 				//check if retry is necessary

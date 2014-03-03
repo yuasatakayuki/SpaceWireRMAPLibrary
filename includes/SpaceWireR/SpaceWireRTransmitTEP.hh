@@ -48,7 +48,6 @@ public:
 			uint8_t destinationLogicalAddress, std::vector<uint8_t> destinationSpaceWireAddress, //
 			uint8_t sourceLogicalAddress, std::vector<uint8_t> sourceSpaceWireAddress) :
 			SpaceWireRTEP(SpaceWireRTEPType::TransmitTEP, spwREngine, channel) {
-		retryTimerUpdater = new RetryTimerUpdater(this);
 		this->destinationLogicalAddress = destinationLogicalAddress;
 		this->destinationSpaceWireAddress = destinationSpaceWireAddress;
 		this->sourceLogicalAddress = sourceLogicalAddress;
@@ -110,7 +109,6 @@ public:
 		this->state = SpaceWireRTEPState::Enabled;
 		initializeRetryCounts();
 		registerMeToSpaceWireREngine();
-		retryTimerUpdater->start();
 		sendOpenCommand();
 	}
 
@@ -122,7 +120,6 @@ public:
 		}
 		initializeSlidingWindow();
 		initializeRetryCounts();
-		retryTimerUpdater->stop();
 		openCommandAcknowledged = false;
 		closeCommandAcknowledged = false;
 	}
