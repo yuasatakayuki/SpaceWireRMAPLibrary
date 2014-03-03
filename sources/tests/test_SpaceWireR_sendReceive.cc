@@ -16,22 +16,46 @@
  const size_t SlidingWindowSize = 20;
  const uint8_t destinationLAForTransmitTEP = 35;
  const uint8_t sourceLAForTransmitTEP = 34;
+ const double waitDurationBetweenEverySend = 3000;
+ const double transmitHeartBeatTimerConstant = 1000;
+ const double receiveHeartBeatTimerConstant = 0;
  */
 
-//parameters for higher speed test
+//parameters for small-packet test
 const uint16_t channelID = 0x6342;
-const size_t SendSize = 4096 * 1024;
-const size_t SegmentSize = 4096;
-const size_t SlidingWindowSize = 32;
+const size_t SendSize = 256;
+const size_t SegmentSize = 32;
+const size_t SlidingWindowSize = 3;
 const uint8_t destinationLAForTransmitTEP = 35;
 const uint8_t sourceLAForTransmitTEP = 34;
+const double waitDurationBetweenEverySend = 50000;
+const double transmitHeartBeatTimerConstant = 0;
+const double receiveHeartBeatTimerConstant = 1000;
+const bool transmitTEP_doNotRespondToReceivedHeartBeatPacket = false;
+const bool receiveTEP_doNotRespondToReceivedHeartBeatPacket = false;
+
+//parameters for higher speed test
+/*const uint16_t channelID = 0x6342;
+ const size_t SendSize = 4096 * 1024;
+ const size_t SegmentSize = 4096;
+ const size_t SlidingWindowSize = 32;
+ const uint8_t destinationLAForTransmitTEP = 35;
+ const uint8_t sourceLAForTransmitTEP = 34;
+ const double waitDurationBetweenEverySend = 3000;
+ const double transmitHeartBeatTimerConstant = 1000;
+ const double receiveHeartBeatTimerConstant = 0;
+ */
 
 //parameters for memory-leak test
-/*
- const uint16_t channelID = 0x6342;
+/* const uint16_t channelID = 0x6342;
  const size_t SendSize =  1024;
  const size_t SegmentSize = 256;
  const size_t SlidingWindowSize = 32;
+ const uint8_t destinationLAForTransmitTEP = 35;
+ const uint8_t sourceLAForTransmitTEP = 34;
+ const double waitDurationBetweenEverySend = 3000;
+ const double transmitHeartBeatTimerConstant = 1000;
+ const double receiveHeartBeatTimerConstant = 0;
  */
 
 std::vector<uint8_t> destinationPathAddress;
@@ -126,10 +150,24 @@ public:
 		SpaceWireREngine* spwREngine = new SpaceWireREngine(spwif);
 		spwREngine->start();
 		cout << "SpaceWireREngine started" << endl;
+		CxxUtilities::Condition c;
+		c.wait(100);
 
 		//create a TEP instance
 		tep = new SpaceWireRTransmitTEP(spwREngine, channelID, destinationLAForTransmitTEP, destinationPathAddress,
 				sourceLAForTransmitTEP, sourcePathAddress);
+
+		if (transmitHeartBeatTimerConstant != 0) {
+			tep->setHeartBeatTimerConstant(transmitHeartBeatTimerConstant);
+			tep->enableHeartBeat();
+			cout << "SpaceWireRTransmitTEP HeartBeat enabaled (timeout duration = " << transmitHeartBeatTimerConstant
+					<< "ms)." << endl;
+		}
+
+		if (transmitTEP_doNotRespondToReceivedHeartBeatPacket) {
+			tep->doNotRespondToReceivedHeartBeatPacket();
+		}
+
 		tep->open();
 		cout << "SpaceWireRTransmitTEP opened." << endl;
 
@@ -144,6 +182,7 @@ public:
 
 		sendloop: try {
 			while (!stopped) {
+				c.wait(waitDurationBetweenEverySend);
 				tep->send(&data, 5000);
 				cout << data.size() << " ";
 			}
@@ -221,10 +260,24 @@ public:
 		SpaceWireREngine* spwREngine = new SpaceWireREngine(spwif);
 		spwREngine->start();
 		cout << "SpaceWireREngine started" << endl;
+		CxxUtilities::Condition c;
+		c.wait(100);
 
 		//create receive TEP
 		tep = new SpaceWireRReceiveTEP(spwREngine, channelID);
 		tep->setSlidingWindowSize(SlidingWindowSize);
+
+		if (receiveHeartBeatTimerConstant != 0) {
+			tep->setHeartBeatTimerConstant(receiveHeartBeatTimerConstant);
+			tep->enableHeartBeat();
+			cout << "SpaceWireRReceiveTEP HeartBeat enabaled (timeout duration = " << receiveHeartBeatTimerConstant << "ms)."
+					<< endl;
+		}
+
+		if (receiveTEP_doNotRespondToReceivedHeartBeatPacket) {
+			tep->doNotRespondToReceivedHeartBeatPacket();
+		}
+
 		tep->open();
 		cout << "SpaceWireRReceiveTEP opened." << endl;
 

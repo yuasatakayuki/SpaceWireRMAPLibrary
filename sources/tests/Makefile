@@ -12,6 +12,7 @@ CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includ
 LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
 
 TARGETS = \
+test_RMAPEngine_transactionIDLeak \
 test_SpaceWireR_sendReceive
 
 TARGETS_OBJECTS = $(addsuffix .o, $(basename $(TARGETS)))
@@ -22,7 +23,7 @@ TARGETS_SOURCES = $(addsuffix .cc, $(basename $(TARGETS)))
 all : $(TARGETS)
 
 $(TARGETS) : $(TARGETS_SOURCES)
-	$(CXX) -g $(CXXFLAGS) -o $@ $@.cc $(LDFLAGS)
+	$(CXX) -O0 -g $(CXXFLAGS) -o $@ $@.cc $(LDFLAGS)
         
 clean :
 	rm -rf $(TARGETS) $(addsuffix .o, $(TARGETS))
