@@ -48,8 +48,8 @@ public:
 	static const uint8_t DataAckPacket = 0x01;
 	static const uint8_t ControlPacketOpenCommand = 0x02;
 	static const uint8_t ControlPacketCloseCommand = 0x03;
-	static const uint8_t KeepAlivePacket = 0x04;
-	static const uint8_t KeepAliveAckPacket = 0x05;
+	static const uint8_t HeartBeatPacket = 0x04;
+	static const uint8_t HeartBeatAckPacket = 0x05;
 	static const uint8_t FlowControlPacket = 0x06;
 	static const uint8_t ControlAckPacket = 0x07;
 };
@@ -181,8 +181,8 @@ public:
 		DataAckPacketType = 0x01, //
 		ControlPacketOpenCommandType = 0x02, //
 		ControlPacketCloseCommandType = 0x03, //
-		KeepAlivePacketType = 0x04, //
-		KeepAliveAckPacketType = 0x05, //
+		HeartBeatPacketType = 0x04, //
+		HeartBeatAckPacketType = 0x05, //
 		FlowControlPacket = 0x06, //
 		ControlAckPacket = 0x07 //
 	};
@@ -321,7 +321,7 @@ public:
 	bool isAckPacket() {
 		if (this->packetType == SpaceWireRPacketType::DataAckPacket
 				|| this->packetType == SpaceWireRPacketType::ControlAckPacket
-				|| this->packetType == SpaceWireRPacketType::KeepAliveAckPacket) {
+				|| this->packetType == SpaceWireRPacketType::HeartBeatAckPacket) {
 			return true;
 		} else {
 			return false;
@@ -357,8 +357,12 @@ public:
 			this->setPacketType(SpaceWireRPacketType::ControlAckPacket);
 		} else if (packet->isDataPacket()) {
 			this->setPacketType(SpaceWireRPacketType::DataAckPacket);
-		} else if (packet->isKeepAlivePacketType()) {
-			this->setPacketType(SpaceWireRPacketType::KeepAliveAckPacket);
+		} else if (packet->isHeartBeatPacketType()) {
+			this->setPacketType(SpaceWireRPacketType::HeartBeatAckPacket);
+		} else if (packet->isFlowControlPacket()) {
+			//Note: Flow Control Packet and Flow Control Ack Packet use the
+			//same packet type (0x06).
+			this->setPacketType(SpaceWireRPacketType::FlowControlPacket);
 		}
 
 		//set payload length
@@ -754,12 +758,12 @@ public:
 		setPacketType(SpaceWireRPacketType::ControlPacketCloseCommand);
 	}
 
-	inline void setKeepAlivePacketFlag() {
-		setPacketType(SpaceWireRPacketType::KeepAlivePacket);
+	inline void setHeartBeatPacketFlag() {
+		setPacketType(SpaceWireRPacketType::HeartBeatPacket);
 	}
 
-	inline void setKeepAliveAckPacketFlag() {
-		setPacketType(SpaceWireRPacketType::KeepAliveAckPacket);
+	inline void setHeartBeatAckPacketFlag() {
+		setPacketType(SpaceWireRPacketType::HeartBeatAckPacket);
 	}
 
 	inline void setFlowControlPacketFlag() {
@@ -857,13 +861,13 @@ public:
 	}
 
 public:
-	inline bool isKeepAlivePacketType() {
-		return (packetType == KeepAlivePacketType) ? true : false;
+	inline bool isHeartBeatPacketType() {
+		return (packetType == HeartBeatPacketType) ? true : false;
 	}
 
 public:
-	inline bool isKeepAliveAckPacketType() {
-		return (packetType == KeepAliveAckPacketType) ? true : false;
+	inline bool isHeartBeatAckPacketType() {
+		return (packetType == HeartBeatAckPacketType) ? true : false;
 	}
 
 public:
@@ -941,25 +945,25 @@ public:
 	}
 };
 
-class SpaceWireRKeepAlivePacket: public SpaceWireRPacket {
+class SpaceWireRHeartBeatPacket: public SpaceWireRPacket {
 public:
-	SpaceWireRKeepAlivePacket() {
-		this->setKeepAlivePacketFlag();
+	SpaceWireRHeartBeatPacket() {
+		this->setHeartBeatPacketFlag();
 	}
 
 public:
-	virtual ~SpaceWireRKeepAlivePacket() {
+	virtual ~SpaceWireRHeartBeatPacket() {
 	}
 };
 
-class SpaceWireRKeepAliveAckPacket: public SpaceWireRPacket {
+class SpaceWireRHeartBeatAckPacket: public SpaceWireRPacket {
 public:
-	SpaceWireRKeepAliveAckPacket() {
-		this->setKeepAliveAckPacketFlag();
+	SpaceWireRHeartBeatAckPacket() {
+		this->setHeartBeatAckPacketFlag();
 	}
 
 public:
-	virtual ~SpaceWireRKeepAliveAckPacket() {
+	virtual ~SpaceWireRHeartBeatAckPacket() {
 	}
 };
 

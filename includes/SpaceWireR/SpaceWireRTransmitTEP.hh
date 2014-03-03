@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * SpaceWireRTransmitTEP.hh
  *
@@ -89,10 +89,10 @@ public:
 
 	/* --------------------------------------------- */
 public:
-	static const double WaitDurationInMsForClosedLoop = 100; //m1s
+	static const double WaitDurationInMsForClosedLoop = 100; //ms
 	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
 	static const double WaitDurationInMsForClosingLoop = 100; //ms
-	static const double WaitDurationInMsForEnabledLoop = 100; //m1s
+	static const double WaitDurationInMsForEnabledLoop = 100; //ms
 	static const double WaitDurationInMsForPacketRetransmission = 2000; //ms
 	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
 
@@ -260,7 +260,17 @@ private:
 			cout << "SpaceWireRTransmitTEP::consumeReceivedPackets() process one packet." << endl;
 #endif
 			SpaceWireRPacket* packet = this->popReceivedSpaceWireRPacket();
-			if (packet->isAckPacket()) {
+			if (packet->isHeartBeatPacketType()) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::consumeReceivedPackets() HeartBeat packet received." << endl;
+#endif
+				processHeartBeatPacket(packet);
+				delete packet;
+				continue;
+			} else if (packet->isAckPacket()) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::consumeReceivedPackets() Ack packet received." << endl;
+#endif
 				processAckPacket(packet);
 				delete packet;
 				continue;
@@ -327,11 +337,50 @@ private:
 	size_t maxRetryCount = DefaultMaximumRetryCount;
 
 public:
+	/** Sets segment size.
+	 * @param[in] size segment size
+	 */
 	inline void setSegmentSize(size_t size) {
 		this->maximumSegmentSize = size;
 	}
 
 private:
+	/** Replies to HeartBeat packet sent from Receive TEP.
+	 * This is the same implementation as one used in SpaceWireRReceiveTEP::replyAckForPacket(SpaceWireRPacket* packet).
+	 * @param[in] pakcet incoming SpaceWire-R packet for which this method should construct a reply pakcet
+	 */
+	void processHeartBeatPacket(SpaceWireRPacket* packet) {
+		using namespace std;
+		nReceivedHeartBeatPackets++;
+		nTransmittedHeartBeatAckPackets++;
+
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets << " sequence number = " << (uint32_t) packet->getSequenceNumber()
+		<< endl;
+#endif
+		heartBeatAckPacket->constructAckForPacket(packet);
+		try {
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() replying HeartBeatAck for sequence number = "
+			<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << endl;
+#endif
+
+			//todo: inject CRC error
+
+			spwREngine->sendPacket(heartBeatAckPacket);
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() HeartBeatAck for sequence number = "
+			<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << " has been sent." << endl;
+#endif
+		} catch (...) {
+			malfunctioningSpaceWireIF();
+		}
+	}
+
+private:
+	/** Processes a received Ack pakcet, and frees sliding window slot.
+	 * @param[in] packet incoming SpaceWire-R Ack packet
+	 */
 	void processAckPacket(SpaceWireRPacket* packet) {
 		using namespace std;
 #ifdef DebugSpaceWireRTransmitTEP
@@ -350,10 +399,15 @@ private:
 				&& slidingWindowBuffer[sequenceNumberOfThisPacket]->isControlPacketCloseCommand()) {
 			closeCommandAcknowledged = true;
 		}
+		if (packet->isHeartBeatAckPacketType()) {
+			nReceivedHeartBeatAckPackets++;
+		}
 		slideSlidingWindow();
 	}
 
 private:
+	/** Slides the sliding window by 1 packet.
+	 */
 	void slideSlidingWindow() {
 		using namespace std;
 #ifdef DebugSpaceWireRTransmitTEP
@@ -378,6 +432,8 @@ private:
 	CxxUtilities::Mutex sendMutex;
 
 private:
+	/** Initializes the memory buffers used in sliding window control.
+	 */
 	void initializeSlidingWindowRelatedBuffers() {
 		retryTimeoutCounters = new double[SpaceWireRProtocol::SizeOfSlidingWindow];
 		packetHasBeenSent = new bool[SpaceWireRProtocol::SizeOfSlidingWindow];
@@ -386,6 +442,8 @@ private:
 	}
 
 private:
+	/** Finalizes (deletes) the memory buffers used in sliding window control.
+	 */
 	void finalizeSlidingWindowRelatedBuffers() {
 		delete retryTimeoutCounters;
 		delete packetHasBeenSent;
@@ -443,7 +501,7 @@ private:
 #ifdef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
 				std::stringstream ss;
 				ss << "SpaceWireRTransmitTEP::checkRetryTimerThenRetry() Timer expired for sequence number = " << dec << right
-				<< (uint32_t) index << " !!!" << endl;
+						<< (uint32_t) index << " !!!" << endl;
 				CxxUtilities::TerminalControl::displayInRed(ss.str());
 				nLostAckPackets++;
 #endif
@@ -479,6 +537,13 @@ private:
 			}
 		}
 		mutexForRetryTimeoutCounters.unlock();
+	}
+
+public:
+	void sendPacket(SpaceWireRPacket* packet) {
+		this->heartBeatTimer->resetHeartBeatTimer();
+		// todo: implement packet transmission algorithm
+
 	}
 
 public:
@@ -712,6 +777,16 @@ private:
 		}
 		//update state
 		this->state = SpaceWireRTEPState::Closed;
+	}
+
+public:
+	/** Emits a HeartBeat packet.
+	 */
+	void emitHeartBeatPacket(){
+		SpaceWireRPacket* heartBeatPacket=this->getAvailablePacketInstance();
+		heartBeatPacket->setPacketType(SpaceWireRPacketType::HeartBeatPacket);
+		heartBeatPacket->clearPayload();
+		sendPacket(heartBeatPacket);
 	}
 
 public:

@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * SpaceWireRTEP.hh
  *
@@ -123,6 +123,8 @@ public:
 		this->channel = channel;
 		this->sourceLogicalAddress = DefaultLogicalAddress;
 		this->destinationLogicalAddress = DefaultLogicalAddress;
+		nReceivedHeartBeatPackets = 0;
+		heartBeatTimer = NULL;
 		initializeSlidingWindow();
 	}
 
@@ -282,7 +284,82 @@ public:
 		this->state = SpaceWireRTEPState::Closed;
 	}
 
+public:
+	/** Internal class used for HeartBeat emission.
+	 */
+	class HeartBeatTimer: public CxxUtilities::Condition, public CxxUtilities::StoppableThread {
+	private:
+		SpaceWireRTEP* parent;
+		double timerConstantInMilliSec; //ms
+		static const size_t timerDivider = 10;
+		double timerCounter;
+	public:
+		/** Constructs a HeartBeatTimer instance.
+		 * @param[in] parent parent SpaceWire-R TEP instance (either of SpaceWireRTransmitTEP or SpaceWireRReceiveTEP)
+		 * @param[in] timerConstantInMilliSec timer expiration constant in milli second
+		 */
+		HeartBeatTimer(SpaceWireRTEP* parent, double timerConstantInMilliSec = 1000) {
+			this->parent = parent;
+			this->timerConstantInMilliSec = timerConstantInMilliSec;
+		}
 
+	public:
+		void run() {
+			double waitDuration = this->timerConstantInMilliSec / this->timerDivider;
+			while (!stopped) {
+				this->CxxUtilities::Condition::wait(waitDuration);
+				timerCounter += waitDuration;
+				if (timerCounter > timerConstantInMilliSec) {
+					if (parent->isOpen()) {
+						parent->emitHeartBeatPacket();
+					}
+				}
+			}
+		}
+
+	public:
+		/** Resets the HeartBeat Transmit timer.
+		 * TransmitTEP and ReceiveTEP should call this method whenever
+		 * a packet (either Data, Control, or Ack) is transmitted (TransmitTEP)
+		 * or received (ReceiveTEP).
+		 */
+		void resetHeartBeatTimer() {
+			timerCounter = 0;
+		}
+	};
+
+private:
+	bool isHeartBeatEnabled;
+	size_t nReceivedHeartBeatPackets;
+	size_t nReceivedHeartBeatAckPackets;
+	size_t nTransmittedHeartBeatPackets;
+	size_t nTransmittedHeartBeatAckPackets;
+	HeartBeatTimer* heartBeatTimer;
+
+public:
+	void enableHeartBeat() {
+		isHeartBeatEnabled = true;
+		if (heartBeatTimer->isStopped()) {
+			heartBeatTimer->start();
+		}
+	}
+
+public:
+	void disableHeartBeat() {
+		isHeartBeatEnabled = false;
+		heartBeatTimer->stop();
+	}
+
+private:
+	/** Emits a HeartBeat packet.
+	 */
+	virtual void emitHeartBeatPacket() =0;
+
+private:
+	virtual void processHeartBeatPacket(SpaceWireRPacket* packet) =0;
+
+private:
+	virtual void processHeartBeatAckPacket(SpaceWireRPacket* packet) =0;
 };
 
 #endif /* SPACEWIRERTEP_HH_ */

@@ -88,7 +88,7 @@ public:
 	size_t nDiscardedApplicationDataBytes;
 	size_t nDiscardedControlPackets;
 	size_t nDiscardedDataPackets;
-	size_t nDiscardedKeepAlivePackets;
+	size_t nDiscardedHeartBeatPackets;
 	size_t nErrorInjectionNoReply;
 	size_t nReceivedDataBytes;
 	size_t nReceivedSegments;
@@ -104,7 +104,7 @@ public:
 		this->nDiscardedApplicationDataBytes = 0;
 		this->nDiscardedControlPackets = 0;
 		this->nDiscardedDataPackets = 0;
-		this->nDiscardedKeepAlivePackets = 0;
+		this->nDiscardedHeartBeatPackets = 0;
 		this->nErrorInjectionNoReply = 0;
 		this->nReceivedDataBytes = 0;
 		this->nReceivedApplicationData = 0;
@@ -202,8 +202,8 @@ public:
 	}
 
 public:
-	size_t getNDiscardedKeepAlivePackets() const {
-		return nDiscardedKeepAlivePackets;
+	size_t getNDiscardedHeartBeatPackets() const {
+		return nDiscardedHeartBeatPackets;
 	}
 
 public:
@@ -216,39 +216,58 @@ private:
 	static const double ProbabilityOfErrorInjectionCRCError = 0;
 
 private:
-	bool errorInjectionNoReply(uint8_t sequenceNumber) {
+	bool errorInjectionNoReply(SpaceWireRPacket* packet) {
 		using namespace std;
+		uint8_t sequenceNumber = packet->getSequenceNumber();
+
+		if (packet->isHeartBeatPacketType() || packet->isHeartBeatAckPacketType() || packet->isControlPacketOpenCommand()
+				|| packet->isControlPacketCloseCommand() || packet->isFlowControlPacket()) {
+			//no error injection
+			return false;
+		}
+
 		if (randomMT->generateRandomDoubleFrom0To1() < ProbabilityOfErrorInjectionNoReply) {
 #ifdef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 			std::stringstream ss;
 			ss << "SpaceWireRReceiveTEP::errorInjectionNoReply() for sequence number = " << dec << right
-					<< (uint32_t) sequenceNumber << " !!!" << endl;
+			<< (uint32_t) sequenceNumber << " !!!" << endl;
 			CxxUtilities::TerminalControl::displayInRed(ss.str());
 			nErrorInjectionNoReply++;
 #endif
+			//inject error
 			return true;
 		} else {
+			//no error injection
 			return false;
 		}
 	}
 
 private:
+	/** Constructs and replies an Ack packet for Data and Control packets (including HeartBeat).
+	 * @param[in] pakcet incoming SpaceWire-R packet for which this method should construct a reply pakcet
+	 */
 	void replyAckForPacket(SpaceWireRPacket* packet) {
-		if (!errorInjectionNoReply(packet->getSequenceNumber())) {
+		if (packet->isHeartBeatPacketType()) {
+			nReceivedHeartBeatPackets++;
+			nTransmittedHeartBeatAckPackets++;
+		}
+
+		if (!errorInjectionNoReply(packet)) {
 			using namespace std;
 			ackPacket->constructAckForPacket(packet);
 			try {
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
-						<< (uint32_t) ackPacket->getSequenceNumber() << endl;
+				<< (uint32_t) ackPacket->getSequenceNumber() << endl;
 #endif
 
 				//todo: inject CRC error
 
 				spwREngine->sendPacket(ackPacket);
+
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() ack for sequence number = "
-						<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
+				<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
 #endif
 			} catch (...) {
 				malfunctioningSpaceWireIF();
@@ -322,14 +341,19 @@ private:
 				continue;
 			}
 
-			if (packet->isKeepAlivePacketType()) {
+			if (packet->isHeartBeatPacketType()) {
 #ifdef DebugSpaceWireRReceiveTEP
-				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Keep Alive command." << endl;
+				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing HeartBeat command." << endl;
 #endif
-				processKeepAlivePacket(packet);
+				processHeartBeatPacket(packet);
 				delete packet;
 				continue;
 			}
+
+			//should not reach here
+#ifdef DebugSpaceWireRReceiveTEP
+			cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() Received packet cannot be handled by the SpaceWireRReceiveTEP." << endl;
+#endif
 		}
 #ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() completed." << endl;
@@ -423,7 +447,7 @@ private:
 		this->slidingWindowFrom = n;
 #ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t) this->slidingWindowFrom
-				<< endl;
+		<< endl;
 #endif
 	}
 
@@ -538,15 +562,20 @@ private:
 	}
 
 private:
-	void processKeepAlivePacket(SpaceWireRPacket* packet) {
+	void processHeartBeatPacket(SpaceWireRPacket* packet) {
 		uint8_t sequenceNumber = packet->getSequenceNumber();
+		nReceivedHeartBeatPackets++;
+#ifdef DebugSpaceWireRReceiveTEP
+		cout << "SpaceWireRReceiveTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets << " sequence number = " << (uint32_t) packet->getSequenceNumber()
+		<< endl;
+#endif
 		if (insideForwardSlidingWindow(sequenceNumber)) {
 			replyAckForPacket(packet);
 		} else if (insideBackwardSlidingWindow(sequenceNumber)) {
 			replyAckForPacket(packet);
 		} else {
 			malfunctioningTransportChannel();
-			nDiscardedKeepAlivePackets++;
+			nDiscardedHeartBeatPackets++;
 		}
 	}
 
@@ -657,12 +686,13 @@ public:
 		ss << "nDiscardedApplicationDataBytes : " << dec << nDiscardedApplicationDataBytes << endl;
 		ss << "nDiscardedControlPackets : " << dec << nDiscardedControlPackets << endl;
 		ss << "nDiscardedDataPackets : " << dec << nDiscardedControlPackets << endl;
-		ss << "nDiscardedKeepAlivePackets : " << dec << nDiscardedKeepAlivePackets << endl;
+		ss << "nDiscardedHeartBeatPackets : " << dec << nDiscardedHeartBeatPackets << endl;
 		ss << "nReceivedBytes : " << nReceivedDataBytes / 1024 << "kB" << endl;
 		ss << "nReceivedSegments : " << nReceivedSegments << endl;
 		ss << "nReceivedApplicationData : " << nReceivedApplicationData << endl;
 		ss << "---------------------------------------------" << endl;
 		return ss.str();
 	}
-};
+}
+;
 #endif /* SPACEWIRERRECEIVETEP_HH_ */
