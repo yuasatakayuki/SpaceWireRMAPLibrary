@@ -36,31 +36,12 @@
 
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
-#undef DebugSpaceWireRTransmitTEP
+#define DebugSpaceWireRTransmitTEP
 #define DebugSpaceWireRTransmitTEPDumpCriticalIncidents
+//#undef DebugSpaceWireRTransmitTEP
+//#undef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
 
 class SpaceWireRTransmitTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
-private:
-	class RetryTimerUpdater: public CxxUtilities::StoppableThread {
-	private:
-		SpaceWireRTransmitTEP* parent;
-
-	public:
-		RetryTimerUpdater(SpaceWireRTransmitTEP* parent) {
-			this->parent = parent;
-		}
-
-	public:
-		void run() {
-			CxxUtilities::Condition c;
-			while (!stopped) {
-				if (parent->state == SpaceWireRTEPState::Open) {
-					c.wait(parent->timeoutDurationForRetryTimers);
-					parent->updateRetryTimers();
-				}
-			}
-		}
-	};
 
 public:
 	SpaceWireRTransmitTEP(SpaceWireREngine* spwREngine, uint16_t channel, //
@@ -73,10 +54,7 @@ public:
 		this->sourceLogicalAddress = sourceLogicalAddress;
 		this->sourceSpaceWireAddress = sourceSpaceWireAddress;
 		this->maximumSegmentSize = DefaultMaximumSegmentSize;
-		this->initializeSlidingWindowRelatedBuffers();
 		this->initializeCounters();
-		this->prepareSpaceWireRPacketInstances();
-		this->nOfOutstandingPackets = 0;
 		this->start();
 	}
 
@@ -84,7 +62,6 @@ public:
 	virtual ~SpaceWireRTransmitTEP() {
 		this->stop();
 		this->waitUntilRunMethodComplets();
-		this->finalizeSlidingWindowRelatedBuffers();
 	}
 
 	/* --------------------------------------------- */
@@ -93,17 +70,7 @@ public:
 	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
 	static const double WaitDurationInMsForClosingLoop = 100; //ms
 	static const double WaitDurationInMsForEnabledLoop = 100; //ms
-	static const double WaitDurationInMsForPacketRetransmission = 2000; //ms
 	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
-
-public:
-	//statistics counters
-	size_t nRetriedSegments;
-	size_t nSentSegments;
-	size_t nSentUserData;
-	size_t nSentUserDataInBytes;
-	size_t nLostAckPackets;
-	size_t nOfOutstandingPackets;
 
 private:
 	uint8_t sourceLogicalAddress;
@@ -112,13 +79,6 @@ private:
 	std::vector<uint8_t> destinationSpaceWireAddress;
 
 private:
-	// Sliding window related arrays
-	double* retryTimeoutCounters;
-	bool* packetHasBeenSent;
-	bool* packetWasAcknowledged;
-	size_t* retryCountsForSequenceNumber;
-
-	RetryTimerUpdater* retryTimerUpdater;
 	bool openCommandAcknowledged;
 	bool closeCommandAcknowledged;
 	/* --------------------------------------------- */
@@ -186,45 +146,6 @@ private:
 	void initializeRetryCounts() {
 		for (size_t i = 0; i < SpaceWireRProtocol::SizeOfSlidingWindow; i++) {
 			retryCountsForSequenceNumber[i] = 0;
-		}
-	}
-
-private:
-	void prepareSpaceWireRPacketInstances() {
-		for (size_t i = 0; i < this->MaxOfSlidingWindow; i++) {
-			SpaceWireRPacket* packet = new SpaceWireRPacket;
-			//set common parameters
-			packet->setChannelNumber(channel);
-			packet->setDestinationLogicalAddress(destinationLogicalAddress);
-			packet->setDestinationSpaceWireAddress(destinationSpaceWireAddress);
-			packet->setSecondaryHeaderFlag(SpaceWireRSecondaryHeaderFlagType::SecondaryHeaderIsNotUsed);
-			packet->setPrefix(this->sourceSpaceWireAddress);
-			packet->setSourceLogicalAddress(this->sourceLogicalAddress);
-			slidingWindowBuffer[i] = packet;
-			/* Note */
-			/* The following fields should be set packet by packet. */
-			//- sequence flag
-			//- packet type
-			//- payload length
-			//- sequence number
-		}
-	}
-
-private:
-	inline SpaceWireRPacket* getAvailablePacketInstance() {
-		using namespace std;
-#ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::getAvailablePacketInstance() nOfOutstandingPackets=" << dec << nOfOutstandingPackets
-		<< endl;
-#endif
-		if (nOfOutstandingPackets < this->slidingWindowSize) {
-			SpaceWireRPacket* packet = slidingWindowBuffer[this->sequenceNumber];
-			return packet;
-		} else {
-#ifdef DebugSpaceWireRTransmitTEP
-			cout << "SpaceWireRTransmitTEP::getAvailablePacketInstance() Returns NULL!!!" << endl;
-#endif
-			return NULL;
 		}
 	}
 
@@ -330,12 +251,6 @@ public:
 		}
 	}
 
-private:
-	size_t maximumSegmentSize;
-	static const size_t DefaultMaximumSegmentSize = 256;
-	static const size_t DefaultMaximumRetryCount = 4;
-	size_t maxRetryCount = DefaultMaximumRetryCount;
-
 public:
 	/** Sets segment size.
 	 * @param[in] size segment size
@@ -352,25 +267,35 @@ private:
 	void processHeartBeatPacket(SpaceWireRPacket* packet) {
 		using namespace std;
 		nReceivedHeartBeatPackets++;
-		nTransmittedHeartBeatAckPackets++;
-
 #ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets << " sequence number = " << (uint32_t) packet->getSequenceNumber()
-		<< endl;
+		cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets
+				<< " sequence number = " << (uint32_t) packet->getSequenceNumber() << endl;
 #endif
+
+		//return if response to received HeartBeat packets are disabled
+		if (!shouldRespondToReceivedHeartBeatPacket()) {
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets
+					<< " does not reply HeartBeatAck." << endl;
+#endif
+			return;
+		}
+
 		heartBeatAckPacket->constructAckForPacket(packet);
 		try {
 #ifdef DebugSpaceWireRTransmitTEP
 			cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() replying HeartBeatAck for sequence number = "
-			<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << endl;
+					<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << endl;
 #endif
 
 			//todo: inject CRC error
 
 			spwREngine->sendPacket(heartBeatAckPacket);
+			nTransmittedHeartBeatAckPackets++;
+
 #ifdef DebugSpaceWireRTransmitTEP
 			cout << "SpaceWireRTransmitTEP::processHeartBeatPacket() HeartBeatAck for sequence number = "
-			<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << " has been sent." << endl;
+					<< (uint32_t) heartBeatAckPacket->getSequenceNumber() << " has been sent." << endl;
 #endif
 		} catch (...) {
 			malfunctioningSpaceWireIF();
@@ -385,7 +310,7 @@ private:
 		using namespace std;
 #ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRTransmitTEP::processAckPacket() sequence number = " << (uint32_t) packet->getSequenceNumber()
-		<< endl;
+				<< endl;
 #endif
 		uint8_t sequenceNumberOfThisPacket = packet->getSequenceNumber();
 		if (packetHasBeenSent[sequenceNumberOfThisPacket] == true) {
@@ -406,144 +331,9 @@ private:
 	}
 
 private:
-	/** Slides the sliding window by 1 packet.
-	 */
-	void slideSlidingWindow() {
-		using namespace std;
-#ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::slideSlidingWindow()" << endl;
-#endif
-		uint8_t n = this->slidingWindowFrom;
-		while (packetHasBeenSent[n] == true && packetWasAcknowledged[n] == true) {
-			packetHasBeenSent[n] = false;
-			packetWasAcknowledged[n] = false;
-			retryTimeoutCounters[n] = 0;
-			retryCountsForSequenceNumber[n] = 0;
-			n = (uint8_t) (n + 1);
-		}
-		this->slidingWindowFrom = n;
-#ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t) this->slidingWindowFrom
-		<< endl;
-#endif
-	}
-
-private:
-	CxxUtilities::Mutex sendMutex;
-
-private:
-	/** Initializes the memory buffers used in sliding window control.
-	 */
-	void initializeSlidingWindowRelatedBuffers() {
-		retryTimeoutCounters = new double[SpaceWireRProtocol::SizeOfSlidingWindow];
-		packetHasBeenSent = new bool[SpaceWireRProtocol::SizeOfSlidingWindow];
-		packetWasAcknowledged = new bool[SpaceWireRProtocol::SizeOfSlidingWindow];
-		retryCountsForSequenceNumber = new size_t[SpaceWireRProtocol::SizeOfSlidingWindow];
-	}
-
-private:
-	/** Finalizes (deletes) the memory buffers used in sliding window control.
-	 */
-	void finalizeSlidingWindowRelatedBuffers() {
-		delete retryTimeoutCounters;
-		delete packetHasBeenSent;
-		delete packetWasAcknowledged;
-		delete retryCountsForSequenceNumber;
-	}
-
-private:
-	static const double DefaultTimeoutDurationInMs = 1000; //ms
-	static const double DefaultWaitDurationInMsForCompletionCheck = 50; //ms
-	static const double DefaultWaitDurationInMsForSendSegment = 500; //ms
-	static const double DefaultTimeoutDurationInMsForRetryTimers = 50; //ms
-	double timeoutDurationForRetryTimers = DefaultTimeoutDurationInMsForRetryTimers; //ms
-
-private:
-	uint8_t sequenceNumber;
-	double sendTimeoutCounter;
-	size_t segmentIndex;
-	CxxUtilities::Condition conditionForSendWait;
-	CxxUtilities::Mutex mutexForNOfOutstandingPackets;
-	CxxUtilities::Mutex mutexForRetryTimeoutCounters;
-
-private:
-	void updateRetryTimers() {
-		using namespace std;
-		mutexForRetryTimeoutCounters.lock();
-#ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::updateRetryTimers()" << endl;
-#endif
-		for (size_t i = 0; i < this->slidingWindowSize; i++) {
-			uint8_t index = (uint8_t) (this->slidingWindowFrom + i);
-			if (packetHasBeenSent[index] == true && packetWasAcknowledged[index] == false) {
-#ifdef DebugSpaceWireRTransmitTEP
-				cout << "SpaceWireRTransmitTEP::updateRetryTimers() TimeoutCounter[" << dec << (uint32_t)index << "]="
-				<< retryTimeoutCounters[index] << endl;
-#endif
-				retryTimeoutCounters[index] += timeoutDurationForRetryTimers;
-			}
-		}
-		mutexForRetryTimeoutCounters.unlock();
-	}
-
-private:
-	void checkRetryTimerThenRetry() throw (SpaceWireRTEPException) {
-		using namespace std;
-		mutexForRetryTimeoutCounters.lock();
-		for (size_t i = 0; i < this->slidingWindowSize; i++) {
-			uint8_t index = (uint8_t) (this->slidingWindowFrom + i);
-#ifdef DebugSpaceWireRTransmitTEP
-			cout << "SpaceWireRTransmitTEP::checkRetryTimerThenRetry() TimeoutCounter=" << retryTimeoutCounters[index]
-			<< endl;
-#endif
-			if (packetHasBeenSent[index] == true && packetWasAcknowledged[index] == false
-					&& retryTimeoutCounters[index] > WaitDurationInMsForPacketRetransmission) {
-#ifdef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
-				std::stringstream ss;
-				ss << "SpaceWireRTransmitTEP::checkRetryTimerThenRetry() Timer expired for sequence number = " << dec << right
-						<< (uint32_t) index << " !!!" << endl;
-				CxxUtilities::TerminalControl::displayInRed(ss.str());
-				nLostAckPackets++;
-#endif
-				retryTimeoutCounters[index] = 0;
-				retryCountsForSequenceNumber[index]++;
-				//check if retry is necessary
-				if (retryCountsForSequenceNumber[index] > maxRetryCount) {
-					mutexForRetryTimeoutCounters.unlock();
-					this->malfunctioningTransportChannel();
-					throw SpaceWireRTEPException(SpaceWireRTEPException::TooManyRetryFailures);
-				}
-
-				slidingWindowBuffer[index]->setSequenceNumber(index);
-#ifdef DebugSpaceWireRTransmitTEP
-				cout << "SpaceWireRTransmitTEP::checkRetryTimerThenRetry() Retry for sequence number=" << (uint32_t) index
-				<< " " << (uint32_t)slidingWindowBuffer[index]->getSequenceNumber() << " ";
-				if (slidingWindowBuffer[index]->isFirstSegment()) {
-					cout << "The First segment." << endl;
-				}
-				if (slidingWindowBuffer[index]->isContinuedSegment()) {
-					cout << "Continued segment." << endl;
-				}
-				if (slidingWindowBuffer[index]->isLastSegment()) {
-					cout << "The Last segment." << endl;
-				}
-				if (slidingWindowBuffer[index]->isCompleteSegment()) {
-					cout << "Complete segment." << endl;
-				}
-#endif
-				//do retry
-				spwREngine->sendPacket(slidingWindowBuffer[index]);
-				nRetriedSegments++;
-			}
-		}
-		mutexForRetryTimeoutCounters.unlock();
-	}
-
-public:
-	void sendPacket(SpaceWireRPacket* packet) {
-		this->heartBeatTimer->resetHeartBeatTimer();
-		// todo: implement packet transmission algorithm
-
+	void sendPacket(SpaceWireRPacket* packet, double timeoutDuration = DefaultTimeoutDurationInMs/*ms*/)
+			throw (SpaceWireRTEPException) {
+		sendPacketWithSpecifiedSequenceNumber(packet, sequenceNumber, timeoutDuration);
 	}
 
 public:
@@ -551,9 +341,10 @@ public:
 			throw (SpaceWireRTEPException) {
 		using namespace std;
 #ifdef DebugSpaceWireRTransmitTEP
-		cout << "SpaceWireRTransmitTEP::send()" << endl;
+		cout << "SpaceWireRTransmitTEP::send() entered." << endl;
 #endif
 		sendMutex.lock();
+		this->heartBeatTimer->resetHeartBeatTimer();
 		sendTimeoutCounter = 0;
 		nOfOutstandingPackets = 0;
 		//slideSlidingWindow();
@@ -590,9 +381,15 @@ public:
 
 			//configure SpaceWireRPacket instance
 			if (isFirst) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::send() setting the FirstSegment flag." << endl;
+#endif
 				packet->setFirstSegmentFlag();
 				isFirst = false;
 			} else {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::send() setting the ContinuedSegment flag." << endl;
+#endif
 				packet->setContinuedSegmentFlag();
 			}
 			packet->setSequenceNumber(sequenceNumber);
@@ -608,6 +405,9 @@ public:
 
 			//set LastFlag if necessary
 			if (remainingSize == 0) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::send() setting the LastSegment flag." << endl;
+#endif
 				packet->setLastSegmentFlag();
 			}
 
@@ -615,19 +415,8 @@ public:
 			try {
 #ifdef DebugSpaceWireRTransmitTEP
 				cout << "SpaceWireRTransmitTEP::send() sending a segment sequence number="
-				<< (uint32_t) packet->getSequenceNumber() << " ";
-				if (packet->isFirstSegment()) {
-					cout << "The First segment." << endl;
-				}
-				if (packet->isContinuedSegment()) {
-					cout << "Continued segment." << endl;
-				}
-				if (packet->isLastSegment()) {
-					cout << "The Last segment." << endl;
-				}
-				if (packet->isCompleteSegment()) {
-					cout << "Complete segment." << endl;
-				}
+						<< packet->getSequenceNumberAs32bitInteger() << " " << packet->getSequenceFlagsAsString() << endl;
+				cout << packet->toString() << endl;
 #endif
 				spwREngine->sendPacket(packet);
 				nSentSegments++;
@@ -655,38 +444,6 @@ public:
 #ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRTransmitTEP::send() Completed." << endl;
 #endif
-	}
-
-private:
-	void incrementNOfOutstandingPackets() {
-		mutexForNOfOutstandingPackets.lock();
-		if (nOfOutstandingPackets < this->slidingWindowSize) {
-			nOfOutstandingPackets++;
-		} else {
-			this->malfunctioningTransportChannel();
-		}
-		mutexForNOfOutstandingPackets.unlock();
-	}
-
-private:
-	void decrementNOfOutstandingPackets() {
-		mutexForNOfOutstandingPackets.lock();
-		if (nOfOutstandingPackets != 0) {
-			nOfOutstandingPackets--;
-		} else {
-			this->malfunctioningTransportChannel();
-		}
-		mutexForNOfOutstandingPackets.unlock();
-		conditionForSendWait.signal();
-	}
-
-private:
-	bool allOngoingPacketesWereAcknowledged() {
-		if (nOfOutstandingPackets == 0) {
-			return true;
-		} else {
-			return false;
-		}
 	}
 
 private:
@@ -730,6 +487,7 @@ private:
 		while (!openCommandAcknowledged) {
 #ifdef DebugSpaceWireRTransmitTEP
 			cout << "SpaceWireRTransmitTEP::sendOpenCommand() Sending open command." << endl;
+			cout << packet->toString() << endl;
 #endif
 			//send
 			spwREngine->sendPacket(packet);
@@ -741,8 +499,8 @@ private:
 			}
 		}
 		//update state if open command is acknowledged
-		this->state = SpaceWireRTEPState::Open;
 		this->sequenceNumber = 1;
+		this->state = SpaceWireRTEPState::Open;
 	}
 
 private:
@@ -780,16 +538,6 @@ private:
 	}
 
 public:
-	/** Emits a HeartBeat packet.
-	 */
-	void emitHeartBeatPacket(){
-		SpaceWireRPacket* heartBeatPacket=this->getAvailablePacketInstance();
-		heartBeatPacket->setPacketType(SpaceWireRPacketType::HeartBeatPacket);
-		heartBeatPacket->clearPayload();
-		sendPacket(heartBeatPacket);
-	}
-
-public:
 	std::string toString() {
 		using namespace std;
 		std::stringstream ss;
@@ -805,6 +553,11 @@ public:
 		ss << "nSentUserDataInBytes : " << dec << nSentUserDataInBytes / 1024 << "kB" << endl;
 		ss << "nSentSegments        : " << dec << nSentSegments << endl;
 		ss << "nLostAckPackets:     : " << dec << nLostAckPackets << endl;
+		ss << dec;
+		ss << "nReceivedHeartBeat         : " << nReceivedHeartBeatPackets << endl;
+		ss << "nTransmittedHeartBeatAck   : " << nTransmittedHeartBeatAckPackets << endl;
+		ss << "nTransmittedHeartBeat      : " << nTransmittedHeartBeatPackets << endl;
+		ss << "nReceivedHeartBeatAck      : " << nReceivedHeartBeatAckPackets << endl;
 		ss << "---------------------------------------------" << endl;
 		return ss.str();
 	}

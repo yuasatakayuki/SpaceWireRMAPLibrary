@@ -38,8 +38,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRPacket.hh"
 #include "SpaceWireR/SpaceWireRClassInterfaces.hh"
 
+//#define SpaceWireREngineDumpPacket
+//#define DebugSpaceWireREngine
+
 #undef SpaceWireREngineDumpPacket
 #undef DebugSpaceWireREngine
+
 
 /*
  class SpaceWireRTEP {
@@ -98,18 +102,9 @@ private:
 	CxxUtilities::Condition stopCondition;
 
 private:
-	/*
-	 std::map<uint8_t, std::list<SpaceWireRPacket*>*> receiveTEPPacketListMap;
-	 std::map<uint8_t, CxxUtilities::Condition*> receiveTEPNotificationMap;
-	 */
 	std::map<uint16_t, SpaceWireRTEPInterface*> receiveTEPs;
-
-private:
-	/*
-	 std::map<uint8_t, std::list<SpaceWireRPacket*>*> transmitTEPPacketListMap;
-	 std::map<uint8_t, CxxUtilities::Condition*> transmitTEPNotificationMap;
-	 */
 	std::map<uint16_t, SpaceWireRTEPInterface*> transmitTEPs;
+	std::map<uint16_t, SpaceWireRTEPInterface*> allTEPs;
 
 private:
 	size_t nDiscardedReceivedPackets;
@@ -138,7 +133,33 @@ public:
 		cout << "SpaceWireREngine::processReceivedSpaceWireRPacket()" << endl;
 #endif
 		uint16_t channel = packet->getChannelNumber();
-		if (!packet->isAckPacket()) { //command/data packet
+		if(packet->isHeartBeatPacketType() || packet->isHeartBeatAckPacketType()){
+			// for HeartBeat/HeartBeatAck packets, all TEPs can be a potential destiantion TEP,
+			// and therefore, search in the allTEPs map.
+#ifdef DebugSpaceWireREngine
+			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is HeartBeat/HeartBeatAck packet." << endl;
+#endif
+			std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it_find = allTEPs.find(channel);
+			if (it_find != allTEPs.end()) {
+				//if there is TransmitTEP/ReceiveTEP corresponding to the channel number in the received packet.
+				it_find->second->pushReceivedSpaceWireRPacket(packet); //pass the received packet to the ReceiveTEP
+				//tell the ReceiveTEP that a packet has arrived.
+				it_find->second->packetArrivalNotifier.signal();
+#ifdef DebugSpaceWireREngine
+				cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() pushed to " << "0x" << hex << right << setw(8)
+						<< setfill('0') << (uint64_t) it_find->second << " nPackets=" << it_find->second->receivedPackets.size() << endl;
+#endif
+			} else {
+				//if there is no ReceiveTEP to receive the packet.
+				//discard the packet
+#ifdef DebugSpaceWireREngine
+				cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() TEP is not found." << endl;
+#endif
+				nDiscardedReceivedPackets++;
+				delete packet;
+			}
+		}
+		else if (!packet->isAckPacket()) { //command/data packet
 #ifdef DebugSpaceWireREngine
 			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is Command/Data packet." << endl;
 #endif
@@ -218,6 +239,7 @@ public:
 public:
 	void registerReceiveTEP(SpaceWireRTEPInterface* instance) {
 		receiveTEPs[instance->channel]=instance;
+		allTEPs[instance->channel]=instance;
 		using namespace std;
 #ifdef DebugSpaceWireREngine
 		cout << "SpaceWireREngine::registerReceiveTEP() channel=" << (uint32_t) instance->channel
@@ -230,11 +252,15 @@ public:
 		if (receiveTEPs.find(channel) != receiveTEPs.end()) {
 			receiveTEPs.erase(receiveTEPs.find(channel));
 		}
+		if (allTEPs.find(channel) != allTEPs.end()) {
+			allTEPs.erase(allTEPs.find(channel));
+		}
 	}
 
 public:
 	void registerTransmitTEP(SpaceWireRTEPInterface* instance) {
 		transmitTEPs[instance->channel] = instance;
+		allTEPs[instance->channel]=instance;
 #ifdef DebugSpaceWireREngine
 		using namespace std;
 		cout << "SpaceWireREngine::registerTransmitTEP() channel=" << (uint32_t) instance->channel
@@ -246,6 +272,9 @@ public:
 	void unregisterTransmitTEP(uint16_t channel) {
 		if (transmitTEPs.find(channel) != transmitTEPs.end()) {
 			transmitTEPs.erase(transmitTEPs.find(channel));
+		}
+		if (allTEPs.find(channel) != allTEPs.end()) {
+			allTEPs.erase(allTEPs.find(channel));
 		}
 	}
 

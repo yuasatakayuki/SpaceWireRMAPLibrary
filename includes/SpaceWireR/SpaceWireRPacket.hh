@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * SpaceWireRPacket.hh
  *
@@ -234,8 +234,94 @@ public:
 	}
 
 public:
-	std::string  toString(){
-		return "";
+	std::string getSequenceFlagsAsString() {
+		std::string str;
+		switch (this->getSequenceFlags()) {
+		case SpaceWireRSequenceFlagType::FirstSegment:
+			str = "FirstSegment";
+			break;
+		case SpaceWireRSequenceFlagType::ContinuedSegment:
+			str = "ContinuedSegment";
+			break;
+		case SpaceWireRSequenceFlagType::LastSegment:
+			str = "LastSegment";
+			break;
+		case SpaceWireRSequenceFlagType::CompleteSegment:
+			str = "CompleteSegment";
+			break;
+		default:
+			str = "InvalidSequenceFlag";
+			break;
+		}
+		return str;
+	}
+
+public:
+	std::string getPacketTypeAsString() {
+		std::string str;
+		switch (this->getPacketType()) {
+		case 0:
+			str = "DataPacket";
+			break;
+		case 1:
+			str = "DataAckPacket";
+			break;
+		case 2:
+			str = "ControlPacket-Open";
+			break;
+		case 3:
+			str = "ControlPacket-Close";
+			break;
+		case 4:
+			str = "HeartBeatPacket";
+			break;
+		case 5:
+			str = "HeartBeatAckPacket";
+			break;
+		case 6:
+			str = "FlowControlPacket";
+			break;
+		case 7:
+			str = "ControlAckPacket";
+			break;
+		default:
+			str = "InvalidPacketType";
+			break;
+		}
+		return str;
+	}
+
+private:
+	static const size_t MaximumDumpLength = 32;
+
+public:
+	std::string toStringByteArray() {
+		std::stringstream ss;
+		using namespace std;
+		std::vector<uint8_t>* packet = this->getPacketBufferPointer();
+		size_t dumpLength = min<size_t>(packet->size(), 32);
+		for (size_t i = 0; i < dumpLength; i++) {
+			ss << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) packet->at(i);
+			if (i != dumpLength - 1) {
+				ss << " ";
+			}
+		}
+		if(dumpLength<packet->size()){
+			ss << " ... (total " << dec << packet->size() << " bytes)" << endl;
+		}
+		return ss.str();
+	}
+
+public:
+	std::string toString() {
+		std::stringstream ss;
+		using namespace std;
+		ss << "Packet Seq Num = " << this->getSequenceNumberAs32bitInteger() << endl;
+		ss << "Packet Type    = " << this->getPacketTypeAsString() << endl;
+		ss << "Segment Type   = " << this->getSequenceFlagsAsString() << endl;
+		ss << "Length         = " << this->getPacketBufferPointer()->size() << endl;
+		ss << "Dump           = " << this->toStringByteArray() << endl;
+		return ss.str();
 		//todo implement toString()
 	}
 
@@ -383,9 +469,10 @@ public:
 
 	}
 
-private:
+public:
 	inline void clearPayload() {
 		payload.clear();
+		this->setPayloadLength(0);
 	}
 
 private:
@@ -440,7 +527,7 @@ public:
 			//SpaceWire Address
 			size_t index = 0;
 			std::vector<uint8_t> temporarySpaceWireAddress;
-			size_t destinationSpaceWireAddressLength=0;
+			size_t destinationSpaceWireAddressLength = 0;
 			try {
 #ifdef debugSpaceWireRPacket
 				cout << "SpaceWireRPacket::interpretPacket() #2" << endl;
@@ -460,7 +547,7 @@ public:
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidHeaderFormat);
 			}
 			this->destinationSpaceWireAddress = temporarySpaceWireAddress;
-			destinationSpaceWireAddressLength=index;
+			destinationSpaceWireAddressLength = index;
 
 			//Destination SLA
 			this->destinationLogicalAddress = buffer->at(index);
@@ -469,10 +556,11 @@ public:
 			//Protocol ID
 #ifdef debugSpaceWireRPacket
 			cout << "SpaceWireRPacket::interpretPacket() #4 ProtocolID=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) buffer->at(index) << endl;
+			<< (uint32_t) buffer->at(index) << endl;
 #endif
 			if (buffer->at(index) != SpaceWireRProtocol::ProtocolID) {
-				cerr << "Invalid Protocol ID: " << "0x" << hex << right << setw(2) << setfill('0')  << (uint32_t)buffer->at(index) << endl;
+				cerr << "Invalid Protocol ID: " << "0x" << hex << right << setw(2) << setfill('0')
+						<< (uint32_t) buffer->at(index) << endl;
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidProtocolID);
 			}
 			index++;
@@ -505,11 +593,11 @@ public:
 
 #ifdef debugSpaceWireRPacket
 			cout << "SpaceWireRPacket::interpretPacket() packetControl=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) packetControl << endl;
+			<< (uint32_t) packetControl << endl;
 			cout << "SpaceWireRPacket::interpretPacket() channel number=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< channelNumber << endl;
+			<< channelNumber << endl;
 			cout << "SpaceWireRPacket::interpretPacket() sequenceNumber=" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) sequenceNumber << endl;
+			<< (uint32_t) sequenceNumber << endl;
 #endif
 
 #ifdef debugSpaceWireRPacket
@@ -569,19 +657,20 @@ public:
 			//Size check
 #ifdef debugSpaceWireRPacket
 			cout << "SpaceWireRPacket::interpretPacket() #11 index=" << dec << index << " buffer.size()=" << buffer->size()
-					<< endl;
+			<< endl;
 #endif
 			if (index != buffer->size()) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::PacketHasExtraBytesAfterTrailer);
 			}
 
 			//CRC Check
-			uint16_t calculatedCRC = SpaceWireRUtilities::calculateCRCForArray((uint8_t*) (&(buffer->at(destinationSpaceWireAddressLength))),
+			uint16_t calculatedCRC = SpaceWireRUtilities::calculateCRCForArray(
+					(uint8_t*) (&(buffer->at(destinationSpaceWireAddressLength))),
 					buffer->size() - 2 - destinationSpaceWireAddressLength);
 			if (this->crc16 != calculatedCRC) {
-				cerr << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2) << setfill('0')
-						<< (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2) << setfill('0')
-						<< (uint32_t) calculatedCRC << endl;
+				cerr << "SpaceWireRPacket::interpretPacket() #12 CRC received=" << "0x" << hex << right << setw(2)
+						<< setfill('0') << (uint32_t) this->crc16 << " calculated=" << "0x" << hex << right << setw(2)
+						<< setfill('0') << (uint32_t) calculatedCRC << endl;
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidCRC);
 			}
 
@@ -630,6 +719,10 @@ public:
 
 	inline uint8_t getSequenceNumber() const {
 		return sequenceNumber;
+	}
+
+	inline uint32_t getSequenceNumberAs32bitInteger() const {
+		return (uint32_t) sequenceNumber;
 	}
 
 	inline std::vector<uint8_t> getSourceAddressPrefix() const {

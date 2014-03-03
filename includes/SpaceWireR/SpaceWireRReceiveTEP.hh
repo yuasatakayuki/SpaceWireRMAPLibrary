@@ -36,10 +36,16 @@
 
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
-#undef DebugSpaceWireRReceiveTEP
-#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+#define DebugSpaceWireRReceiveTEP
+#define DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+
+//#undef DebugSpaceWireRReceiveTEP
+//#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 
 class SpaceWireRReceiveTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
+
+private:
+	std::vector<SpaceWireRPacket*> receiveSlidingWindowBuffer;
 
 public:
 	SpaceWireRReceiveTEP(SpaceWireREngine* spwREngine, uint16_t channel) :
@@ -51,6 +57,7 @@ public:
 		hasReceivedDataPacket = false;
 		randomMT = new CxxUtilities::RandomMT();
 		this->start();
+		initializeReceiveSlidingWindow();
 	}
 
 public:
@@ -96,6 +103,9 @@ public:
 
 private:
 	bool hasReceivedDataPacket;
+
+private:
+	uint8_t sequenceNumberOfLastAck;
 //---------------------------------------------
 
 public:
@@ -109,6 +119,18 @@ public:
 		this->nReceivedDataBytes = 0;
 		this->nReceivedApplicationData = 0;
 		this->nReceivedSegments = 0;
+	}
+
+private:
+	uint8_t receiveSlidingWindowFrom;
+	uint8_t receiveSlidingWindowSize;
+
+private:
+	void initializeReceiveSlidingWindow() {
+		receiveSlidingWindowBuffer.clear();
+		receiveSlidingWindowBuffer.resize(MaxOfSlidingWindow, NULL);
+		receiveSlidingWindowSize = DefaultSlidingWindowSize;
+		receiveSlidingWindowFrom = 0;
 	}
 
 private:
@@ -176,7 +198,7 @@ public:
 private:
 	void closed() {
 		hasReceivedDataPacket = false;
-		this->initializeSlidingWindow();
+		this->initializeReceiveSlidingWindow();
 		while (receivedApplicationData.size() != 0) {
 			nDiscardedApplicationData++;
 			delete receivedApplicationData.front();
@@ -230,7 +252,7 @@ private:
 #ifdef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 			std::stringstream ss;
 			ss << "SpaceWireRReceiveTEP::errorInjectionNoReply() for sequence number = " << dec << right
-			<< (uint32_t) sequenceNumber << " !!!" << endl;
+					<< (uint32_t) sequenceNumber << " !!!" << endl;
 			CxxUtilities::TerminalControl::displayInRed(ss.str());
 			nErrorInjectionNoReply++;
 #endif
@@ -248,7 +270,6 @@ private:
 	 */
 	void replyAckForPacket(SpaceWireRPacket* packet) {
 		if (packet->isHeartBeatPacketType()) {
-			nReceivedHeartBeatPackets++;
 			nTransmittedHeartBeatAckPackets++;
 		}
 
@@ -258,21 +279,74 @@ private:
 			try {
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
-				<< (uint32_t) ackPacket->getSequenceNumber() << endl;
+						<< (uint32_t) ackPacket->getSequenceNumber() << endl;
 #endif
 
 				//todo: inject CRC error
 
 				spwREngine->sendPacket(ackPacket);
 
+				//store sequence number of the latest Ack
+				setSequenceNumberOfLastAck(ackPacket->getSequenceNumber());
+
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() ack for sequence number = "
-				<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
+						<< (uint32_t) ackPacket->getSequenceNumber() << " has been sent." << endl;
 #endif
 			} catch (...) {
 				malfunctioningSpaceWireIF();
 			}
 		}
+	}
+
+private:
+	bool insideForwardReceiveSlidingWindow(uint8_t sequenceNumber) {
+		uint8_t n = this->receiveSlidingWindowFrom;
+		uint8_t k = this->receiveSlidingWindowSize;
+		if ((uint8_t) (n) < (uint8_t) (n + k - 1)) {
+			// n -- n + k - 1
+			if (n <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1)) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			// n -- 255, 0 -- n + k - 1
+			if ((n <= sequenceNumber && sequenceNumber <= 255)
+					|| (0 <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1))) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+	}
+
+private:
+	bool insideBackwardReceiveSlidingWindow(uint8_t sequenceNumber) {
+		uint8_t n = this->receiveSlidingWindowFrom;
+		uint8_t k = this->receiveSlidingWindowSize;
+		if ((uint8_t) (n - k) < (uint8_t) (n - 1)) {
+			//n-k -- n-1
+			if ((uint8_t) (n - k) <= sequenceNumber && sequenceNumber <= (uint8_t) (n - 1)) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			//n-k -- 255, 0 -- n - 1
+			if (((uint8_t) (n - k) <= sequenceNumber && sequenceNumber <= 255)
+					|| (0 <= sequenceNumber && sequenceNumber <= (uint8_t) (n - 1))) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+	}
+
+private:
+	void sendPacket(SpaceWireRPacket* packet, double timeoutDuration = DefaultTimeoutDurationInMs/*ms*/)
+			throw (SpaceWireRTEPException) {
+		sendPacketWithSpecifiedSequenceNumber(packet, this->getSequenceNumberOfLastAck(), timeoutDuration);
 	}
 
 private:
@@ -334,7 +408,9 @@ private:
 			}
 
 			if (packet->isControlPacketCloseCommand()) {
+#ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Close command." << endl;
+#endif
 				this->state = SpaceWireRTEPState::Closing;
 				replyAckForPacket(packet);
 				delete packet;
@@ -343,16 +419,26 @@ private:
 
 			if (packet->isHeartBeatPacketType()) {
 #ifdef DebugSpaceWireRReceiveTEP
-				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing HeartBeat command." << endl;
+				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing HeartBeat packet." << endl;
 #endif
 				processHeartBeatPacket(packet);
+				continue;
+			}
+
+			if (packet->isAckPacket()) {
+#ifdef DebugSpaceWireRReceiveTEP
+				cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() processing Ack packet." << endl;
+#endif
+				processAckPacket(packet);
 				delete packet;
 				continue;
 			}
 
 			//should not reach here
 #ifdef DebugSpaceWireRReceiveTEP
-			cout << "SpaceWireRReceiveTEP::consumeReceivedPackets() Received packet cannot be handled by the SpaceWireRReceiveTEP." << endl;
+			cout
+					<< "SpaceWireRReceiveTEP::consumeReceivedPackets() Received packet cannot be handled by the SpaceWireRReceiveTEP."
+					<< endl;
 #endif
 		}
 #ifdef DebugSpaceWireRReceiveTEP
@@ -365,11 +451,41 @@ private:
 	}
 
 private:
+	/** Processes a received Ack pakcet, and frees sliding window slot.
+	 * @param[in] packet incoming SpaceWire-R Ack packet
+	 */
+	void processAckPacket(SpaceWireRPacket* packet) {
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRReceiveTEP::processAckPacket() sequence number = " << (uint32_t) packet->getSequenceNumber()
+				<< endl;
+#endif
+		uint8_t sequenceNumberOfThisPacket = packet->getSequenceNumber();
+		if (packetHasBeenSent[sequenceNumberOfThisPacket] == true) {
+			packetWasAcknowledged[sequenceNumberOfThisPacket] = true;
+			decrementNOfOutstandingPackets();
+		}
+		if (packet->isHeartBeatAckPacketType()) {
+			nReceivedHeartBeatAckPackets++;
+		}
+		slideSlidingWindow();
+	}
+
+private:
 	void processOpenComand(SpaceWireRPacket* packet) {
+		using namespace std;
+#ifdef DebugSpaceWireRReceiveTEP
+		cout << "SpaceWireRReceiveTEP::processOpenCommand() sequenceNumber=" << packet->getSequenceNumberAs32bitInteger()
+				<< endl;
+#endif
 		this->state = SpaceWireRTEPState::Open;
 		replyAckForPacket(packet);
-		this->slidingWindowBuffer[packet->getSequenceNumber()] = packet;
-		slideSlidingWindow();
+		this->receiveSlidingWindowBuffer[packet->getSequenceNumber()] = packet;
+		slideReceiveSlidingWindow();
+#ifdef DebugSpaceWireRReceiveTEP
+		cout << "SpaceWireRReceiveTEP::processOpenCommand() completed sequenceNumber="
+				<< packet->getSequenceNumberAs32bitInteger() << endl;
+#endif
 	}
 
 private:
@@ -381,33 +497,33 @@ private:
 #endif
 		nReceivedDataBytes += packet->getPayloadLength();
 		nReceivedSegments++;
-		if (insideForwardSlidingWindow(sequenceNumber)) {
+		if (insideForwardReceiveSlidingWindow(sequenceNumber)) {
 #ifdef DebugSpaceWireRReceiveTEP
-			cout << "SpaceWireRReceiveTEP::processDataPacket() insideForwardSlidingWindow" << endl;
+			cout << "SpaceWireRReceiveTEP::processDataPacket() insideForwardReceiveSlidingWindow" << endl;
 #endif
-			if (this->slidingWindowBuffer[sequenceNumber] == NULL) {
+			if (this->receiveSlidingWindowBuffer[sequenceNumber] == NULL) {
 				replyAckForPacket(packet);
-				this->slidingWindowBuffer[sequenceNumber] = packet;
-				slideSlidingWindow();
+				this->receiveSlidingWindowBuffer[sequenceNumber] = packet;
+				slideReceiveSlidingWindow();
 			} else {
 				replyAckForPacket(packet);
 				delete packet;
 			}
-		} else if (insideBackwardSlidingWindow(sequenceNumber)) {
+		} else if (insideBackwardReceiveSlidingWindow(sequenceNumber)) {
 #ifdef DebugSpaceWireRReceiveTEP
-			cout << "SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow" << endl;
+			cout << "SpaceWireRReceiveTEP::processDataPacket() insideBackwardReceiveSlidingWindow" << endl;
 #endif
 			//debug
 			CxxUtilities::TerminalControl::displayInCyan(
-					"SpaceWireRReceiveTEP::processDataPacket() insideBackwardSlidingWindow");
+					"SpaceWireRReceiveTEP::processDataPacket() insideBackwardReceiveSlidingWindow");
 			std::stringstream ss;
 			ss << "sequenceNumber:" << "0x" << hex << right << setw(2) << setfill('0')
 					<< (uint32_t) packet->getSequenceNumber() << endl;
 			ss << "packetType:" << ((packet->isDataPacket()) ? "Data" : "Other than data") << endl;
 			ss << "segment   :"
 					<< ((packet->isFirstSegment()) ? "First" : ((packet->isContinuedSegment()) ? "Continued" : "Last")) << endl;
-			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) this->slidingWindowFrom << endl;
+			ss << "receiveSlidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) this->receiveSlidingWindowFrom << endl;
 			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			replyAckForPacket(packet);
 			delete packet;
@@ -420,8 +536,8 @@ private:
 			ss << "packetType:" << ((packet->isDataPacket()) ? "Data" : "Other than data") << endl;
 			ss << "segment   :"
 					<< ((packet->isFirstSegment()) ? "First" : ((packet->isContinuedSegment()) ? "Continued" : "Last")) << endl;
-			ss << "slidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
-					<< (uint32_t) this->slidingWindowFrom << endl;
+			ss << "receiveSlidingWindowFrom:" << "0x" << hex << right << setw(2) << setfill('0')
+					<< (uint32_t) this->receiveSlidingWindowFrom << endl;
 			CxxUtilities::TerminalControl::displayInCyan(ss.str());
 			malfunctioningTransportChannel();
 			nDiscardedDataPackets++;
@@ -429,31 +545,41 @@ private:
 	}
 
 private:
-	void slideSlidingWindow() {
+	void slideReceiveSlidingWindow() {
 		using namespace std;
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::slideSlidingWindow()" << endl;
+		cout << "SpaceWireRReceiveTEP::slideReceiveSlidingWindow()" << endl;
 #endif
-		uint8_t n = this->slidingWindowFrom;
-		while (this->slidingWindowBuffer[n] != NULL) {
+		uint8_t n = this->receiveSlidingWindowFrom;
+		while (this->receiveSlidingWindowBuffer[n] != NULL) {
 #ifdef DebugSpaceWireRReceiveTEP
-			cout << "SpaceWireRReceiveTEP::slideSlidingWindow() n=" << (uint32_t) n << endl;
+			cout << "SpaceWireRReceiveTEP::slideReceiveSlidingWindow() n=" << (uint32_t) n << endl;
 #endif
-			reconstructApplicationData(this->slidingWindowBuffer[n]);
-			delete this->slidingWindowBuffer[n];
-			this->slidingWindowBuffer[n] = NULL;
+			reconstructApplicationData(this->receiveSlidingWindowBuffer[n]);
+			delete this->receiveSlidingWindowBuffer[n];
+			this->receiveSlidingWindowBuffer[n] = NULL;
 			n = (uint8_t) (n + 1);
 		}
-		this->slidingWindowFrom = n;
+		this->receiveSlidingWindowFrom = n;
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::slideSlidingWindow() slidingWindowFrom=" << (uint32_t) this->slidingWindowFrom
-		<< endl;
+		cout << "SpaceWireRReceiveTEP::slideReceiveSlidingWindow() From="
+				<< (uint32_t) this->receiveSlidingWindowFrom << endl;
 #endif
 	}
 
 private:
 	void reconstructApplicationData(SpaceWireRPacket* packet) {
 		using namespace std;
+
+		if (!packet->isDataPacket()) {
+#ifdef DebugSpaceWireRReceiveTEP
+			cout
+					<< "SpaceWireRReceiveTEP::reconstructApplicationData() received packet is not Data packet. Reconstruction is skipped."
+					<< endl;
+#endif
+			return;
+		}
+
 		this->hasReceivedDataPacket = true;
 #ifdef DebugSpaceWireRReceiveTEP
 		cout << "SpaceWireRReceiveTEP::reconstructApplicationData() isReceivingSegmentedApplicationData=";
@@ -486,14 +612,14 @@ private:
 			//error cases
 			if (packet->isCompleteSegment() || packet->isFirstSegment()) {
 #ifdef DebugSpaceWireRReceiveTEP
-				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received invalid segment: ";
-				if (packet->isCompleteSegment()) {
-					cout << "Complete Segment." << endl;
-				} else {
-					cout << "The First Segment." << endl;
-				}
+				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received invalid segment: "
+						<< packet->getSequenceFlagsAsString() << endl;
 #endif
 				//something is wrong with segmented data
+#ifdef DebugSpaceWireRReceiveTEP
+				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() something is wrong with segmented data: "
+						<< packet->toString() << endl;
+#endif
 				malfunctioningTransportChannel();
 				return;
 			}
@@ -502,6 +628,7 @@ private:
 			if (packet->isCompleteSegment()) {
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() received complete segment. " << endl;
+				cout << packet->toString() << endl;
 #endif
 				completeServiceDataUnitHasBeenReceived(packet);
 				isReceivingSegmentedApplicationData = false;
@@ -521,16 +648,9 @@ private:
 			if (packet->isContinuedSegment() || packet->isLastSegment()) {
 				//something is wrong with segmented data
 #ifdef DebugSpaceWireRReceiveTEP
-				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() : ";
-				if (packet->isContinuedSegment()) {
-					cout << "Continuous segment. " << endl;
-				} else if (packet->isLastSegment()) {
-					cout << "The Last Segment." << endl;
-				} else if (packet->isCompleteSegment()) {
-					cout << "Complete Segment." << endl;
-				} else {
-					cout << "The First Segment." << endl;
-				}
+				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() : " << packet->getSequenceFlagsAsString() << endl;
+				cout << "SpaceWireRReceiveTEP::reconstructApplicationData() something is wrong with segmented data: " << endl;
+				cout << packet->toString() << endl;
 #endif
 				malfunctioningTransportChannel();
 				return;
@@ -563,20 +683,37 @@ private:
 
 private:
 	void processHeartBeatPacket(SpaceWireRPacket* packet) {
+		using namespace std;
 		uint8_t sequenceNumber = packet->getSequenceNumber();
 		nReceivedHeartBeatPackets++;
+
+		//return if response to received HeartBeat packets are disabled
+		if (!shouldRespondToReceivedHeartBeatPacket()) {
+			return;
+		}
+
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets << " sequence number = " << (uint32_t) packet->getSequenceNumber()
-		<< endl;
+		cout << "SpaceWireRReceiveTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets
+				<< " sequence number = " << (uint32_t) packet->getSequenceNumber() << endl;
 #endif
-		if (insideForwardSlidingWindow(sequenceNumber)) {
+
+		if (insideForwardReceiveSlidingWindow(sequenceNumber)) {
+			if (this->receiveSlidingWindowBuffer[sequenceNumber] == NULL) {
+				replyAckForPacket(packet);
+				this->receiveSlidingWindowBuffer[sequenceNumber] = packet;
+				slideReceiveSlidingWindow();
+			} else {
+				replyAckForPacket(packet);
+				delete packet;
+			}
+		} else if (insideBackwardReceiveSlidingWindow(sequenceNumber)) {
 			replyAckForPacket(packet);
-		} else if (insideBackwardSlidingWindow(sequenceNumber)) {
-			replyAckForPacket(packet);
+			delete packet;
 		} else {
 			malfunctioningTransportChannel();
 			nDiscardedHeartBeatPackets++;
 		}
+
 	}
 
 private:
@@ -669,27 +806,42 @@ public:
 		}
 	}
 
+private:
+	inline void setSequenceNumberOfLastAck(uint8_t sequenceNumber) {
+		sequenceNumberOfLastAck = sequenceNumber;
+	}
+
+public:
+	inline uint8_t getSequenceNumberOfLastAck() {
+		return sequenceNumberOfLastAck;
+	}
+
 public:
 	std::string toString() {
 		using namespace std;
 		std::stringstream ss;
 		ss << "---------------------------------------------" << endl;
 		ss << "SpaceWireRReceiveTEP" << endl;
-		ss << "State             : " << SpaceWireRTEPState::toString(this->state) << endl;
-		ss << "slidingWindowFrom : (dec)" << dec << (uint32_t) this->slidingWindowFrom << endl;
-		ss << "slidingWindowSize : (dec)" << dec << (uint32_t) this->slidingWindowSize << endl;
-		ss << "receivedPackets.size() : (dec)" << dec << receivedPackets.size() << endl;
-		ss << "ProbabilityOfErrorInjectionNoReply : " << ProbabilityOfErrorInjectionNoReply << endl;
-		ss << "nErrorInjectionNoReply : (dec)" << dec << nErrorInjectionNoReply << endl;
-		ss << "remaining received ApplicationData : " << dec << receivedApplicationData.size() << endl;
-		ss << "nDiscardedApplicationData : " << dec << nDiscardedApplicationData << endl;
-		ss << "nDiscardedApplicationDataBytes : " << dec << nDiscardedApplicationDataBytes << endl;
-		ss << "nDiscardedControlPackets : " << dec << nDiscardedControlPackets << endl;
-		ss << "nDiscardedDataPackets : " << dec << nDiscardedControlPackets << endl;
+		ss << "State                      : " << SpaceWireRTEPState::toString(this->state) << endl;
+		ss << "receiveSlidingWindowFrom   : (dec)" << dec << (uint32_t) this->receiveSlidingWindowFrom << endl;
+		ss << "receiveSlidingWindowSize   : (dec)" << dec << (uint32_t) this->receiveSlidingWindowSize << endl;
+		ss << "receivedPackets.size()     : (dec)" << dec << receivedPackets.size() << endl;
+		ss << "ProbOfErrInjectionNoReply  : " << ProbabilityOfErrorInjectionNoReply << endl;
+		ss << "nErrorInjectionNoReply     : (dec)" << dec << nErrorInjectionNoReply << endl;
+		ss << "Remaining Received AppData : " << dec << receivedApplicationData.size() << endl;
+		ss << "nDiscardedAppData          : " << dec << nDiscardedApplicationData << endl;
+		ss << "nDiscardedAppDataBytes     : " << dec << nDiscardedApplicationDataBytes << endl;
+		ss << "nDiscardedControlPackets   : " << dec << nDiscardedControlPackets << endl;
+		ss << "nDiscardedDataPackets      : " << dec << nDiscardedControlPackets << endl;
 		ss << "nDiscardedHeartBeatPackets : " << dec << nDiscardedHeartBeatPackets << endl;
-		ss << "nReceivedBytes : " << nReceivedDataBytes / 1024 << "kB" << endl;
-		ss << "nReceivedSegments : " << nReceivedSegments << endl;
-		ss << "nReceivedApplicationData : " << nReceivedApplicationData << endl;
+		ss << dec;
+		ss << "nReceivedBytes             : " << nReceivedDataBytes / 1024 << "kB" << endl;
+		ss << "nReceivedSegments          : " << nReceivedSegments << endl;
+		ss << "nReceivedApplicationData   : " << nReceivedApplicationData << endl;
+		ss << "nReceivedHeartBeat         : " << nReceivedHeartBeatPackets << endl;
+		ss << "nTransmittedHeartBeatAck   : " << nTransmittedHeartBeatAckPackets << endl;
+		ss << "nTransmittedHeartBeat      : " << nTransmittedHeartBeatPackets << endl;
+		ss << "nReceivedHeartBeatAck      : " << nReceivedHeartBeatAckPackets << endl;
 		ss << "---------------------------------------------" << endl;
 		return ss.str();
 	}
