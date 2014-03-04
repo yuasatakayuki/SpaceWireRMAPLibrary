@@ -80,6 +80,9 @@ private:
 private:
 	bool openCommandAcknowledged;
 	bool closeCommandAcknowledged;
+
+private:
+	uint8_t maximumAcceptableSequenceNumber;
 	/* --------------------------------------------- */
 
 private:
@@ -185,6 +188,10 @@ private:
 				processHeartBeatPacket(packet);
 				delete packet;
 				continue;
+			} else if (packet->isFlowControlPacket()) {
+				processFlowControlPacket(packet);
+				delete packet;
+				continue;
 			} else if (packet->isAckPacket()) {
 #ifdef DebugSpaceWireRTransmitTEP
 				cout << "SpaceWireRTransmitTEP::consumeReceivedPackets() Ack packet received." << endl;
@@ -257,6 +264,44 @@ public:
 	}
 
 private:
+	/** Processes a received FlowControl packet.
+	 * MASN will be updated by retrieving the value contained in the
+	 * FlowControl packet.
+	 */
+	void processFlowControlPacket(SpaceWireRPacket* packet){
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::processFlowControlPacket() entered." << endl;
+#endif
+
+		updateMaximumAcceptableSequenceNumber(packet);
+
+		flowControlPacket->setFlowControlPacketFlag();
+		flowControlPacket->clearPayload();
+		flowControlPacket->setSequenceFlags(packet->getSequenceFlags());
+		flowControlPacket->setSequenceNumber(packet->getSequenceNumber());
+		try {
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::processFlowControlPacket() replying FlowControlAck for sequence number = "
+					<< (uint32_t) flowControlPacket->getSequenceNumber() << endl;
+#endif
+
+			//todo: inject CRC error
+
+			spwREngine->sendPacket(flowControlPacket);
+			nTransmittedFlowControlPackets++;
+
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::processFlowControlPacket() FlowControlAck packet for sequence number = "
+					<< (uint32_t) flowControlPacket->getSequenceNumber() << " has been sent." << endl;
+#endif
+		} catch (...) {
+			malfunctioningSpaceWireIF();
+		}
+
+	}
+
+private:
 	/** Replies to HeartBeat packet sent from Receive TEP.
 	 * This is the same implementation as one used in SpaceWireRReceiveTEP::replyAckForPacket(SpaceWireRPacket* packet).
 	 * @param[in] pakcet incoming SpaceWire-R packet for which this method should construct a reply pakcet
@@ -324,6 +369,9 @@ private:
 		if (packet->isHeartBeatAckPacketType()) {
 			nReceivedHeartBeatAckPackets++;
 		}
+		if (this->isFlowControlEnabled()) {
+			this->updateMaximumAcceptableSequenceNumber(packet);
+		}
 		slideSlidingWindow();
 	}
 
@@ -350,6 +398,7 @@ public:
 		size_t remainingSize = dataSize;
 		size_t payloadSize;
 		size_t index = 0;
+		size_t nSegmentation = 0;
 		bool isFirst = true;
 		while (remainingSize != 0 && this->state == SpaceWireRTEPState::Open) {
 			//check timeout
@@ -361,6 +410,14 @@ public:
 				throw SpaceWireRTEPException(SpaceWireRTEPException::Timeout);
 			}
 			checkRetryTimerThenRetry();
+
+			//wait until MASN becomes larger than sequenceNumber
+			if (this->isFlowControlEnabled()) {
+				if (!this->masnAllowsToSend()) {
+					conditionForSendWait.wait(DefaultWaitDurationInMsForSendSegment);
+					continue;
+				}
+			}
 
 			if (this->maximumSegmentSize < remainingSize) {
 				payloadSize = this->maximumSegmentSize;
@@ -398,14 +455,26 @@ public:
 			retryTimeoutCounters[sequenceNumber] = 0;
 			index += payloadSize;
 			sequenceNumber++;
+			nSegmentation++;
+
+			if (sequenceNumber == 0) {
+				sequenceNumberLaps();
+			}
 			incrementNOfOutstandingPackets();
 
-			//set LastFlag if necessary
+			//set LastFlag/CompleteSegment if necessary
 			if (remainingSize == 0) {
+				if (nSegmentation == 1) {
 #ifdef DebugSpaceWireRTransmitTEP
-				cout << "SpaceWireRTransmitTEP::send() setting the LastSegment flag." << endl;
+					cout << "SpaceWireRTransmitTEP::send() setting the CompleteSement flag." << endl;
 #endif
-				packet->setLastSegmentFlag();
+					packet->setCompleteSegmentFlag();
+				} else {
+#ifdef DebugSpaceWireRTransmitTEP
+					cout << "SpaceWireRTransmitTEP::send() setting the LastSegment flag. " << endl;
+#endif
+					packet->setLastSegmentFlag();
+				}
 			}
 
 			//send segment
@@ -441,6 +510,62 @@ public:
 #ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRTransmitTEP::send() Completed." << endl;
 #endif
+	}
+
+private:
+	bool masnGuardBit_true_if_MASNLapped_SNNotLappedYet = false;
+	CxxUtilities::Mutex masnGuardBit_mutex;
+
+private:
+	void sequenceNumberLaps() {
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::sequenceNumberLaps() entered." << endl;
+#endif
+		masnGuardBit_mutex.lock();
+		masnGuardBit_true_if_MASNLapped_SNNotLappedYet = !masnGuardBit_true_if_MASNLapped_SNNotLappedYet;
+		masnGuardBit_mutex.unlock();
+	}
+
+private:
+	void masnLaps() {
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::masnLaps() entered." << endl;
+#endif
+		masnGuardBit_mutex.lock();
+		masnGuardBit_true_if_MASNLapped_SNNotLappedYet = !masnGuardBit_true_if_MASNLapped_SNNotLappedYet;
+		masnGuardBit_mutex.unlock();
+	}
+
+private:
+	bool masnAllowsToSend() {
+		uint8_t n = sequenceNumber;
+		uint8_t masn = maximumAcceptableSequenceNumber;
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::masnAllowsToSend() sequenceNumber=" << dec << (uint32_t) n << " MASN="
+				<< (uint32_t) masn << " Lap=" << ((masnGuardBit_true_if_MASNLapped_SNNotLappedYet) ? "true" : "false") << " ."
+				<< endl;
+#endif
+		if (masnGuardBit_true_if_MASNLapped_SNNotLappedYet) {
+#ifdef DebugSpaceWireRTransmitTEP
+			cout << "SpaceWireRTransmitTEP::masnAllowsToSend() true." << endl;
+#endif
+			return true; //can send packet since masn is larger than n.
+		} else {
+			if (n <= masn) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::masnAllowsToSend() true." << endl;
+#endif
+				return true; //can send packet since masn is larger than n.
+			} else {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::masnAllowsToSend() false." << endl;
+#endif
+				return false; //should wait until masn becomes larger than n
+			}
+		}
 	}
 
 private:
@@ -535,6 +660,28 @@ private:
 	}
 
 public:
+	void updateMaximumAcceptableSequenceNumber(SpaceWireRPacket* packet) {
+		using namespace std;
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::updateMaximumAcceptableSequenceNumber() entered." << endl;
+#endif
+		if (packet->getPayloadLength() != 1 && packet->getPayload()->size() != 1) {
+			//MASM should be one octet.
+			malfunctioningTransportChannel();
+		}
+
+		uint8_t newMASN = packet->getPayload()->at(0);
+		if (newMASN < maximumAcceptableSequenceNumber) {
+			masnLaps();
+		}
+#ifdef DebugSpaceWireRTransmitTEP
+		cout << "SpaceWireRTransmitTEP::updateMaximumAcceptableSequenceNumber() currentMASN="
+				<< (uint32_t) maximumAcceptableSequenceNumber << " newMASN=" << (uint32_t) newMASN << endl;
+#endif
+		maximumAcceptableSequenceNumber = newMASN;
+	}
+
+public:
 	std::string toString() {
 		using namespace std;
 		std::stringstream ss;
@@ -544,6 +691,7 @@ public:
 		ss << "slidingWindowFrom    : " << dec << (uint32_t) this->slidingWindowFrom << endl;
 		ss << "slidingWindowSize    : " << dec << (uint32_t) this->slidingWindowSize << endl;
 		ss << "nOfOutstandingPckts  : " << dec << (uint32_t) this->nOfOutstandingPackets << endl;
+		ss << "MASN                 : " << dec << (uint32_t) this->maximumAcceptableSequenceNumber << endl;
 		ss << "receivedPackets.size : " << dec << receivedPackets.size() << endl;
 		ss << "Counters:" << endl;
 		ss << "nSentUserData        : " << dec << nSentUserData << endl;

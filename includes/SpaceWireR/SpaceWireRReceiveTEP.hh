@@ -31,16 +31,22 @@
  *      Author: yuasa
  */
 
+/* Note: FlowControl packet is not emitted from this SpaceWire-R ReceiveTEP because
+ * receive sliding window buffer becomes immediately available after a reception of
+ * packet; DataAck packet carries MASN, and there is no need to send a separate
+ * FlowControl packet since MASN will not change after sending DataAck.
+ */
+
 #ifndef SPACEWIRERRECEIVETEP_HH_
 #define SPACEWIRERRECEIVETEP_HH_
 
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
-#define DebugSpaceWireRReceiveTEP
-#define DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+//#define DebugSpaceWireRReceiveTEP
+//#define DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 
-//#undef DebugSpaceWireRReceiveTEP
-//#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
+#undef DebugSpaceWireRReceiveTEP
+#undef DebugSpaceWireRReceiveTEPDumpCriticalIncidents
 
 class SpaceWireRReceiveTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 
@@ -275,7 +281,11 @@ private:
 
 		if (!errorInjectionNoReply(packet)) {
 			using namespace std;
-			ackPacket->constructAckForPacket(packet);
+			if(!this->isFlowControlEnabled()){
+				ackPacket->constructAckForPacket(packet);
+			}else{
+				ackPacket->constructAckForPacketWithFlowControl(packet, this->getMaximumAcceptableSequenceNumber());
+			}
 			try {
 #ifdef DebugSpaceWireRReceiveTEP
 				cout << "SpaceWireRReceiveTEP::replyAckForPacket() replying ack for sequence number = "
@@ -458,7 +468,7 @@ private:
 		using namespace std;
 #ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRReceiveTEP::processAckPacket() sequence number = " << (uint32_t) packet->getSequenceNumber()
-				<< endl;
+		<< endl;
 #endif
 		uint8_t sequenceNumberOfThisPacket = packet->getSequenceNumber();
 		if (packetHasBeenSent[sequenceNumberOfThisPacket] == true) {
@@ -562,8 +572,8 @@ private:
 		}
 		this->receiveSlidingWindowFrom = n;
 #ifdef DebugSpaceWireRReceiveTEP
-		cout << "SpaceWireRReceiveTEP::slideReceiveSlidingWindow() From="
-				<< (uint32_t) this->receiveSlidingWindowFrom << endl;
+		cout << "SpaceWireRReceiveTEP::slideReceiveSlidingWindow() From=" << (uint32_t) this->receiveSlidingWindowFrom
+				<< endl;
 #endif
 	}
 
@@ -676,7 +686,7 @@ private:
 private:
 	void completeServiceDataUnitHasBeenReceived(SpaceWireRPacket* packet) {
 		std::vector<uint8_t>* applicationData = new std::vector<uint8_t>(packet->getPayloadLength());
-		applicationData = packet->getPayload();
+		*(applicationData) = *(packet->getPayload());
 		receivedApplicationData.push_back(applicationData);
 		currentApplicationData = NULL;
 	}
@@ -817,6 +827,19 @@ public:
 	}
 
 public:
+	inline uint8_t getMaximumAcceptableSequenceNumber() {
+		uint8_t n = this->receiveSlidingWindowFrom;
+		uint8_t k = this->receiveSlidingWindowSize;
+		if ((uint8_t) (n) < (uint8_t) (n + k - 1)) {
+			// n -- n + k - 1
+			return n + k - 1;
+		} else {
+			// n -- 255, 0 -- n + k - 1
+			return (uint8_t) (n + k - 1);
+		}
+	}
+
+public:
 	std::string toString() {
 		using namespace std;
 		std::stringstream ss;
@@ -826,6 +849,7 @@ public:
 		ss << "receiveSlidingWindowFrom   : (dec)" << dec << (uint32_t) this->receiveSlidingWindowFrom << endl;
 		ss << "receiveSlidingWindowSize   : (dec)" << dec << (uint32_t) this->receiveSlidingWindowSize << endl;
 		ss << "receivedPackets.size()     : (dec)" << dec << receivedPackets.size() << endl;
+		ss << "Maximum Acceptable Seq Num : " << dec << (uint32_t) this->getMaximumAcceptableSequenceNumber() << endl;
 		ss << "ProbOfErrInjectionNoReply  : " << ProbabilityOfErrorInjectionNoReply << endl;
 		ss << "nErrorInjectionNoReply     : (dec)" << dec << nErrorInjectionNoReply << endl;
 		ss << "Remaining Received AppData : " << dec << receivedApplicationData.size() << endl;

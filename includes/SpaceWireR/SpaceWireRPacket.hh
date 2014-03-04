@@ -306,7 +306,7 @@ public:
 				ss << " ";
 			}
 		}
-		if(dumpLength<packet->size()){
+		if (dumpLength < packet->size()) {
 			ss << " ... (total " << dec << packet->size() << " bytes)" << endl;
 		}
 		return ss.str();
@@ -421,7 +421,21 @@ public:
 	}
 
 public:
-	void constructAckForPacket(SpaceWireRPacket* packet) {
+	inline void constructAckForPacketWithFlowControl(SpaceWireRPacket* packet, uint8_t maximumAcceptableSequenceNumber) {
+		//first construct ack packet
+		this->constructAckForPacket(packet);
+
+		//set MASN
+		// note: HeartBeat Ack shall not carry MASN.
+		if (this->isDataAckPacket() || this->isControlAckPacket()) {
+			uint8_t masn[1] = { maximumAcceptableSequenceNumber };
+			this->setPayload(masn, 1);
+			this->setPayloadLength(1);
+		}
+	}
+
+public:
+	inline void constructAckForPacket(SpaceWireRPacket* packet) {
 		if (packet->isAckPacket()) {
 			return;
 		}
@@ -466,7 +480,6 @@ public:
 
 		//clear payload
 		this->clearPayload();
-
 	}
 
 public:
