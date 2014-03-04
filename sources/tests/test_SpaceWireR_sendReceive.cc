@@ -23,16 +23,17 @@
 
 //parameters for small-packet test
 const uint16_t channelID = 0x6342;
-const size_t SendSize = 256;
+const size_t SendSize = 32;
 const size_t SegmentSize = 32;
 const size_t SlidingWindowSize = 3;
 const uint8_t destinationLAForTransmitTEP = 35;
 const uint8_t sourceLAForTransmitTEP = 34;
-const double waitDurationBetweenEverySend = 50000;
-const double transmitHeartBeatTimerConstant = 0;
-const double receiveHeartBeatTimerConstant = 1000;
+const double waitDurationBetweenEverySend = 10;
+const double transmitHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
+const double receiveHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
 const bool transmitTEP_doNotRespondToReceivedHeartBeatPacket = false;
 const bool receiveTEP_doNotRespondToReceivedHeartBeatPacket = false;
+const bool enableFlowControl = false;
 
 //parameters for higher speed test
 /*const uint16_t channelID = 0x6342;
@@ -168,6 +169,10 @@ public:
 			tep->doNotRespondToReceivedHeartBeatPacket();
 		}
 
+		if(enableFlowControl){
+			tep->enableFlowControl();
+		}
+
 		tep->open();
 		cout << "SpaceWireRTransmitTEP opened." << endl;
 
@@ -276,6 +281,10 @@ public:
 
 		if (receiveTEP_doNotRespondToReceivedHeartBeatPacket) {
 			tep->doNotRespondToReceivedHeartBeatPacket();
+		}
+
+		if(enableFlowControl){
+			tep->enableFlowControl();
 		}
 
 		tep->open();
