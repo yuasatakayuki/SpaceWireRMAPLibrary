@@ -39,10 +39,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRClassInterfaces.hh"
 
 //#define SpaceWireREngineDumpPacket
-//#define DebugSpaceWireREngine
+#define DebugSpaceWireREngine
 
 #undef SpaceWireREngineDumpPacket
-#undef DebugSpaceWireREngine
+//#undef DebugSpaceWireREngine
 
 
 /*
@@ -143,7 +143,7 @@ public:
 			if (it_find != allTEPs.end()) {
 				//if there is TransmitTEP/ReceiveTEP corresponding to the channel number in the received packet.
 				it_find->second->pushReceivedSpaceWireRPacket(packet); //pass the received packet to the ReceiveTEP
-				//tell the ReceiveTEP that a packet has arrived.
+				//tell the TEP that a packet has arrived.
 				it_find->second->packetArrivalNotifier.signal();
 #ifdef DebugSpaceWireREngine
 				cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() pushed to " << "0x" << hex << right << setw(8)
@@ -158,8 +158,30 @@ public:
 				nDiscardedReceivedPackets++;
 				delete packet;
 			}
-		}
-		else if (!packet->isAckPacket()) { //command/data packet
+		}else if(packet->isFlowControlPacket()){
+#ifdef DebugSpaceWireREngine
+			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is FlowControl packet (sequence number=" << packet->getSequenceNumberAs32bitInteger() << ")." << endl;
+#endif
+			std::map<uint16_t, SpaceWireRTEPInterface*>::iterator it_find = allTEPs.find(channel);
+			if (it_find != allTEPs.end()) {
+				//if there is TransmitTEP/ReceiveTEP corresponding to the channel number in the received packet.
+				it_find->second->pushReceivedSpaceWireRPacket(packet); //pass the received packet to the ReceiveTEP
+				//tell the TEP that a packet has arrived.
+				it_find->second->packetArrivalNotifier.signal();
+#ifdef DebugSpaceWireREngine
+				cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() pushed to " << "0x" << hex << right << setw(8)
+						<< setfill('0') << (uint64_t) it_find->second << " nPackets=" << it_find->second->receivedPackets.size() << endl;
+#endif
+			} else {
+				//if there is no ReceiveTEP to receive the packet.
+				//discard the packet
+#ifdef DebugSpaceWireREngine
+				cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() TEP is not found." << endl;
+#endif
+				nDiscardedReceivedPackets++;
+				delete packet;
+			}
+		} else if (!packet->isAckPacket()) { //command/data packet
 #ifdef DebugSpaceWireREngine
 			cout << "SpaceWireREngine::processReceivedSpaceWireRPacket() is Command/Data packet." << endl;
 #endif

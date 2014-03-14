@@ -160,7 +160,7 @@ protected:
 		slidingWindowFrom = 0;
 	}
 
-private:
+protected:
 	void prepareSpaceWireRPacketInstances() {
 		for (size_t i = 0; i < this->MaxOfSlidingWindow; i++) {
 			SpaceWireRPacket* packet = new SpaceWireRPacket;
@@ -858,6 +858,7 @@ private:
 protected:
 	SpaceWireRPacket* flowControlPacket;
 	size_t nTransmittedFlowControlPackets=0;
+	size_t nReceivedFlowControlPackets=0;
 
 public:
 	void enableFlowControl() {

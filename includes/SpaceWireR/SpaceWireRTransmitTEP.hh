@@ -54,6 +54,7 @@ public:
 		this->sourceSpaceWireAddress = sourceSpaceWireAddress;
 		this->maximumSegmentSize = DefaultMaximumSegmentSize;
 		this->initializeCounters();
+		this->prepareSpaceWireRPacketInstances();
 		this->start();
 	}
 
@@ -71,11 +72,6 @@ public:
 	static const double WaitDurationInMsForEnabledLoop = 100; //ms
 	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
 
-private:
-	uint8_t sourceLogicalAddress;
-	std::vector<uint8_t> sourceSpaceWireAddress;
-	uint8_t destinationLogicalAddress;
-	std::vector<uint8_t> destinationSpaceWireAddress;
 
 private:
 	bool openCommandAcknowledged;
@@ -189,6 +185,9 @@ private:
 				delete packet;
 				continue;
 			} else if (packet->isFlowControlPacket()) {
+#ifdef DebugSpaceWireRTransmitTEP
+				cout << "SpaceWireRTransmitTEP::consumeReceivedPackets() FlowControl packet received." << endl;
+#endif
 				processFlowControlPacket(packet);
 				delete packet;
 				continue;
@@ -273,13 +272,19 @@ private:
 #ifdef DebugSpaceWireRTransmitTEP
 		cout << "SpaceWireRTransmitTEP::processFlowControlPacket() entered." << endl;
 #endif
+		nReceivedFlowControlPackets++;
 
 		updateMaximumAcceptableSequenceNumber(packet);
-
+		/*flowControlPacket->setDestinationLogicalAddress(packet->getSourceLogicalAddress());
+		std::vector<uint8_t> tmp=packet->getSourceAddressPrefix();
+		flowControlPacket->setSourceLogicalAddress(this->get);
+		flowControlPacket->setDestinationSpaceWireAddress(tmp);
 		flowControlPacket->setFlowControlPacketFlag();
 		flowControlPacket->clearPayload();
 		flowControlPacket->setSequenceFlags(packet->getSequenceFlags());
-		flowControlPacket->setSequenceNumber(packet->getSequenceNumber());
+		flowControlPacket->setSequenceNumber(packet->getSequenceNumber());*/
+		flowControlPacket->constructAckForPacket(packet);
+
 		try {
 #ifdef DebugSpaceWireRTransmitTEP
 			cout << "SpaceWireRTransmitTEP::processFlowControlPacket() replying FlowControlAck for sequence number = "
@@ -703,6 +708,7 @@ public:
 		ss << "nTransmittedHeartBeatAck   : " << nTransmittedHeartBeatAckPackets << endl;
 		ss << "nTransmittedHeartBeat      : " << nTransmittedHeartBeatPackets << endl;
 		ss << "nReceivedHeartBeatAck      : " << nReceivedHeartBeatAckPackets << endl;
+		ss << "nReceivedFlowControlPackets: " << nReceivedFlowControlPackets << endl;
 		ss << "---------------------------------------------" << endl;
 		return ss.str();
 	}

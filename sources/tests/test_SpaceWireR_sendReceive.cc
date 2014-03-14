@@ -9,31 +9,34 @@
 #include "CxxUtilities/CxxUtilities.hh"
 
 //parameters for SpaceCube2 test
-/*
- const uint16_t channelID = 0x6342;
- const size_t SendSize = 10240;
- const size_t SegmentSize = 1024;
- const size_t SlidingWindowSize = 20;
- const uint8_t destinationLAForTransmitTEP = 35;
- const uint8_t sourceLAForTransmitTEP = 34;
- const double waitDurationBetweenEverySend = 3000;
- const double transmitHeartBeatTimerConstant = 1000;
- const double receiveHeartBeatTimerConstant = 0;
- */
-
-//parameters for small-packet test
 const uint16_t channelID = 0x6342;
-const size_t SendSize = 32;
-const size_t SegmentSize = 32;
-const size_t SlidingWindowSize = 3;
+const size_t SendSize = 10240;
+const size_t SegmentSize = 256;
+const size_t SlidingWindowSize = 20;
 const uint8_t destinationLAForTransmitTEP = 35;
 const uint8_t sourceLAForTransmitTEP = 34;
-const double waitDurationBetweenEverySend = 10;
+const double waitDurationBetweenEverySend = 0;
 const double transmitHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
 const double receiveHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
-const bool transmitTEP_doNotRespondToReceivedHeartBeatPacket = false;
+const bool transmitTEP_doNotRespondToReceivedHeartBeatPacket = true;
 const bool receiveTEP_doNotRespondToReceivedHeartBeatPacket = false;
-const bool enableFlowControl = false;
+const bool enableFlowControl = true;
+
+//parameters for small-packet test
+/*
+ const uint16_t channelID = 0x6342;
+ const size_t SendSize = 32;
+ const size_t SegmentSize = 32;
+ const size_t SlidingWindowSize = 3;
+ const uint8_t destinationLAForTransmitTEP = 35;
+ const uint8_t sourceLAForTransmitTEP = 34;
+ const double waitDurationBetweenEverySend = 10;
+ const double transmitHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
+ const double receiveHeartBeatTimerConstant = 0; // if not 0, HeartBeat will be enabled
+ const bool transmitTEP_doNotRespondToReceivedHeartBeatPacket = false;
+ const bool receiveTEP_doNotRespondToReceivedHeartBeatPacket = false;
+ const bool enableFlowControl = false;
+ */
 
 //parameters for higher speed test
 /*const uint16_t channelID = 0x6342;
@@ -64,17 +67,19 @@ std::vector<uint8_t> sourcePathAddress;
 
 void initializeParameters() {
 	//ReceiveTEP on SpaceCube2
+
+	destinationPathAddress.push_back(1);
+	destinationPathAddress.push_back(16);
+	sourcePathAddress.push_back(1);
+	sourcePathAddress.push_back(6);
+
+	//SpaceWire-to-GigabitEther 3-4 loopback
 	/*
-	 destinationPathAddress.push_back(1);
-	 destinationPathAddress.push_back(16);
-	 sourcePathAddress.push_back(1);
+	 destinationPathAddress.push_back(4);
+	 destinationPathAddress.push_back(7);
+	 sourcePathAddress.push_back(3);
 	 sourcePathAddress.push_back(6);
 	 */
-	//SpaceWire-to-GigabitEther 3-4 loopback
-	destinationPathAddress.push_back(4);
-	destinationPathAddress.push_back(7);
-	sourcePathAddress.push_back(3);
-	sourcePathAddress.push_back(6);
 
 }
 
@@ -169,7 +174,7 @@ public:
 			tep->doNotRespondToReceivedHeartBeatPacket();
 		}
 
-		if(enableFlowControl){
+		if (enableFlowControl) {
 			tep->enableFlowControl();
 		}
 
@@ -187,8 +192,10 @@ public:
 
 		sendloop: try {
 			while (!stopped) {
-				c.wait(waitDurationBetweenEverySend);
-				tep->send(&data, 5000);
+				if (waitDurationBetweenEverySend != 0) {
+					c.wait(waitDurationBetweenEverySend);
+				}
+				tep->send(&data, 50000);
 				cout << data.size() << " ";
 			}
 		} catch (SpaceWireRTEPException& e) {
@@ -283,7 +290,7 @@ public:
 			tep->doNotRespondToReceivedHeartBeatPacket();
 		}
 
-		if(enableFlowControl){
+		if (enableFlowControl) {
 			tep->enableFlowControl();
 		}
 
