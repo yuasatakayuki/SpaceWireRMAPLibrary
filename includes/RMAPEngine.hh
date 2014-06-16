@@ -214,7 +214,7 @@ private:
 
 public:
 	static const size_t MaximumTIDNumber = 65536;
-	static const double DefaultReceiveTimeoutDurationInMicroSec = 10000; //1s
+	static constexpr double DefaultReceiveTimeoutDurationInMicroSec = 10000; //1s
 
 private:
 	SpaceWireIF* spwif;
@@ -393,8 +393,7 @@ private:
 				//if not found, increment error counter
 				nErrorneousReplyPackets++;
 				discardedRMAPReplyPackets.push_back(packet);
-				std::cerr << "RMAP Reply packet was received but no corresponding transaction was found." << std::endl;
-				std::cerr << "RMAPEngine tries to recover normal operation, but may fail continuously." << std::endl;
+				std::cerr << "RMAP Reply packet (dataLength="<< packet->getLength() <<  "bytes) was received but no corresponding transaction was found. The size of discardedRMAPReplyPackets = " << discardedRMAPReplyPackets.size() << std::endl;
 				return;
 			}
 			//register reply packet to the resolved transaction

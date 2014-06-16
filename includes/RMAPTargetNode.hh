@@ -322,7 +322,7 @@ public:
 	}
 
 public:
-	void setReplyAddress(std::vector<uint8_t>& replyAddress) {
+	void setReplyAddress(std::vector<uint8_t> replyAddress) {
 		this->replyAddress = replyAddress;
 	}
 
@@ -332,7 +332,7 @@ public:
 	}
 
 public:
-	void setTargetSpaceWireAddress(std::vector<uint8_t>& targetSpaceWireAddress) {
+	void setTargetSpaceWireAddress(std::vector<uint8_t> targetSpaceWireAddress) {
 		this->targetSpaceWireAddress = targetSpaceWireAddress;
 	}
 

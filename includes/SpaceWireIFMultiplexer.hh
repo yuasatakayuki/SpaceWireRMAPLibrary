@@ -68,7 +68,7 @@ private:
 	SpaceWireIF* defaultSpaceWireIF;
 
 public:
-	static const double WaitDurationInMilliSecForReceiveIFSearch=10;//ms
+	static constexpr double WaitDurationInMilliSecForReceiveIFSearch=10;//ms
 
 public:
 	int nReceivedPackets;

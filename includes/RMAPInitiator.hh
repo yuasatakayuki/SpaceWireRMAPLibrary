@@ -742,7 +742,7 @@ public:
 	}
 
 public:
-	static const double DefaultTimeoutDuration = 1000.0;
+	static constexpr double DefaultTimeoutDuration = 1000.0;
 
 public:
 	bool getReplyMode() const {

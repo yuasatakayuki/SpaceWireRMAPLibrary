@@ -77,7 +77,7 @@ public:
 	};
 
 public:
-	static const double DefaultTimeoutDuration = 1000;
+	static constexpr double DefaultTimeoutDuration = 1000;
 
 public:
 	RMAPPacket* getCommandPacket() const {

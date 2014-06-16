@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #ifndef SPACEWIRESSDTPMODULE_HH_
 #define SPACEWIRESSDTPMODULE_HH_
 
@@ -181,9 +181,11 @@ public:
 		sendmutex.lock();
 		size_t size = data->size();
 		if (eopType == SpaceWireEOPMarker::EOP) {
-			sheader[0] = 0x00;
-		} else {
-			sheader[0] = 0x01;
+			sheader[0] = DataFlag_Complete_EOP;
+		} else if (eopType == SpaceWireEOPMarker::EEP) {
+			sheader[0] = DataFlag_Complete_EEP;
+		} else if (eopType == SpaceWireEOPMarker::Continued) {
+			sheader[0] = DataFlag_Flagmented;
 		}
 		sheader[1] = 0x00;
 		for (uint32_t i = 11; i > 1; i--) {
@@ -210,9 +212,11 @@ public:
 	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
 		if (eopType == SpaceWireEOPMarker::EOP) {
-			sheader[0] = 0x00;
-		} else {
-			sheader[0] = 0x01;
+			sheader[0] = DataFlag_Complete_EOP;
+		} else if (eopType == SpaceWireEOPMarker::EEP) {
+			sheader[0] = DataFlag_Complete_EEP;
+		} else if (eopType == SpaceWireEOPMarker::Continued) {
+			sheader[0] = DataFlag_Flagmented;
 		}
 		sheader[1] = 0x00;
 		size_t asize = length;
@@ -415,20 +419,20 @@ public:
 			receivemutex.unlock();
 			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
 		}/* catch (...) {
-			using namespace std;
-			cout << "#SpaceWireSSDTPModule::receive() caught an unexpected exception" << endl;
-			cout << "Receive Header: ";
-			for (size_t i = 0; i < 12; i++) {
-				cout << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) rheader[i] << " ";
-			}
-			cout << endl;
-			cout << "size=" << size << endl;
-			cout << "hsize=" << hsize << endl;
-			cout << "flagment_size=" << flagment_size << endl;
-			cout << "received_size=" << received_size << endl;
-			receivemutex.unlock();
-			throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
-		}*/
+		 using namespace std;
+		 cout << "#SpaceWireSSDTPModule::receive() caught an unexpected exception" << endl;
+		 cout << "Receive Header: ";
+		 for (size_t i = 0; i < 12; i++) {
+		 cout << "0x" << hex << right << setw(2) << setfill('0') << (uint32_t) rheader[i] << " ";
+		 }
+		 cout << endl;
+		 cout << "size=" << size << endl;
+		 cout << "hsize=" << hsize << endl;
+		 cout << "flagment_size=" << flagment_size << endl;
+		 cout << "received_size=" << received_size << endl;
+		 receivemutex.unlock();
+		 throw SpaceWireSSDTPException(SpaceWireSSDTPException::TCPSocketError);
+		 }*/
 	}
 
 public:

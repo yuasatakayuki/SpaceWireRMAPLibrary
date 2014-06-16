@@ -711,7 +711,7 @@ public:
 
 public:
 	uint8_t* getDataBufferAsArrayPointer() {
-		return (uint8_t*) (data[0]);
+		return (data.size()!=0)? (uint8_t*) (&data[0]):NULL;
 	}
 
 public:
