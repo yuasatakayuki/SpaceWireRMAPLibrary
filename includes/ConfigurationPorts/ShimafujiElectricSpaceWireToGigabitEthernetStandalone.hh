@@ -42,7 +42,7 @@ public:
 	static const size_t NumberOfExternalPorts = 4;
 	static const size_t NumberOfInternalPorts = 2;
 	static const size_t MaximumPortNumber = 9;
-	static const double MaximumLinkFrequency = 200;
+	static constexpr double MaximumLinkFrequency = 200;
 
 private:
 	RMAPTargetNode* routerConfigurationPort;
