@@ -12,7 +12,7 @@ private:
 	SpaceWireIF* spwif;
 
 public:
-	const static double TimecodeFrequency = 64; //Hz
+	static constexpr double TimecodeFrequency = 64; //Hz
 
 public:
 	TimecodeThread(SpaceWireIF* spwif) {
