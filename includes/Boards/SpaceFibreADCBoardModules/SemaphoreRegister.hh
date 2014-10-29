@@ -25,11 +25,11 @@ public:
 	 * @param rmaphandler instance of RMAPHandler which is used for this class to communicate SpaceWire ADC Box
 	 * @param address an address of which semaphore this instance should handle
 	 */
-	SemaphoreRegister(RMAPHandler* handler, uint32_t address) {
+	SemaphoreRegister(RMAPHandler* handler, RMAPTargetNode* adcboxRMAPNode, uint32_t address) {
 		using namespace std;
 		this->rmaphandler = handler;
 		this->address = address;
-		adcboxRMAPNode = handler->getRMAPTargetNode("ADCBox");
+		this->adcboxRMAPNode = adcboxRMAPNode;
 		if (Debug::semaphore()) {
 			cout << "READING..." << endl;
 			std::vector<uint8_t> data;
@@ -56,10 +56,10 @@ public:
 
 		bool flag = true;
 		do {
-			vector<uint8_t> writeData = {0xff,0xff};
+			vector<uint8_t> writeData = { 0xff, 0xff };
 			rmaphandler->write(adcboxRMAPNode, address, &writeData[0], 2);
 
-			vector<uint8_t> readData = {0x00, 0x00};
+			vector<uint8_t> readData = { 0x00, 0x00 };
 			rmaphandler->read(adcboxRMAPNode, address, 2, &readData[0]);
 			if (readData[0] != 0x00) {
 				flag = false;
@@ -78,7 +78,7 @@ public:
 		if (Debug::semaphore()) {
 			cout << " release semaphore(" << hex << setw(4) << setfill('0') << address << ")...";
 		}
-		vector<uint8_t> writeData={0x00, 0x00};
+		vector<uint8_t> writeData = { 0x00, 0x00 };
 		rmaphandler->write(adcboxRMAPNode, address, &writeData[0], 2);
 
 		if (Debug::semaphore()) {

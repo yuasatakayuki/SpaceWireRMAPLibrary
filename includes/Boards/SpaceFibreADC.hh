@@ -182,7 +182,7 @@ public:
 		std::vector<SpaceFibreADC::Event*> events;
 		std::vector<uint8_t> data = consumerManager->getEventData();
 		if (data.size() != 0) {
-			eventDecoder->decodeEvent(data);
+			eventDecoder->decodeEvent(&data);
 			events = eventDecoder->getDecodedEvents();
 		}
 		return events;
@@ -192,16 +192,16 @@ public:
 	/** Frees an event instance so that buffer area can be reused in the following commands.
 	 * @param event event instance to be freed
 	 */
-	void freeEvent(SpaceFibreADC::Event* event){
-		eventDecoder->freeEvet(event);
+	void freeEvent(SpaceFibreADC::Event* event) {
+		eventDecoder->freeEvent(event);
 	}
 
 public:
 	/** Frees event instances so that buffer area can be reused in the following commands.
 	 * @param events a vector of event instance to be freed
 	 */
-	void freeEvents(std::vector<SpaceFibreADC::Event*>& events){
-		for(auto event : events){
+	void freeEvents(std::vector<SpaceFibreADC::Event*>& events) {
+		for (auto event : events) {
 			eventDecoder->freeEvent(event);
 		}
 	}
@@ -385,6 +385,17 @@ public:
 	 */
 	void stopAcquisition() {
 		channelManger->stopAcquisition();
+	}
+
+public:
+	void sendCPUTrigger(size_t chNumber) {
+		if (chNumber < NumberOfChannels) {
+			channelModules[chNumber]->sendCPUTrigger();
+		} else {
+			using namespace std;
+			cerr << "Error in sendCPUTrigger(): invalid channel number " << chNumber << endl;
+			throw SpaceFibreADCException::InvalidChannelNumber;
+		}
 	}
 
 public:

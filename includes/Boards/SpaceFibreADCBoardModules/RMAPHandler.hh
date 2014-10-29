@@ -77,6 +77,7 @@ public:
 			spwif->open();
 			_isConnectedToSpWGbE = true;
 		} catch (...) {
+			cout << "RMAPHandler::connectoToSpaceWireToGigabitEther() connection failed" << endl;
 			_isConnectedToSpWGbE = false;
 			return false;
 		}

@@ -90,6 +90,7 @@ public:
 	 * @param ipAddress IP Address of the SpaceFibre ADC Board
 	 */
 	ConsumerManagerSocketFIFO(std::string ipAddress, RMAPHandler* rmapHandler, RMAPTargetNode* adcRMAPTargetNode) {
+		this->ipAddress = ipAddress;
 		this->rmapHandler = rmapHandler;
 		this->adcRMAPTargetNode = adcRMAPTargetNode;
 

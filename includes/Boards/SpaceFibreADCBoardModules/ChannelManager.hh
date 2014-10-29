@@ -49,7 +49,8 @@ public:
 	ChannelManager(RMAPHandler* handler, RMAPTargetNode* adcRMAPTargetNode) {
 		this->rmapHandler = handler;
 		this->adcRMAPTargetNode = adcRMAPTargetNode;
-		startStopSemaphore = new SemaphoreRegister(this->rmapHandler, ChannelManager::AddressOf_StartStopSemaphoreRegister);
+		startStopSemaphore = new SemaphoreRegister(this->rmapHandler, this->adcRMAPTargetNode,
+				ChannelManager::AddressOf_StartStopSemaphoreRegister);
 	}
 
 public:

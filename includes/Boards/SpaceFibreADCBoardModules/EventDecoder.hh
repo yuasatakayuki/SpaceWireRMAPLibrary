@@ -15,7 +15,7 @@
 /** Decodes event data received from the SpaceFibre ADC Board.
  * Decoded event instances will be stored in a queue.
  */
-class EventDecorder {
+class EventDecoder {
 private:
 	struct RawEvent {
 		uint16_t flag_FFF0;
@@ -62,13 +62,13 @@ private:
 public:
 	/** Constructor.
 	 */
-	EventDecorder() {
+	EventDecoder() {
 		state = EventDecoderState::state_flag_FFF0;
 		rawEvent.waveform = new uint16_t[SpaceFibreADC::MaxWaveformLength];
 	}
 
 public:
-	virtual ~EventDecorder() {
+	virtual ~EventDecoder() {
 		while (eventInstanceResavoir.size() != 0) {
 			SpaceFibreADC::Event* event = eventInstanceResavoir.top();
 			eventInstanceResavoir.pop();

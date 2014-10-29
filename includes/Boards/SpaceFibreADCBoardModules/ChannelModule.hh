@@ -127,6 +127,19 @@ public:
 	}
 
 public:
+	void sendCPUTrigger() {
+		using namespace std;
+		if (Debug::channelmodule()) {
+			cout << "channelmodule(" << chNumber << ") sending CPU trigger...";
+		}
+		vector<uint8_t> writeData = { 0xff, 0xff };
+		rmapHandler->write(adcRMAPTargetNode, AddressOf_CPUTriggerRegister, &writeData[0], 2);
+		if (Debug::channelmodule()) {
+			cout << "done" << endl;
+		}
+	}
+
+public:
 	/** Sets number of samples register.
 	 * Waveforms are sampled according to this number.
 	 * @param nSamples number of adc samples per one waveform
