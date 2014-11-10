@@ -66,15 +66,16 @@ public:
 	}
 
 public:
-	void setRegister(uint32_t address, std::vector<uint8_t> data) {
-		rmapHandler->write(adcRMAPTargetNode, address, &data[0], data.size());
+	void setRegister(uint32_t address, uint16_t data) {
+		std::vector<uint8_t> writeData = { static_cast<uint8_t>(data / 0x100), static_cast<uint8_t>(data % 0x100) };
+		rmapHandler->write(adcRMAPTargetNode, address, &writeData[0], writeData.size());
 	}
 
 public:
-	uint32_t getRegister(uint32_t address) {
+	uint16_t getRegister(uint32_t address) {
 		std::vector<uint8_t> readData(2);
 		rmapHandler->read(adcRMAPTargetNode, address, 2, &readData[0]);
-		return (uint32_t) (readData[1] * 0x100 + readData[0]);
+		return (uint16_t) (readData[0] * 0x100 + readData[1]);
 	}
 
 public:
@@ -89,17 +90,15 @@ public:
 	 * @param triggerMode trigger mode number
 	 */
 	void setTriggerMode(SpaceFibreADC::TriggerMode triggerMode) {
-		uint32_t triggerModeInteger = static_cast<uint32_t>(triggerMode);
+		uint16_t triggerModeInteger = static_cast<uint16_t>(triggerMode);
 		using namespace std;
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting TriggerMode...";
 		}
-		vector<uint8_t> writeData = { static_cast<uint8_t>(triggerModeInteger), 0x00 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_TriggerModeRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_TriggerModeRegister, triggerModeInteger);
 		if (Debug::channelmodule()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_TriggerModeRegister, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[0]) << dec << ")" << endl;
+			uint16_t triggerModeRead = this->getRegister(AddressOf_TriggerModeRegister);
+			cout << "done(" << hex << setw(4) << triggerModeRead << dec << ")" << endl;
 		}
 	}
 
@@ -112,17 +111,15 @@ public:
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting TriggerBusMask...";
 		}
-		std::bitset<32> maskBitPatter;
+		std::bitset<SpaceFibreADC::NumberOfChannels> maskBitPatter;
 		for (size_t i = 0; i < enabledChannels.size(); i++) {
 			maskBitPatter[enabledChannels[i]] = 1;
 		}
-		uint8_t mask = maskBitPatter.to_ulong();
-		vector<uint8_t> writeData = { static_cast<uint8_t>(mask), 0x00 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_TriggerBusMaskRegister, &writeData[0], 2);
+		uint16_t mask = maskBitPatter.to_ulong();
+		this->setRegister(AddressOf_TriggerBusMaskRegister, mask);
 		if (Debug::channelmodule()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_TriggerBusMaskRegister, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[0]) << dec << ")" << endl;
+			uint16_t maskRead = this->getRegister(AddressOf_TriggerBusMaskRegister);
+			cout << "done(" << hex << setw(4) << maskRead << dec << ")" << endl;
 		}
 	}
 
@@ -132,8 +129,7 @@ public:
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") sending CPU trigger...";
 		}
-		vector<uint8_t> writeData = { 0xff, 0xff };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_CPUTriggerRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_CPUTriggerRegister, 0xFFFF);
 		if (Debug::channelmodule()) {
 			cout << "done" << endl;
 		}
@@ -144,17 +140,15 @@ public:
 	 * Waveforms are sampled according to this number.
 	 * @param nSamples number of adc samples per one waveform
 	 */
-	void setNumberOfSamples(uint32_t nSamples) {
+	void setNumberOfSamples(uint16_t nSamples) {
 		using namespace std;
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting NumberOfSamples...";
 		}
-		vector<uint8_t> writeData = { static_cast<uint8_t>(nSamples % 0x100), static_cast<uint8_t>(nSamples / 0x100) };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_NumberOfSamplesRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_NumberOfSamplesRegister, nSamples);
 		if (Debug::channelmodule()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_NumberOfSamplesRegister, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[0]) << dec << ")" << endl;
+			uint16_t nSamplesRead = this->getRegister(AddressOf_NumberOfSamplesRegister);
+			cout << "done(" << hex << setw(4) << nSamplesRead << dec << ")" << endl;
 		}
 	}
 
@@ -162,17 +156,15 @@ public:
 	/** Sets Leading Trigger Threshold.
 	 * @param threshold an adc value for leading trigger threshold
 	 */
-	void setStartingThreshold(uint32_t threshold) {
+	void setStartingThreshold(uint16_t threshold) {
 		using namespace std;
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting LeadingTriggerThreshold...";
 		}
-		vector<uint8_t> writeData = { static_cast<uint8_t>(threshold % 0x100), static_cast<uint8_t>(threshold / 0x100) };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_ThresholdStartingRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_ThresholdStartingRegister, threshold);
 		if (Debug::channelmodule()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_ThresholdStartingRegister, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[1] * 0x100 + readData[0]) << dec << ")" << endl;
+			uint16_t thresholdRead = this->getRegister(AddressOf_ThresholdStartingRegister);
+			cout << "done(" << hex << setw(4) << thresholdRead << dec << ")" << endl;
 		}
 	}
 
@@ -180,17 +172,15 @@ public:
 	/** Sets Trailing Trigger Threshold.
 	 * @param threshold an adc value for trailing trigger threshold
 	 */
-	void setClosingThreshold(uint32_t threshold) {
+	void setClosingThreshold(uint16_t threshold) {
 		using namespace std;
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting TrailingTriggerThreshold...";
 		}
-		vector<uint8_t> writeData = { static_cast<uint8_t>(threshold % 0x100), static_cast<uint8_t>(threshold / 0x100) };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_ThresholdClosingRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_ThresholdClosingRegister, threshold);
 		if (Debug::channelmodule()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_ThresholdClosingRegister, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[1] * 0x100 + readData[0]) << dec << ")" << endl;
+			uint16_t thresholdRead = this->getRegister(AddressOf_ThresholdClosingRegister);
+			cout << "done(" << hex << setw(4) << thresholdRead << dec << ")" << endl;
 		}
 	}
 
@@ -208,15 +198,11 @@ public:
 				cout << "off...";
 			}
 		}
-		vector<uint8_t> writeData;
 		if (trueifon) {
-			writeData.push_back(0x00);
-			writeData.push_back(0x00);
+			this->setRegister(AddressOf_AdcPowerDownModeRegister, 0x0000);
 		} else {
-			writeData.push_back(0xff);
-			writeData.push_back(0xff);
+			this->setRegister(AddressOf_AdcPowerDownModeRegister, 0xFFFF);
 		}
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_AdcPowerDownModeRegister, &writeData[0], 2);
 		if (Debug::channelmodule()) {
 			cout << "done" << endl;
 		}
@@ -228,14 +214,12 @@ public:
 	 * before of the trigger timing.
 	 * @param depthOfDelay number of samples retarded
 	 */
-	void setDepthOfDelay(uint32_t depthOfDelay) {
+	void setDepthOfDelay(uint16_t depthOfDelay) {
 		using namespace std;
 		if (Debug::channelmodule()) {
 			cout << "channelmodule(" << chNumber << ") setting Depth Of Delay...";
 		}
-		vector<uint8_t> writeData =
-				{ static_cast<uint8_t>(depthOfDelay % 0x100), static_cast<uint8_t>(depthOfDelay / 0x100) };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_DepthOfDelayRegister, &writeData[0], 2);
+		this->setRegister(AddressOf_DepthOfDelayRegister, depthOfDelay);
 		if (Debug::channelmodule()) {
 			cout << "done" << endl;
 		}
@@ -246,9 +230,9 @@ public:
 	 * @return elapsed livetime in 10ms unit
 	 */
 	uint32_t getLivetime() {
-		std::vector<uint8_t> readData(4);
-		rmapHandler->read(adcRMAPTargetNode, AddressOf_LivetimeRegisterL, 4, &readData[0]);
-		uint32_t livetime = readData[3] * 0x1000000 + readData[2] * 0x10000 + readData[1] * 0x100 + readData[0];
+		uint16_t livetimeL = this->getRegister(AddressOf_LivetimeRegisterL);
+		uint16_t livetimeH = this->getRegister(AddressOf_LivetimeRegisterH);
+		uint32_t livetime = (((uint32_t) livetimeH) << 16) + livetimeL;
 		return livetime;
 	}
 
@@ -262,8 +246,7 @@ public:
 			cout << "channelmodule(" << chNumber << ") current ADC value:0x";
 		}
 		std::vector<uint8_t> readData(2);
-		rmapHandler->read(adcRMAPTargetNode, AddressOf_CurrentAdcDataRegister, 2, &readData[0]);
-		uint32_t adcvalue = (uint32_t) (readData[1] * 0x100 + readData[0]);
+		uint16_t adcvalue = this->getRegister(AddressOf_CurrentAdcDataRegister);
 		if (Debug::channelmodule()) {
 			cout << hex << setw(4) << setfill('0') << adcvalue << dec << endl;
 		}

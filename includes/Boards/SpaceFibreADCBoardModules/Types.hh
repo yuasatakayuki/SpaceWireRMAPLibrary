@@ -37,13 +37,17 @@ struct HouseKeepingData {
 struct Event {
 	uint8_t ch;
 	uint64_t timeTag;
-	uint16_t triggerCount;
+	uint32_t triggerCount;
 	uint32_t livetime;
 	uint16_t phaMax;
-	uint8_t nSamples;
+	uint16_t nSamples;
 	uint16_t* waveform;
 };
 
+enum class ADCClockFrequency
+	: uint16_t {
+		ADCClock200MHz = 20000, ADCClock100MHz = 10000, ADCClock50MHz = 5000
+};
 }
 
 #endif /* SPACEFIBREADC_TYPES_HH_ */

@@ -27,6 +27,7 @@ private:
 	SpaceWireIFOverTCP* spwif;
 	RMAPEngine* rmapEngine;
 	RMAPInitiator* rmapInitiator;
+	RMAPTargetNode* adcRMAPTargetNode;
 
 	double timeOutDuration;
 	int maxNTrials;
@@ -37,11 +38,13 @@ public:
 	static constexpr double DefaultTimeOut = 1000; //ms
 
 public:
-	RMAPHandler(std::string ipAddress, uint32_t tcpPortNumber = 10030, std::vector<RMAPTargetNode*> rmapTargetNodes={}) {
+	RMAPHandler(std::string ipAddress, uint32_t tcpPortNumber = 10030,
+			std::vector<RMAPTargetNode*> rmapTargetNodes = { }) {
+		using namespace std;
 		this->ipAddress = ipAddress;
 		this->tcpPortNumber = tcpPortNumber;
 		//this->xmlFileName = "";
-		this->timeOutDuration = 100.0;
+		this->timeOutDuration = 1000.0;
 		this->maxNTrials = 10;
 		this->useDraftECRC = false;
 		this->spwif = NULL;
@@ -50,8 +53,14 @@ public:
 		this->setTimeOutDuration(DefaultTimeOut);
 
 		//add RMAPTargetNodes to DB
-		for(auto& rmapTargetNode : rmapTargetNodes){
+		for (auto& rmapTargetNode : rmapTargetNodes) {
 			rmapTargetDB.addRMAPTargetNode(rmapTargetNode);
+		}
+
+		adcRMAPTargetNode = rmapTargetDB.getRMAPTargetNode("ADCBox");
+		if (adcRMAPTargetNode == NULL) {
+			cerr << "RMAPHandler::RMAPHandler(): ADCBox RMAP Target Node not found" << endl;
+			exit(-1);
 		}
 	}
 
@@ -105,10 +114,10 @@ public:
 	void disconnectSpWGbE() {
 		_isConnectedToSpWGbE = false;
 
-		delete rmapInitiator;
+		spwif->close();
 		rmapEngine->stop();
 		delete rmapEngine;
-		spwif->close();
+		delete rmapInitiator;
 		delete spwif;
 
 		spwif = NULL;
@@ -127,10 +136,10 @@ public:
 	}
 
 	/*
-public:
-	std::string getXMLFilename() {
-		return xmlFileName;
-	}*/
+	 public:
+	 std::string getXMLFilename() {
+	 return xmlFileName;
+	 }*/
 
 public:
 	RMAPInitiator* getRMAPInitiator() {
@@ -146,21 +155,21 @@ public:
 		}
 	}
 
-/*
-public:
-	void loadRMAPTargetNodesFromXMLFile(std::string XMLFileName) {
-		xmlFileName = XMLFileName;
-		if (xmlFileName == "") {
-			throw RMAPHandlerException(RMAPHandlerException::NoSuchFile);
-		}
+	/*
+	 public:
+	 void loadRMAPTargetNodesFromXMLFile(std::string XMLFileName) {
+	 xmlFileName = XMLFileName;
+	 if (xmlFileName == "") {
+	 throw RMAPHandlerException(RMAPHandlerException::NoSuchFile);
+	 }
 
-		try {
-			rmapTargetDB.loadRMAPTargetNodesFromXMLFile(xmlFileName);
-		} catch (...) {
-			throw RMAPHandlerException(RMAPHandlerException::TargetLoadFailed);
-		}
-	}
-*/
+	 try {
+	 rmapTargetDB.loadRMAPTargetNodesFromXMLFile(xmlFileName);
+	 } catch (...) {
+	 throw RMAPHandlerException(RMAPHandlerException::TargetLoadFailed);
+	 }
+	 }
+	 */
 public:
 	void setTimeOutDuration(double msec) {
 		timeOutDuration = msec;
@@ -198,6 +207,7 @@ public:
 		for (size_t i = 0; i < maxNTrials; i++) {
 			try {
 				rmapInitiator->read(rmapTargetNode, memoryAddress, length, buffer, timeOutDuration);
+				spwif->emitTimecode(0x00, 0x00);
 				break;
 			} catch (RMAPInitiatorException& e) {
 				std::cerr << "Read timed out (address=" << "0x" << hex << right << setw(8) << setfill('0')
@@ -223,6 +233,7 @@ public:
 		for (size_t i = 0; i < maxNTrials; i++) {
 			try {
 				rmapInitiator->read(rmapTargetNode, memoryObjectID, buffer, timeOutDuration);
+				spwif->emitTimecode(0x00, 0x00);
 				break;
 			} catch (RMAPInitiatorException& e) {
 				std::cerr << "Time out; trying again..." << std::endl;
@@ -272,8 +283,10 @@ public:
 			try {
 				if (length != 0) {
 					rmapInitiator->write(rmapTargetNode, memoryAddress, data, length, timeOutDuration);
+					spwif->emitTimecode(0x00, 0x00);
 				} else {
 					rmapInitiator->write(rmapTargetNode, memoryAddress, (uint8_t*) NULL, (uint32_t) 0, timeOutDuration);
+					spwif->emitTimecode(0x00, 0x00);
 				}
 				break;
 			} catch (RMAPInitiatorException& e) {
@@ -299,8 +312,10 @@ public:
 			try {
 				if (1) {
 					rmapInitiator->write(rmapTargetNode, memoryObjectID, data, timeOutDuration);
+					spwif->emitTimecode(0x00, 0x00);
 				} else {
 					rmapInitiator->write(rmapTargetNode, memoryObjectID, (uint8_t*) NULL, timeOutDuration);
+					spwif->emitTimecode(0x00, 0x00);
 				}
 			} catch (RMAPInitiatorException& e) {
 				std::cerr << "Time out; trying again..." << std::endl;
@@ -327,12 +342,25 @@ public:
 		return targetNode;
 	}
 
-	/*
 public:
-	RMAPMemoryObject* getMemoryObject(std::string rmapTargetNodeID, std::string memoryObjectID) {
-		RMAPTargetNode* targetNode = getRMAPTargetNode(rmapTargetNodeID);
-		return targetNode->getMemoryObject(memoryObjectID);
-	}*/
+	void setRegister(uint32_t address, uint16_t data) {
+		uint8_t writeData[2] = { static_cast<uint8_t>(data / 0x100), static_cast<uint8_t>(data % 0x100) };
+		this->write(adcRMAPTargetNode, address, writeData, 2);
+	}
+
+public:
+	uint16_t getRegister(uint32_t address) {
+		uint8_t readData[2];
+		this->read(adcRMAPTargetNode, address, 2, readData);
+		return (uint16_t) (readData[0] * 0x100 + readData[1]);
+	}
+
+	/*
+	 public:
+	 RMAPMemoryObject* getMemoryObject(std::string rmapTargetNodeID, std::string memoryObjectID) {
+	 RMAPTargetNode* targetNode = getRMAPTargetNode(rmapTargetNodeID);
+	 return targetNode->getMemoryObject(memoryObjectID);
+	 }*/
 
 public:
 	RMAPEngine* getRMAPEngine() {

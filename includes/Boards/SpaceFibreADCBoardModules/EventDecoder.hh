@@ -25,9 +25,9 @@ private:
 		uint16_t timeH;
 		uint16_t timeM;
 		uint16_t timeL;
+		uint16_t triggerCountH;
+		uint16_t triggerCountL;
 		uint16_t baseline;
-		uint16_t risetimeLDTime;
-		uint16_t risetimeUDTime;
 		uint16_t flag_FFF1;
 		uint16_t* waveform;
 		uint16_t flag_FFF2;
@@ -43,9 +43,9 @@ private:
 		state_timeH,
 		state_timeM,
 		state_timeL,
+		state_triggerCountH,
+		state_triggerCountL,
 		state_baseline,
-		state_risetimeLDTime,
-		state_risetimeUDTime,
 		state_flag_FFF1,
 		state_pha_list,
 		//state_flag_FFF2, not used in the switch statement
@@ -130,16 +130,18 @@ public:
 				break;
 			case EventDecoderState::state_timeL:
 				rawEvent.timeL = readDataUint16Array[i];
+				state = EventDecoderState::state_triggerCountH;
+				break;
+			case EventDecoderState::state_triggerCountH:
+				rawEvent.triggerCountH = readDataUint16Array[i];
+				state = EventDecoderState::state_triggerCountL;
+				break;
+			case EventDecoderState::state_triggerCountL:
+				rawEvent.triggerCountL = readDataUint16Array[i];
 				state = EventDecoderState::state_baseline;
 				break;
 			case EventDecoderState::state_baseline:
 				rawEvent.baseline = readDataUint16Array[i];
-				state = EventDecoderState::state_risetimeLDTime;
-				break;
-			case EventDecoderState::state_risetimeLDTime:
-				state = EventDecoderState::state_risetimeUDTime;
-				break;
-			case EventDecoderState::state_risetimeUDTime:
 				state = EventDecoderState::state_flag_FFF1;
 				break;
 			case EventDecoderState::state_flag_FFF1:
@@ -190,8 +192,9 @@ public:
 		event->timeTag = (static_cast<uint64_t>(rawEvent.timeH) << 32) + (static_cast<uint64_t>(rawEvent.timeM) << 16)
 				+ (rawEvent.timeL);
 		event->phaMax = rawEvent.phaMax;
+		event->nSamples = waveformLength;
 		event->livetime = 0; //todo: implement event livetime
-		event->triggerCount = 0; //todo: implement trigger count
+		event->triggerCount =  ((static_cast<uint32_t>(rawEvent.triggerCountH)) << 16) + (static_cast<uint32_t>(rawEvent.triggerCountL));
 
 		//copy waveform
 		for (size_t i = 0; i < waveformLength; i++) {

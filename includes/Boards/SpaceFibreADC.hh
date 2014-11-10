@@ -8,6 +8,174 @@
 #ifndef SPACEFIBREADCBOARD_HH_
 #define SPACEFIBREADCBOARD_HH_
 
+/** @mainpage SpaceFibre ADC C++ API
+ * # Overview
+ * SpaceFibre ADC board carries 4-ch 200-Msps pipeline ADC,
+ * GigabitEthernet interface, and 1GB SDRAM.
+ * SpaceFibreADC.hh and related header files provide API for
+ * communicating with the SpaceFibre ADC board using C++.
+ *
+ * # Structure
+ * SpaceFibreADCBoard is the top-level class which provides
+ * all user-level methods to control and configure the board,
+ * to set/start/stop the evnet acquisition mode, and
+ * to decode recorded event data and waveform.
+ * For available methods,
+ * see SpaceFibreADCBoard API page.
+ *
+ * # Typical usage
+ * -# Include the following header files.
+ *   - SpaceWireRMAPLibrary/SpaceWire.hh
+ *   - SpaceWireRMAPLibrary/RMAP.hh
+ *   - SpaceWireRMAPLibrary/Boards/SpaceFibreADC.hh
+ * -# Instantiate the SpaceFibreADCBoard class.
+ * -# Do configuration:
+ *   - Trigger mode.
+ *   - Threshold.
+ *   - Waveform record length.
+ *   - Preset mode (to automatically stop measurement).
+ *     - Livetime preset.
+ *     - Event count preset.
+ *     - No preset (measurement continues forever unless manually stopped).
+ * -# Start measurement.
+ * -# Read event data. Loop until measurement completes.
+ * -# Stop measurement.
+ * -# Close device.
+ *
+ * # Contact
+ * - Takayuki Yuasa
+ *   - email: takayuki.yuasa at riken.jp
+ *
+ * # Example user application
+ * @code
+//---------------------------------------------
+// Include SpaceWireRMAPLibrary
+#include "SpaceWireRMAPLibrary/SpaceWire.hh"
+#include "SpaceWireRMAPLibrary/RMAP.hh"
+
+//---------------------------------------------
+// Include SpaceFibreADC
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADC.hh"
+
+const size_t nSamples = 200;
+const size_t nCPUTrigger=10;
+
+int main(int argc, char* argv[]){
+	using namespace std;
+
+	//---------------------------------------------
+	// Construct an instance of SpaceFibreADCBoard
+	// The default IP address is 192.168.1.100 .
+	// If your board has set a specific IP address,
+	// modify the following line.
+	SpaceFibreADCBoard* adc=new SpaceFibreADCBoard("192.168.1.100");
+
+	//---------------------------------------------
+	// Device open
+	cout << "Opening device" << endl;
+	adc->openDevice();
+	cout << "Opened" << endl;
+
+	//---------------------------------------------
+	// Set ADC Clock
+	adc->setAdcClock(SpaceFibreADC::ADCClockFrequency::ADCClock200MHz);
+
+	//---------------------------------------------
+	// Trigger Mode
+	size_t ch=0;
+	cout << "Setting trigger mode" << endl;
+
+	// Trigger Mode: CPU Trigger
+	adc->setTriggerMode(ch, SpaceFibreADC::TriggerMode::CPUTrigger);
+
+	// Trigger Mode: StartingThreshold-NSamples-ClosingThreshold
+	// uint16_t startingThreshold=2300;
+	// uint16_t closingThreshold=2100;
+	// adc->setStartingThreshold(ch, startingThreshold);
+	// adc->setClosingThreshold(ch, closingThreshold);
+	//adc->setTriggerMode(ch, SpaceFibreADC::TriggerMode::StartThreshold_NSamples_CloseThreshold);
+
+	//---------------------------------------------
+	// Waveform record length
+	cout << "Setting number of samples" << endl;
+	adc->setNumberOfSamples(200);
+	cout << "Setting depth of delay" << endl;
+	adc->setDepthOfDelay(ch, 20);
+	cout << "Setting ADC power" << endl;
+	adc->turnOnADCPower(ch);
+
+
+	//---------------------------------------------
+	// Start data acquisition
+	cout << "Starting acquisition" << endl;
+	adc->startAcquisition({true,false,false,false});
+
+
+	//---------------------------------------------
+	// Send CPU Trigger
+	cout << "Sending CPU Trigger " << dec << nCPUTrigger << " times" << endl;
+	for(size_t i=0;i<nCPUTrigger;i++){
+		adc->sendCPUTrigger(ch);
+	}
+
+
+	//---------------------------------------------
+	// Read event data
+	std::vector<SpaceFibreADC::Event*> events;
+
+	cout << "Reading events" << endl;
+	events=adc->getEvent();
+	cout << "nEvents = " << events.size() << endl;
+
+	size_t i=0;
+	for(auto event : events){
+		cout << dec;
+		cout << "=============================================" << endl;
+		cout << "Event " << i << endl;
+		cout << "---------------------------------------------" << endl;
+		cout << "timeTag = " << event->timeTag << endl;
+		cout << "triggerCount = " << event->triggerCount << endl;
+		cout << "phaMax = " << (uint32_t)event->phaMax << endl;
+		cout << "nSamples = " << (uint32_t)event->nSamples << endl;
+		cout << "waveform = ";
+		for(size_t i=0;i<event->nSamples;i++){
+			cout << dec << (uint32_t)event->waveform[i] << " ";
+		}
+		cout << endl;
+		i++;
+		adc->freeEvent(event);
+	}
+
+	//---------------------------------------------
+	// Reads HK data
+	SpaceFibreADC::HouseKeepingData hk=adc->getHouseKeepingData();
+	cout << "livetime = " << hk.livetime[0] << endl;
+	cout << "realtime = " << hk.realtime << endl;
+	cout << dec;
+
+	//---------------------------------------------
+	// Reads current ADC value (un-comment out the following lines to execute)
+	// cout << "Current ADC values:"  << endl;
+	// for(size_t i=0;i<10;i++){
+	// 	cout << adc->getCurrentADCValue(ch) << endl;
+	// }
+
+	//---------------------------------------------
+	// Stop data acquisition
+	cout << "Stopping acquisition" << endl;
+	adc->stopAcquisition();
+
+	//---------------------------------------------
+	// Device close
+	cout << "Closing device" << endl;
+	adc->closeDevice();
+	cout << "Closed" << endl;
+
+}
+ * @endcode
+ */
+
+
 #include "Boards/SpaceFibreADCBoardModules/Constants.hh"
 #include "Boards/SpaceFibreADCBoardModules/Debug.hh"
 #include "Boards/SpaceFibreADCBoardModules/SemaphoreRegister.hh"
@@ -23,15 +191,12 @@ enum class SpaceFibreADCException {
 
 /** A class which represents SpaceFibre ADC Board.
  * It controls start/stop of data acquisition.
- * It contains SpaceFibreADCBoard::NumberOfChannels instances of
+ * It contains SpaceFibreADCBoard::SpaceFibreADC::NumberOfChannels instances of
  * ADCChannel class so that
  * a user can change individual registers in each module.
  */
 class SpaceFibreADCBoard {
 public:
-	//Number of channelModules which SpaceFibre ADC Board has.
-	static const int NumberOfChannels = 4;
-
 	//Clock Frequency
 	static constexpr double ClockFrequency = 50; //MHz
 
@@ -44,9 +209,9 @@ public:
 private:
 	RMAPHandler* rmapHandler;
 	RMAPTargetNode* adcRMAPTargetNode;
-	ChannelManager* channelManger;
+	ChannelManager* channelManager;
 	ConsumerManagerSocketFIFO* consumerManager;
-	ChannelModule* channelModules[NumberOfChannels];
+	ChannelModule* channelModules[SpaceFibreADC::NumberOfChannels];
 	EventDecoder* eventDecoder;
 
 public:
@@ -56,7 +221,6 @@ public:
 	 */
 	SpaceFibreADCBoard(std::string ipAddress) {
 		using namespace std;
-		this->rmapHandler = new RMAPHandler(ipAddress, TCPPortNumberForRMAPOverTCP);
 
 		//construct RMAPTargetNode instance
 		adcRMAPTargetNode = new RMAPTargetNode;
@@ -67,18 +231,21 @@ public:
 		adcRMAPTargetNode->setTargetLogicalAddress(0xFE);
 		adcRMAPTargetNode->setInitiatorLogicalAddress(0xFE);
 
+		this->rmapHandler = new RMAPHandler(ipAddress, TCPPortNumberForRMAPOverTCP, {adcRMAPTargetNode});
+
+
 		cout << "---------------------------------------------" << endl;
 		cout << "RMAPTargetNode definition" << endl;
 		cout << adcRMAPTargetNode->toString() << endl;
 
 		//create an instance of ChannelManager
-		channelManger = new ChannelManager(rmapHandler, adcRMAPTargetNode);
+		channelManager = new ChannelManager(rmapHandler, adcRMAPTargetNode);
 
 		//create an instance of ConsumerManager
 		consumerManager = new ConsumerManagerSocketFIFO(ipAddress, rmapHandler, adcRMAPTargetNode);
 
 		//create instances of ADCChannelRegister
-		for (size_t i = 0; i < SpaceFibreADCBoard::NumberOfChannels; i++) {
+		for (size_t i = 0; i < SpaceFibreADC::NumberOfChannels; i++) {
 			channelModules[i] = new ChannelModule(rmapHandler, adcRMAPTargetNode, i);
 		}
 
@@ -108,7 +275,7 @@ public:
 		if (Debug::adcbox()) {
 			cout << "SpaceFibreADCBoard::getChannelManager()" << endl;
 		}
-		return channelManger;
+		return channelManager;
 	}
 
 public:
@@ -132,7 +299,7 @@ public:
 		if (Debug::adcbox()) {
 			cout << "SpaceFibreADCBoard::reset()";
 		}
-		this->channelManger->reset();
+		this->channelManager->reset();
 		this->consumerManager->reset();
 		if (Debug::adcbox()) {
 			cout << "done" << endl;
@@ -152,7 +319,7 @@ public:
 	// device-wide functions
 
 public:
-	/** Open the device by making a
+	/** Opens the device by making a
 	 * GigabitEthernet connection to SpaceFibre ADC board.
 	 */
 	void openDevice() throw (SpaceFibreADCException) {
@@ -168,9 +335,14 @@ public:
 	/** Closes the device.
 	 */
 	void closeDevice() {
+		using namespace std;
 		try {
+			cout << "#disconnecting SpaceWire-to-GigabitEther" << endl;
 			rmapHandler->disconnectSpWGbE();
+			cout << "#closing sockets" << endl;
 			consumerManager->closeSocket();
+			cout << "#stopping dump thread" << endl;
+			consumerManager->stopDumpThread();
 		} catch (...) {
 			throw SpaceFibreADCException::CloseDeviceFailed;
 		}
@@ -178,6 +350,15 @@ public:
 
 	//=============================================
 public:
+	/** Reads, decodes, and returns event data recorded by the board.
+	 * When no event packet is received within a timeout duration,
+	 * this method will return empty vector meaning a time out.
+	 * Each SpaceFibreADC::Event instances pointed by the entities
+	 * of the returned vector should be freed after use in the user
+	 * application. A freed SpaceFibreADC::Event instance will be
+	 * reused to represent another event data.
+	 * @return a vector containing pointers to decoded event data
+	 */
 	std::vector<SpaceFibreADC::Event*> getEvent() {
 		std::vector<SpaceFibreADC::Event*> events;
 		std::vector<uint8_t> data = consumerManager->getEventData();
@@ -190,7 +371,7 @@ public:
 
 public:
 	/** Frees an event instance so that buffer area can be reused in the following commands.
-	 * @param event event instance to be freed
+	 * @param[in] event event instance to be freed
 	 */
 	void freeEvent(SpaceFibreADC::Event* event) {
 		eventDecoder->freeEvent(event);
@@ -198,7 +379,7 @@ public:
 
 public:
 	/** Frees event instances so that buffer area can be reused in the following commands.
-	 * @param events a vector of event instance to be freed
+	 * @param[in] events a vector of event instance to be freed
 	 */
 	void freeEvents(std::vector<SpaceFibreADC::Event*>& events) {
 		for (auto event : events) {
@@ -220,7 +401,7 @@ public:
 	 * @param triggerMode trigger mode (see SpaceFibreADC::TriggerMode)
 	 */
 	void setTriggerMode(size_t chNumber, SpaceFibreADC::TriggerMode triggerMode) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->setTriggerMode(triggerMode);
 		} else {
 			using namespace std;
@@ -230,14 +411,34 @@ public:
 	}
 
 public:
-	/** Sets number of samples after trigger.
+	/** Sets the number of ADC samples recorded for a single trigger.
 	 * This method sets the same number to all the channels.
+	 * After the trigger, nSamples set via this method will be recorded
+	 * in the waveform buffer,
+	 * and then analyzed in the Pulse Processing Module to form an event packet.
+	 * In this processing, the waveform can be truncated at a specified length,
+	 * and see setNumberOfSamplesInEventPacket(uint16_t nSamples) for this
+	 * truncating length setting.
+	 * @note As of 20141103, the maximum waveform length is 1000.
+	 * This value can be increased by modifying the depth of the event FIFO
+	 * in the FPGA.
 	 * @param nSamples number of adc samples per one waveform data
 	 */
-	void setNumberOfSamples(uint32_t nSamples) {
-		for (size_t i = 0; i < NumberOfChannels; i++) {
+	void setNumberOfSamples(uint16_t nSamples) {
+		for (size_t i = 0; i < SpaceFibreADC::NumberOfChannels; i++) {
 			channelModules[i]->setNumberOfSamples(nSamples);
 		}
+		setNumberOfSamplesInEventPacket(nSamples);
+	}
+
+public:
+	/** Sets the number of ADC samples which should be output in the
+	 * event packet (this must be smaller than the number of samples
+	 * recorded for a trigger, see setNumberOfSamples(uint16_t nSamples) ).
+	 * @param[in] nSamples number of ADC samples in the event packet
+	 */
+	void setNumberOfSamplesInEventPacket(uint16_t nSamples){
+		consumerManager->setEventPacket_NumberOfWaveform(nSamples);
 	}
 
 public:
@@ -245,7 +446,7 @@ public:
 	 * @param threshold an adc value for leading trigger threshold
 	 */
 	void setStartingThreshold(size_t chNumber, uint32_t threshold) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->setStartingThreshold(threshold);
 		} else {
 			using namespace std;
@@ -259,7 +460,7 @@ public:
 	 * @param threshold an adc value for trailing trigger threshold
 	 */
 	void setClosingThreshold(size_t chNumber, uint32_t threshold) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->setClosingThreshold(threshold);
 		} else {
 			using namespace std;
@@ -273,7 +474,7 @@ public:
 	 * @param enabledChannels array of enabled trigger bus channels.
 	 */
 	void setTriggerBusMask(size_t chNumber, std::vector<size_t> enabledChannels) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->setTriggerBusMask(enabledChannels);
 		} else {
 			using namespace std;
@@ -289,7 +490,7 @@ public:
 	 * @param depthOfDelay number of samples retarded
 	 */
 	void setDepthOfDelay(size_t chNumber, uint32_t depthOfDelay) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->setDepthOfDelay(depthOfDelay);
 		} else {
 			using namespace std;
@@ -303,7 +504,7 @@ public:
 	 * @return elapsed livetime in 10ms unit
 	 */
 	uint32_t getLivetime(size_t chNumber) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			return channelModules[chNumber]->getLivetime();
 		} else {
 			using namespace std;
@@ -317,7 +518,7 @@ public:
 	 * @return temporal ADC value
 	 */
 	uint32_t getCurrentADCValue(size_t chNumber) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			return channelModules[chNumber]->getCurrentADCValue();
 		} else {
 			using namespace std;
@@ -330,7 +531,7 @@ public:
 	/** Turn on ADC.
 	 */
 	void turnOnADCPower(size_t chNumber) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->turnADCPower(true);
 		} else {
 			using namespace std;
@@ -340,10 +541,10 @@ public:
 	}
 
 public:
-	/** Turn on ADC.
+	/** Turn off ADC.
 	 */
 	void turnOffADCPower(size_t chNumber) throw (SpaceFibreADCException) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->turnADCPower(false);
 		} else {
 			using namespace std;
@@ -360,7 +561,7 @@ public:
 	 * @param channelsToBeStarted vector of bool, true if the channel should be started
 	 */
 	void startAcquisition(std::vector<bool> channelsToBeStarted) {
-		channelManger->startAcquisition(channelsToBeStarted);
+		channelManager->startAcquisition(channelsToBeStarted);
 	}
 
 public:
@@ -368,7 +569,7 @@ public:
 	 * 	return true if data acquisition is stopped.
 	 */
 	bool isAcquisitionCompleted() {
-		return channelManger->isAcquisitionCompleted();
+		return channelManager->isAcquisitionCompleted();
 	}
 
 public:
@@ -376,7 +577,7 @@ public:
 	 * 	return true if data acquisition is stopped.
 	 */
 	bool isAcquisitionCompleted(size_t chNumber) {
-		return channelManger->isAcquisitionCompleted(chNumber);
+		return channelManager->isAcquisitionCompleted(chNumber);
 	}
 
 public:
@@ -384,12 +585,15 @@ public:
 	 * the acquisition.
 	 */
 	void stopAcquisition() {
-		channelManger->stopAcquisition();
+		channelManager->stopAcquisition();
 	}
 
 public:
+	/** Sends CPU Trigger to force triggering in the specified channel.
+	 * @param[in] chNumber channel to be CPU-triggered
+	 */
 	void sendCPUTrigger(size_t chNumber) {
-		if (chNumber < NumberOfChannels) {
+		if (chNumber < SpaceFibreADC::NumberOfChannels) {
 			channelModules[chNumber]->sendCPUTrigger();
 		} else {
 			using namespace std;
@@ -407,7 +611,7 @@ public:
 	 * @param presetMode preset mode value (see also enum class SpaceFibreADC::PresetMode )
 	 */
 	void setPresetMode(SpaceFibreADC::PresetMode presetMode) {
-		channelManger->setPresetMode(presetMode);
+		channelManager->setPresetMode(presetMode);
 	}
 
 public:
@@ -415,7 +619,7 @@ public:
 	 * @param livetimeIn10msUnit live time to be set (in a unit of 10ms)
 	 */
 	void setPresetLivetime(uint32_t livetimeIn10msUnit) {
-		channelManger->setPresetLivetime(livetimeIn10msUnit);
+		channelManager->setPresetLivetime(livetimeIn10msUnit);
 	}
 
 public:
@@ -423,28 +627,45 @@ public:
 	 * @param nEvents number of event to be taken
 	 */
 	void setPresetnEvents(uint32_t nEvents) {
-		channelManger->setPresetnEvents(nEvents);
+		channelManager->setPresetnEvents(nEvents);
 	}
 
 public:
-	/** Get Realtime which is elapsed time since the data acquisition was started.
+	/** Get Realtime which is elapsed time since the board power was turned on.
 	 * @return elapsed real time in 10ms unit
 	 */
 	double getRealtime() {
-		return channelManger->getRealtime();
+		return channelManager->getRealtime();
 	}
 
 //=============================================
+public:
+	/** Sets ADC Clock.
+	 * - ADCClockFrequency::ADCClock200MHz <br>
+	 * - ADCClockFrequency::ADCClock100MHz <br>
+	 * - ADCClockFrequency::ADCClock50MHz <br>
+	 * @param adcClockFrequency enum class ADCClockFrequency
+	 */
+	void setAdcClock(SpaceFibreADC::ADCClockFrequency adcClockFrequency) {
+		channelManager->setAdcClock(adcClockFrequency);
+	}
+
+//=============================================
+public:
+	/** Gets HK data including the real time and the live time which are
+	 * counted in the FPGA, and acquisition status (started or stopped).
+	 * @retrun HK information contained in a SpaceFibreADC::HouseKeepingData instance
+	 */
 	SpaceFibreADC::HouseKeepingData getHouseKeepingData() {
 		SpaceFibreADC::HouseKeepingData hkData;
 		//realtime
-		hkData.realtime = channelManger->getRealtime();
+		hkData.realtime = channelManager->getRealtime();
 
-		for (size_t i = 0; i < NumberOfChannels; i++) {
+		for (size_t i = 0; i < SpaceFibreADC::NumberOfChannels; i++) {
 			//livetime
 			hkData.livetime[i] = channelModules[i]->getLivetime();
 			//acquisition status
-			hkData.acquisitionStarted[i] = channelManger->isAcquisitionCompleted(i);
+			hkData.acquisitionStarted[i] = channelManager->isAcquisitionCompleted(i);
 		}
 
 		return hkData;

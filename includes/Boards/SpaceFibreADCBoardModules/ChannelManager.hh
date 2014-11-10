@@ -29,7 +29,7 @@ public:
 	static const uint32_t AddressOf_RealtimeRegisterM = ChMgrBA + 0x000e;
 	static const uint32_t AddressOf_RealtimeRegisterH = ChMgrBA + 0x0010;
 	static const uint32_t AddressOf_ResetRegister = ChMgrBA + 0x0012;
-	static const uint32_t AddressOf_adcClockCounter_Register = ChMgrBA + 0x0014;
+	static const uint32_t AddressOf_ADCClock_Register = ChMgrBA + 0x0014;
 	static const uint32_t AddressOf_PresetnEventsRegisterL = ChMgrBA + 0x0020;
 	static const uint32_t AddressOf_PresetnEventsRegisterH = ChMgrBA + 0x0022;
 	static const uint32_t NumberOfChannels = 8;
@@ -69,7 +69,7 @@ public:
 		for (uint32_t i = 0; i < channelsToBeStarted.size(); i++) {
 			//check if channel i should be started.
 			if (channelsToBeStarted.at(i) == true) {
-				writeData[0] = writeData[0] + tmp;
+				writeData[1] = writeData[1] + tmp;
 			}
 			tmp = tmp * 2;
 		}
@@ -118,7 +118,7 @@ public:
 			cout << "done" << endl;
 		}
 		if (chNumber < NumberOfChannels) {
-			std::bitset<16> bits(readData[1] * 0x100 + readData[0]);
+			std::bitset<16> bits(readData[0] * 0x100 + readData[1]);
 			if (bits[chNumber] == 0) {
 				return true;
 			} else {
@@ -162,7 +162,7 @@ public:
 		if (Debug::channelmanager()) {
 			cout << "ChannelManager::setPresetMode()...";
 		}
-		vector<uint8_t> writeData = { static_cast<uint8_t>(presetmode), 0x00 };
+		vector<uint8_t> writeData = { 0x00, static_cast<uint8_t>(presetmode) };
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetModeRegister, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
@@ -170,21 +170,18 @@ public:
 	}
 
 public:
-	/** Sets ADC Clock division number.
-	 * 0 = 50MHz,
-	 * 1 = 25MHz,
-	 * 2 = 12.5MHz and so on.
-	 * @param adcclockdivision an integer number which divides 50MHz to generate ADC clock
+	/** Sets ADC Clock.
+	 * - ADCClockFrequency::ADCClock200MHz <br>
+	 * - ADCClockFrequency::ADCClock100MHz <br>
+	 * - ADCClockFrequency::ADCClock50MHz <br>
+	 * @param adcClockFrequency enum class ADCClockFrequency
 	 */
-	void setAdcClockDivision(uint32_t adcClockDivision) {
+	void setAdcClock(SpaceFibreADC::ADCClockFrequency adcClockFrequency) {
 		using namespace std;
 		if (Debug::channelmanager()) {
-			cout << "ChannelManager::setAdcClockDivision(" << adcClockDivision << ")...";
+			cout << "ChannelManager::setAdcClock(" << static_cast<uint16_t>(adcClockFrequency) / 100 << "MHz)...";
 		}
-		vector<uint8_t> writeData;
-		writeData.push_back(adcClockDivision << 24 >> 24);
-		writeData.push_back(adcClockDivision << 16 >> 24);
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_adcClockCounter_Register, &writeData[0], 2);
+		rmapHandler->setRegister(AddressOf_ADCClock_Register, static_cast<uint16_t>(adcClockFrequency));
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -200,12 +197,12 @@ public:
 			cout << "ChannelManager::setLivetime(" << livetimeIn10msUnit << ")...";
 		}
 		vector<uint8_t> writeData;
-		writeData.push_back(livetimeIn10msUnit << 24 >> 24);
 		writeData.push_back(livetimeIn10msUnit << 16 >> 24);
+		writeData.push_back(livetimeIn10msUnit << 24 >> 24);
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
 		writeData.clear();
-		writeData.push_back(livetimeIn10msUnit << 8 >> 24);
 		writeData.push_back(livetimeIn10msUnit >> 24);
+		writeData.push_back(livetimeIn10msUnit << 8 >> 24);
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterH, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
@@ -223,9 +220,9 @@ public:
 		}
 		std::vector<uint8_t> readData(6);
 		rmapHandler->read(adcRMAPTargetNode, AddressOf_RealtimeRegisterL, 6, &readData[0]);
-		double low = (double) (readData[1]) * 0x100 + (double) (readData[0]);
-		double mid = (double) (readData[3]) * 0x1000000 + (double) (readData[2]) * 0x10000;
-		double high = ((double) (readData[5]) * 0x1000000 + (double) (readData[4]) * 0x10000) * 0x10000;
+		double low = (double) (readData[0]) * 0x100 + (double) (readData[1]);
+		double mid = (double) (readData[2]) * 0x1000000 + (double) (readData[3]) * 0x10000;
+		double high = ((double) (readData[4]) * 0x1000000 + (double) (readData[5]) * 0x10000) * 0x10000;
 		double realtime = low + mid + high;
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
@@ -242,7 +239,7 @@ public:
 		if (Debug::channelmanager()) {
 			cout << "ChannelManager::reset()...";
 		}
-		vector<uint8_t> writeData = { 0x01, 0x00 };
+		vector<uint8_t> writeData = { 0x00, 0x01 };
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_ResetRegister, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
@@ -259,10 +256,10 @@ public:
 			cout << "ChannelManager::setPresetnEvents(" << nEvents << ")...";
 		}
 		vector<uint8_t> writeData = { //
-				static_cast<uint8_t>(nEvents << 24 >> 24), //
-						static_cast<uint8_t>(nEvents << 16 >> 24), //
-						static_cast<uint8_t>(nEvents << 8 >> 24), //
-						static_cast<uint8_t>(nEvents >> 24) //
+				static_cast<uint8_t>(nEvents << 16 >> 24), //
+						static_cast<uint8_t>(nEvents << 24 >> 24), //
+						static_cast<uint8_t>(nEvents >> 24), //
+						static_cast<uint8_t>(nEvents << 8 >> 24) //
 				};
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 4);
 		if (Debug::channelmanager()) {
@@ -285,8 +282,9 @@ public:
 			cout << "ChannelManager::setadcClockCounter(" << adcClockCounter << ")...";
 		}
 		vector<uint8_t> writeData = { //
-				static_cast<uint8_t>(adcClockCounter % 0x100), //
-						static_cast<uint8_t>(adcClockCounter / 0x100) };
+				static_cast<uint8_t>(adcClockCounter / 0x100), //
+						static_cast<uint8_t>(adcClockCounter % 0x100) //
+				};
 		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;

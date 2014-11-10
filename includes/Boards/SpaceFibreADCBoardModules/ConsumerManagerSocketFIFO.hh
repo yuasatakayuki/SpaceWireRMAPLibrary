@@ -20,7 +20,7 @@ public:
 
 	private:
 		ConsumerManagerSocketFIFO* parent;
-		bool dumpEnabled = false;
+		bool dumpEnabled = true;
 
 	public:
 		static constexpr double DumpPeriodInMilliSecond = 1000.0; //ms
@@ -64,22 +64,24 @@ public:
 	//Addresses of Consumer Manager Module
 	static const uint32_t InitialAddressOf_ConsumerMgr = 0x01010000;
 	static const uint32_t ConsumerMgrBA = InitialAddressOf_ConsumerMgr;
-	static const uint32_t AddressOf_DisableRegister = ConsumerMgrBA + 0x0100;
+	static const uint32_t AddressOf_EventOutputDisableRegister = ConsumerMgrBA + 0x0100;
 	static const uint32_t AddressOf_GateSize_FastGate_Register = ConsumerMgrBA + 0x010e;
 	static const uint32_t AddressOf_GateSize_SlowGate_Register = ConsumerMgrBA + 0x0110;
 	static const uint32_t AddressOf_NumberOf_BaselineSample_Register = ConsumerMgrBA + 0x0112;
 	static const uint32_t AddressOf_ConsumerMgr_ResetRegister = ConsumerMgrBA + 0x0114;
 	static const uint32_t AddressOf_EventPacket_NumberOfWaveform_Register = ConsumerMgrBA + 0x0116;
 	static const uint32_t AddressOf_EventPacket_WaveformDownSampling_Register = ConsumerMgrBA + 0xFFFF;
-	static const uint32_t AddressOf_EventDataOutputControl_Register = ConsumerMgrBA + 0xFFFF;
+
 	//Addresses of SDRAM
 	static const uint32_t InitialAddressOf_Sdram_EventList = 0x00000000;
 	static const uint32_t FinalAddressOf_Sdram_EventList = 0x00fffffe;
 
+private:
 	ConsumerManagerSocketFIFODumpThread* dumpThread;
 
 public:
 	static const uint32_t TCPPortOfEventDataPort = 10031;
+	static constexpr double TCPSocketTimeoutDurationInMilliSec = 1000;
 
 private:
 	RMAPHandler* rmapHandler;
@@ -101,7 +103,7 @@ public:
 public:
 	virtual ~ConsumerManagerSocketFIFO() {
 		closeSocket();
-		dumpThread->stop();
+		this->stopDumpThread();
 	}
 
 public:
@@ -112,8 +114,7 @@ public:
 		if (Debug::consumermanager()) {
 			cout << "ConsumerManager::reset()...";
 		}
-		vector<uint8_t> writedata = { 0x01, 0x00 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_ConsumerMgr_ResetRegister, &writedata[0], 2);
+		rmapHandler->setRegister(AddressOf_ConsumerMgr_ResetRegister, 0x0001);
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
 		}
@@ -151,14 +152,21 @@ public:
 
 		//receive via TCP socket (ConsumerManagerSocketFIFO in the FPGA will send event packets byte-by-byte)
 		try {
+			if (Debug::consumermanager()) {
+				cout << "ConsumerManagerSocketFIFO::getEventData(): trying to receive data" << endl;
+			}
+			socket->setTimeout(TCPSocketTimeoutDurationInMilliSec);
 			size_t receivedSize = socket->receive(&(receiveBuffer[0]), ReceiveBufferSize);
+			if (Debug::consumermanager()) {
+				cout << "ConsumerManagerSocketFIFO::getEventData(): received " << receivedSize << " bytes" << endl;
+			}
 			receiveBuffer.resize(receivedSize);
 		} catch (CxxUtilities::TCPSocketException& e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
-				cerr << "ConsumerManagerSocketFIFO::read(): timeout" << endl;
+				cerr << "ConsumerManagerSocketFIFO::getEventData(): timeout" << endl;
 				receiveBuffer.resize(0);
 			} else {
-				cerr << "ConsumerManagerSocketFIFO::read(): TCPSocketException on receive()" << e.toString() << endl;
+				cerr << "ConsumerManagerSocketFIFO::getEventData(): TCPSocketException on receive()" << e.toString() << endl;
 				throw e;
 			}
 		}
@@ -178,6 +186,14 @@ public:
 		socket = new CxxUtilities::TCPClientSocket(ipAddress, TCPPortNumber);
 		try {
 			socket->open(1000);
+			if (Debug::consumermanager()) {
+				cout << "ConsumerManagerSocketFIFO::openSocket(): socket opened" << endl;
+			}
+			socket->setTimeout(TCPSocketTimeoutDurationInMilliSec);
+			if (Debug::consumermanager()) {
+				cout << "ConsumerManagerSocketFIFO::openSocket(): timeout duration of " << TCPSocketTimeoutDurationInMilliSec
+						<< " ms set" << endl;
+			}
 		} catch (CxxUtilities::TCPSocketException& e) {
 			cerr << e.toString() << endl;
 			exit(-1);
@@ -214,12 +230,10 @@ public:
 		if (Debug::consumermanager()) {
 			cout << "Enabling event data output...";
 		}
-		vector<uint8_t> writeData = { 0x01, 0x00 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_EventDataOutputControl_Register, &writeData[0], 2);
+		rmapHandler->setRegister(AddressOf_EventOutputDisableRegister, 0x0000);
 		if (Debug::consumermanager()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_EventDataOutputControl_Register, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[0]) << dec << ")" << endl;
+			uint16_t eventOutputDisableRegister=rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
+			cout << "done(disableRegister=" << hex << setw(4) << eventOutputDisableRegister << dec << ")" << endl;
 		}
 	}
 
@@ -236,15 +250,58 @@ public:
 		if (Debug::consumermanager()) {
 			cout << "Disabling event data output...";
 		}
-		vector<uint8_t> writeData = { 0x00, 0x00 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_EventDataOutputControl_Register, &writeData[0], 2);
+		rmapHandler->setRegister(AddressOf_EventOutputDisableRegister, 0x0001);
 		if (Debug::consumermanager()) {
-			std::vector<uint8_t> readData(2);
-			rmapHandler->read(adcRMAPTargetNode, AddressOf_EventDataOutputControl_Register, 2, &readData[0]);
-			cout << "done(" << hex << setw(4) << (uint32_t) (readData[0]) << dec << ")" << endl;
+			uint16_t eventOutputDisableRegister=rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
+			cout << "done(disableRegister=" << hex << setw(4) << eventOutputDisableRegister << dec << ")" << endl;
 		}
 	}
 
+public:
+	void startDumpThread() {
+		using namespace std;
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::stopDumpThread(): starting status dump thread" << endl;
+		}
+		dumpThread->start();
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::stopDumpThread(): status dump thread started" << endl;
+		}
+	}
+
+public:
+	void stopDumpThread() {
+		using namespace std;
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::stopDumpThread(): stopping status dump thread" << endl;
+		}
+		dumpThread->stop();
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::stopDumpThread(): waiting for status dump thread to actually stop" << endl;
+		}
+		dumpThread->waitUntilRunMethodComplets();
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::stopDumpThread(): status dump thread stopped" << endl;
+		}
+	}
+
+public:
+	/** Sets EventPacket_NumberOfWaveform_Register
+	 * @param numberofsamples number of data points to be recorded in an event packet
+	 */
+	virtual void setEventPacket_NumberOfWaveform(uint16_t nSamples) {
+		using namespace std;
+		if (Debug::consumermanager()) {
+			cout << "ConsumerManagerSocketFIFO::setEventPacket_NumberOfWaveform(" << nSamples << ")...";
+		}
+		rmapHandler->setRegister(AddressOf_EventPacket_NumberOfWaveform_Register, nSamples);
+
+		if (Debug::consumermanager()) {
+			cout << "done" << endl;
+			uint16_t nSamplesRead = rmapHandler->getRegister(AddressOf_EventPacket_NumberOfWaveform_Register);
+			cout << "readdata[0]:" << (uint32_t) nSamplesRead << endl;
+		}
+	}
 };
 
 #endif /* CONSUMERMANAGERSOCKETFIFO_HH_ */
