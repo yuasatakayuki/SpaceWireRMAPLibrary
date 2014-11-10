@@ -60,6 +60,7 @@ typedef unsigned char uint8_t;
 %template(VectorUInt8) std::vector<uint8_t>;
 //%template(ByteArray) std::vector<uint8_t>;
 
+
 //============================================
 // Namespace CxxUtilities
 //============================================
@@ -142,6 +143,10 @@ public:
 			double timeoutDuration=DefaultTimeoutDuration
 		) throw (CxxUtilities::Exception);
 	
+	void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer, double timeoutDuration =
+			DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+
+
 	void write(
 			std::string targetNodeID,
 			uint32_t memoryAddress,
