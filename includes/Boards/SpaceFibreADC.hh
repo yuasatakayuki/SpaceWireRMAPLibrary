@@ -233,11 +233,6 @@ public:
 
 		this->rmapHandler = new RMAPHandler(ipAddress, TCPPortNumberForRMAPOverTCP, {adcRMAPTargetNode});
 
-
-		cout << "---------------------------------------------" << endl;
-		cout << "RMAPTargetNode definition" << endl;
-		cout << adcRMAPTargetNode->toString() << endl;
-
 		//create an instance of ChannelManager
 		channelManager = new ChannelManager(rmapHandler, adcRMAPTargetNode);
 
