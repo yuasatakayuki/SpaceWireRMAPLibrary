@@ -65,6 +65,7 @@ public:
 	EventDecoder() {
 		state = EventDecoderState::state_flag_FFF0;
 		rawEvent.waveform = new uint16_t[SpaceFibreADC::MaxWaveformLength];
+		prepareEventInstances();
 	}
 
 public:
@@ -169,6 +170,18 @@ public:
 				state = EventDecoderState::state_flag_FFF0;
 				break;
 			}
+		}
+	}
+
+public:
+	static const size_t InitialEventInstanceNumber = 10000;
+
+private:
+	void prepareEventInstances(){
+		for(size_t i=0;i<InitialEventInstanceNumber;i++){
+			SpaceFibreADC::Event* event = new SpaceFibreADC::Event;
+			event->waveform = new uint16_t[SpaceFibreADC::MaxWaveformLength];
+			eventInstanceResavoir.push(event);
 		}
 	}
 
