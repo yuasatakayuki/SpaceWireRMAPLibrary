@@ -236,6 +236,14 @@ public:
 	void freeEvent(SpaceFibreADC::Event* event) {
 		eventInstanceResavoir.push(event);
 	}
+
+public:
+	/** Returns the number of available (allocated) Event instances.
+	 * @return the number of Event instances
+	 */
+	size_t getNAllocatedEventInstances(){
+		return eventInstanceResavoir.size();
+	}
 };
 
 #endif /* EVENTDECODER_HH_ */
