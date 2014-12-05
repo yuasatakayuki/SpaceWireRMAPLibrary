@@ -84,10 +84,15 @@ public:
 		using namespace std;
 
 		size_t size = readDataUint8Array->size();
+		if(size%2==1){
+			cerr << "EventDecoder::decodeEvent(): odd data length " << size << " bytes" << endl;
+			exit(-1);
+		}
+
 		size_t size_half = size / 2;
 
 		if (Debug::eventdecoder()) {
-			cout << "EventDecoder::decodeEvent() read " << size << " bytes" << endl;
+			cout << "EventDecoder::decodeEvent() read " << size << " bytes (state = " << stateToString() << ")" << endl;
 		}
 
 		//resize if necessary
@@ -107,6 +112,8 @@ public:
 				waveformLength = 0;
 				if (readDataUint16Array[i] == 0xfff0) {
 					state = EventDecoderState::state_ch;
+				}else{
+					cerr << "EventDecoder::decodeEvent(): invalid start flag (" << "0x" << hex << right << setw(4) << setfill('0')  << (uint32_t)readDataUint16Array[i] << ")" << endl;
 				}
 				break;
 			case EventDecoderState::state_ch:
@@ -177,8 +184,8 @@ public:
 	static const size_t InitialEventInstanceNumber = 10000;
 
 private:
-	void prepareEventInstances(){
-		for(size_t i=0;i<InitialEventInstanceNumber;i++){
+	void prepareEventInstances() {
+		for (size_t i = 0; i < InitialEventInstanceNumber; i++) {
 			SpaceFibreADC::Event* event = new SpaceFibreADC::Event;
 			event->waveform = new uint16_t[SpaceFibreADC::MaxWaveformLength];
 			eventInstanceResavoir.push(event);
@@ -207,7 +214,8 @@ public:
 		event->phaMax = rawEvent.phaMax;
 		event->nSamples = waveformLength;
 		event->livetime = 0; //todo: implement event livetime
-		event->triggerCount =  ((static_cast<uint32_t>(rawEvent.triggerCountH)) << 16) + (static_cast<uint32_t>(rawEvent.triggerCountL));
+		event->triggerCount = ((static_cast<uint32_t>(rawEvent.triggerCountH)) << 16)
+				+ (static_cast<uint32_t>(rawEvent.triggerCountL));
 
 		//copy waveform
 		for (size_t i = 0; i < waveformLength; i++) {
@@ -241,8 +249,60 @@ public:
 	/** Returns the number of available (allocated) Event instances.
 	 * @return the number of Event instances
 	 */
-	size_t getNAllocatedEventInstances(){
+	size_t getNAllocatedEventInstances() {
 		return eventInstanceResavoir.size();
+	}
+
+public:
+public:
+	std::string stateToString() {
+		std::string result;
+		switch (state) {
+
+		case EventDecoderState::state_flag_FFF0:
+			result = "state_flag_FFF0";
+			break;
+		case EventDecoderState::state_ch:
+			result = "state_ch";
+			break;
+		case EventDecoderState::state_consumerID:
+			result = "state_consumerID";
+			break;
+		case EventDecoderState::state_phaMax:
+			result = "state_phaMax";
+			break;
+		case EventDecoderState::state_timeH:
+			result = "state_timeH";
+			break;
+		case EventDecoderState::state_timeM:
+			result = "state_timeM";
+			break;
+		case EventDecoderState::state_timeL:
+			result = "state_timeL";
+			break;
+		case EventDecoderState::state_triggerCountH:
+			result = "state_triggerCountH";
+			break;
+		case EventDecoderState::state_triggerCountL:
+			result = "state_triggerCountL";
+			break;
+		case EventDecoderState::state_baseline:
+			result = "state_baseline";
+			break;
+		case EventDecoderState::state_flag_FFF1:
+			result = "state_flag_FFF1";
+			break;
+		case EventDecoderState::state_pha_list:
+			result = "state_pha_list";
+			break;
+		case EventDecoderState::state_flag_FFFF:
+			result = "state_flag_FFFF";
+			break;
+		default:
+			result = "Undefined status";
+			break;
+		}
+		return result;
 	}
 };
 

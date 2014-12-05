@@ -219,10 +219,11 @@ public:
 			while (!this->stopped) {
 				c.wait(WaitDurationInMilliSec);
 				nReceivedEvents_latch = parent->nReceivedEvents;
-				delta = nReceivedEvents_previous - nReceivedEvents_latch;
+				delta = nReceivedEvents_latch - nReceivedEvents_previous;
 				nReceivedEvents_previous = nReceivedEvents_latch;
-				cout << "SpaceFibreADCBoard received " << parent->nReceivedEvents << " events (delta=" << delta << ")." << endl;
-				cout << "SpaceFibreADC::EventDecoder available Event instances = "
+				cout << "SpaceFibreADCBoard received " << dec << parent->nReceivedEvents << " events (delta=" << dec << delta
+						<< ")." << endl;
+				cout << "SpaceFibreADC::EventDecoder available Event instances = " << dec
 						<< this->eventDecoder->getNAllocatedEventInstances() << endl;
 			}
 		}
@@ -284,22 +285,22 @@ public:
 		this->eventDecoder = new EventDecoder();
 
 		//dump thread
-		this->dumpThread= new SpaceFibreADCBoardDumpThread(this);
+		this->dumpThread = new SpaceFibreADCBoardDumpThread(this);
 		this->dumpThread->start();
 	}
 
 public:
-	~SpaceFibreADCBoard(){
+	~SpaceFibreADCBoard() {
 		using namespace std;
 		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Deconstructing SpaceFibreADCBoard instance." << endl;
-		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Stopping dump thread."<< endl;
+		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Stopping dump thread." << endl;
 		this->dumpThread->stop();
 		delete this->dumpThread;
 
-		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Deleting RMAP Handler."<< endl;
+		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Deleting RMAP Handler." << endl;
 		delete rmapHandler;
 
-		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Deleting internal modules."<< endl;
+		cout << "SpaceFibreADCBoard::~SpaceFibreADCBoard(): Deleting internal modules." << endl;
 		delete this->channelManager;
 		delete this->consumerManager;
 		for (size_t i = 0; i < SpaceFibreADC::NumberOfChannels; i++) {
@@ -381,6 +382,7 @@ public:
 	void openDevice() throw (SpaceFibreADCException) {
 		try {
 			rmapHandler->connectoToSpaceWireToGigabitEther();
+			this->stopAcquisition();
 			consumerManager->openSocket();
 		} catch (...) {
 			throw SpaceFibreADCException::OpenDeviceFailed;
@@ -393,12 +395,15 @@ public:
 	void closeDevice() {
 		using namespace std;
 		try {
-			cout << "#disconnecting SpaceWire-to-GigabitEther" << endl;
-			rmapHandler->disconnectSpWGbE();
-			cout << "#closing sockets" << endl;
-			consumerManager->closeSocket();
+			cout << "#stopping event data output" << endl;
+			consumerManager->disableEventDataOutput();
 			cout << "#stopping dump thread" << endl;
 			consumerManager->stopDumpThread();
+			this->dumpThread->stop();
+			cout << "#closing sockets" << endl;
+			consumerManager->closeSocket();
+			cout << "#disconnecting SpaceWire-to-GigabitEther" << endl;
+			rmapHandler->disconnectSpWGbE();
 		} catch (...) {
 			throw SpaceFibreADCException::CloseDeviceFailed;
 		}

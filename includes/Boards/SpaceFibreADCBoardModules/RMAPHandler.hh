@@ -114,8 +114,13 @@ public:
 	void disconnectSpWGbE() {
 		_isConnectedToSpWGbE = false;
 
+		using namespace std;
+		cout << "RMAPHandler::disconnectSpWGbE(): Closing SpaceWire interface" << endl;
 		spwif->close();
+		cout << "RMAPHandler::disconnectSpWGbE(): Stopping RMAPEngine" << endl;
 		rmapEngine->stop();
+
+		cout << "RMAPHandler::disconnectSpWGbE(): Deleting instances" << endl;
 		delete rmapEngine;
 		delete rmapInitiator;
 		delete spwif;
@@ -123,6 +128,7 @@ public:
 		spwif = NULL;
 		rmapEngine = NULL;
 		rmapInitiator = NULL;
+		cout << "RMAPHandler::disconnectSpWGbE(): Completed" << endl;
 	}
 
 public:

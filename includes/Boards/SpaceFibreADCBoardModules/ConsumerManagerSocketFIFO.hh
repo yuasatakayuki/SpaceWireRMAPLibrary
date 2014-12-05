@@ -35,7 +35,7 @@ public:
 			CxxUtilities::Condition c;
 			while (!stopped) {
 				if (dumpEnabled) {
-					cout << "ConsumerManagerSocketFIFO: Total " << parent->receivedBytes << " bytes received" << endl;
+					cout << "ConsumerManagerSocketFIFO: Total " << dec << parent->receivedBytes << " bytes received" << endl;
 				}
 				c.wait(DumpPeriodInMilliSecond);
 			}
@@ -160,6 +160,20 @@ public:
 			if (Debug::consumermanager()) {
 				cout << "ConsumerManagerSocketFIFO::getEventData(): received " << receivedSize << " bytes" << endl;
 			}
+			//if odd byte is received, wait until the following 1 byte is received.
+			if (receivedSize % 2 == 1) {
+				cout << "ConsumerManagerSocketFIFO::getEventData(): odd bytes. wait for another byte." << endl;
+				size_t receivedSizeOneByte = 0;
+				while (receivedSizeOneByte == 0) {
+					try {
+						receivedSizeOneByte = socket->receive(&(receiveBuffer[receivedSize]), 1);
+					} catch (...) {
+						cerr << "ConsumerManagerSocketFIFO::getEventData(): receive 1 byte timeout. continues." << endl;
+					}
+				}
+				//increment by 1 to make receivedSize even
+				receivedSize++;
+			}
 			receiveBuffer.resize(receivedSize);
 		} catch (CxxUtilities::TCPSocketException& e) {
 			if (e.getStatus() == CxxUtilities::TCPSocketException::Timeout) {
@@ -194,6 +208,21 @@ public:
 				cout << "ConsumerManagerSocketFIFO::openSocket(): timeout duration of " << TCPSocketTimeoutDurationInMilliSec
 						<< " ms set" << endl;
 			}
+			//receive garbage data
+			size_t receivedBytes = 1;
+			size_t totalReceivedBytes = 0;
+			const size_t temporaryBufferSize = 1024;
+			uint8_t* temporaryBuffer = new uint8_t[temporaryBufferSize];
+			try {
+				while (receivedBytes != 0) {
+					receivedBytes = 0;
+					receivedBytes = socket->receive(temporaryBuffer, temporaryBufferSize);
+					totalReceivedBytes += receivedBytes;
+				}
+			} catch (...) {
+				cout << "Read garbage data completed (read " << totalReceivedBytes << " bytes)" << endl;
+			}
+			delete temporaryBuffer;
 		} catch (CxxUtilities::TCPSocketException& e) {
 			cerr << e.toString() << endl;
 			exit(-1);
@@ -232,7 +261,7 @@ public:
 		}
 		rmapHandler->setRegister(AddressOf_EventOutputDisableRegister, 0x0000);
 		if (Debug::consumermanager()) {
-			uint16_t eventOutputDisableRegister=rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
+			uint16_t eventOutputDisableRegister = rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
 			cout << "done(disableRegister=" << hex << setw(4) << eventOutputDisableRegister << dec << ")" << endl;
 		}
 	}
@@ -252,7 +281,7 @@ public:
 		}
 		rmapHandler->setRegister(AddressOf_EventOutputDisableRegister, 0x0001);
 		if (Debug::consumermanager()) {
-			uint16_t eventOutputDisableRegister=rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
+			uint16_t eventOutputDisableRegister = rmapHandler->getRegister(AddressOf_EventOutputDisableRegister);
 			cout << "done(disableRegister=" << hex << setw(4) << eventOutputDisableRegister << dec << ")" << endl;
 		}
 	}

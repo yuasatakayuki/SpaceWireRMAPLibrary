@@ -17,19 +17,19 @@ public:
 	 * @return true if semaphore block is in debug mode.
 	 */
 	static bool semaphore() {
-		return true;
+		return false;
 	}
 	/** Returns if channelmodule block is in debug mode.
 	 * @return true if channelmodule block is in debug mode.
 	 */
 	static bool channelmodule() {
-		return true;
+		return false;
 	}
 	/** Returns if consumermanager block is in debug mode.
 	 * @return true if consumermanager block is in debug mode.
 	 */
 	static bool consumermanager() {
-		return true;
+		return false;
 	}
 	/** Returns if ring buffer block is in debug mode.
 	 * @return true if ring buffer block is in debug mode.
@@ -41,7 +41,7 @@ public:
 	 * @return true if channelmanager block is in debug mode.
 	 */
 	static bool channelmanager() {
-		return true;
+		return false;
 	}
 	/** Returns if SpaceWire ADC Box is in debug mode.
 	 * @return true if adc box is in debug mode.
@@ -59,7 +59,7 @@ public:
 	 * @return true if DataRecorder is in debug mode.
 	 */
 	static bool eventdecoder() {
-		return true;
+		return false;
 	}
 
 
