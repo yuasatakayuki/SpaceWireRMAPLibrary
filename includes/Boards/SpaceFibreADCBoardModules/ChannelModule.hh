@@ -8,8 +8,8 @@
 #ifndef CHANNELMODULE_HH_
 #define CHANNELMODULE_HH_
 
-#include "Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
-#include "Boards/SpaceFibreADCBoardModules/Types.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Types.hh"
 
 /** A class which represents a ChannelModule on VHDL logic.
  */

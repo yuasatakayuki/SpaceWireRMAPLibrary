@@ -8,7 +8,7 @@
 #ifndef EVENTDECODER_HH_
 #define EVENTDECODER_HH_
 
-#include "Boards/SpaceFibreADCBoardModules/Types.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Types.hh"
 #include <queue>
 #include <stack>
 

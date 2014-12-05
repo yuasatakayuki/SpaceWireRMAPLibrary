@@ -8,8 +8,8 @@
 #ifndef SEMAPHOREREGISTER_HH_
 #define SEMAPHOREREGISTER_HH_
 
-#include "Boards/SpaceFibreADCBoardModules/Types.hh"
-#include "Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Types.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
 
 /** An internal class which represents a semaphore in
  * the VHDL logic.

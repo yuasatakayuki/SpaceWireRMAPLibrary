@@ -8,7 +8,7 @@
 #ifndef SPACEFIBREADC_TYPES_HH_
 #define SPACEFIBREADC_TYPES_HH_
 
-#include "Boards/SpaceFibreADCBoardModules/Constants.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Constants.hh"
 
 namespace SpaceFibreADC {
 enum class TriggerMode

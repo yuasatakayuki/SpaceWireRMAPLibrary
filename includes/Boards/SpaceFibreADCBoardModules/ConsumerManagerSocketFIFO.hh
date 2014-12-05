@@ -8,7 +8,7 @@
 #ifndef CONSUMERMANAGERSOCKETFIFO_HH_
 #define CONSUMERMANAGERSOCKETFIFO_HH_
 
-#include "Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
 #include "CxxUtilities/CxxUtilities.hh"
 
 /** A class which represents ConsumerManager module in the VHDL logic.
