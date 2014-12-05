@@ -175,14 +175,14 @@
  * @endcode
  */
 
-#include "Boards/SpaceFibreADCBoardModules/Constants.hh"
-#include "Boards/SpaceFibreADCBoardModules/Debug.hh"
-#include "Boards/SpaceFibreADCBoardModules/SemaphoreRegister.hh"
-#include "Boards/SpaceFibreADCBoardModules/ConsumerManagerSocketFIFO.hh"
-#include "Boards/SpaceFibreADCBoardModules/EventDecoder.hh"
-#include "Boards/SpaceFibreADCBoardModules/ChannelModule.hh"
-#include "Boards/SpaceFibreADCBoardModules/ChannelManager.hh"
-#include "Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Constants.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/Debug.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/SemaphoreRegister.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/ConsumerManagerSocketFIFO.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/EventDecoder.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/ChannelModule.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/ChannelManager.hh"
+#include "SpaceWireRMAPLibrary/Boards/SpaceFibreADCBoardModules/RMAPHandler.hh"
 
 enum class SpaceFibreADCException {
 	InvalidChannelNumber, OpenDeviceFailed, CloseDeviceFailed,
