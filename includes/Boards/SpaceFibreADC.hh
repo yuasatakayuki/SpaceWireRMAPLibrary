@@ -381,7 +381,9 @@ public:
 	 */
 	void openDevice() throw (SpaceFibreADCException) {
 		try {
-			rmapHandler->connectoToSpaceWireToGigabitEther();
+			if(rmapHandler->connectoToSpaceWireToGigabitEther()==false){
+				throw SpaceFibreADCException::OpenDeviceFailed;
+			}
 			this->stopAcquisition();
 			consumerManager->openSocket();
 		} catch (...) {
@@ -623,6 +625,7 @@ public:
 	 * @param channelsToBeStarted vector of bool, true if the channel should be started
 	 */
 	void startAcquisition(std::vector<bool> channelsToBeStarted) {
+		consumerManager->enableEventDataOutput();
 		channelManager->startAcquisition(channelsToBeStarted);
 	}
 
