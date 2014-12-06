@@ -200,6 +200,8 @@ public:
 		socket = new CxxUtilities::TCPClientSocket(ipAddress, TCPPortNumber);
 		try {
 			socket->open(1000);
+			cout << "Socket connected" << endl;
+			socket->setTimeout(100);
 			if (Debug::consumermanager()) {
 				cout << "ConsumerManagerSocketFIFO::openSocket(): socket opened" << endl;
 			}
@@ -214,10 +216,12 @@ public:
 			const size_t temporaryBufferSize = 1024;
 			uint8_t* temporaryBuffer = new uint8_t[temporaryBufferSize];
 			try {
+				cout << "Receiving garbage data from the last measurement" << endl;
 				while (receivedBytes != 0) {
 					receivedBytes = 0;
 					receivedBytes = socket->receive(temporaryBuffer, temporaryBufferSize);
 					totalReceivedBytes += receivedBytes;
+					cout << "Received " << receivedBytes << " bytes" << endl;
 				}
 			} catch (...) {
 				cout << "Read garbage data completed (read " << totalReceivedBytes << " bytes)" << endl;
