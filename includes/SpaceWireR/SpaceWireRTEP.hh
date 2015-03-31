@@ -114,10 +114,10 @@ public:
 	static const size_t MaxOfSlidingWindow = 256;
 
 public:
-	static const double WaitDurationInMsForClosedLoop = 100; //m1s
-	static const double WaitDurationInMsForReceive = 1000; //ms
-	static const double WaitDurationForPacketReceiveLoop = 100; //ms
-	static const double WaitDurationForTransitionFromClosingToClosed = 1000; //ms
+	static constexpr double WaitDurationInMsForClosedLoop = 100; //m1s
+	static constexpr double WaitDurationInMsForReceive = 1000; //ms
+	static constexpr double WaitDurationForPacketReceiveLoop = 100; //ms
+	static constexpr double WaitDurationForTransitionFromClosingToClosed = 1000; //ms
 
 public:
 	SpaceWireRTEP(SpaceWireRTEPType::Type tepType, SpaceWireREngine* spwREngine, uint16_t channel) {
@@ -339,12 +339,12 @@ protected:
 	 * sendPacket interface
 	 * ============================================ */
 protected:
-	static const double DefaultTimeoutDurationInMs = 1000; //ms
-	static const double DefaultWaitDurationInMsForCompletionCheck = 50; //ms
-	static const double DefaultWaitDurationInMsForSendSegment = 500; //ms
-	static const double DefaultTimeoutDurationInMsForRetryTimers = 50; //ms
+	static constexpr double DefaultTimeoutDurationInMs = 1000; //ms
+	static constexpr double DefaultWaitDurationInMsForCompletionCheck = 50; //ms
+	static constexpr double DefaultWaitDurationInMsForSendSegment = 500; //ms
+	static constexpr double DefaultTimeoutDurationInMsForRetryTimers = 50; //ms
 	double timeoutDurationForRetryTimers = DefaultTimeoutDurationInMsForRetryTimers; //ms
-	static const double WaitDurationInMsForPacketRetransmission = 2000; //ms
+	static constexpr double WaitDurationInMsForPacketRetransmission = 2000; //ms
 
 protected:
 	size_t maximumSegmentSize;
@@ -854,11 +854,10 @@ public:
 private:
 	bool isFlowControlEnabled_;
 
-
 protected:
 	SpaceWireRPacket* flowControlPacket;
-	size_t nTransmittedFlowControlPackets=0;
-	size_t nReceivedFlowControlPackets=0;
+	size_t nTransmittedFlowControlPackets = 0;
+	size_t nReceivedFlowControlPackets = 0;
 
 public:
 	void enableFlowControl() {

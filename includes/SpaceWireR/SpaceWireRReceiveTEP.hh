@@ -189,7 +189,7 @@ private:
 	}
 
 public:
-	static const double WaitDurationInMsForOpenWaitLoop = 100; //ms
+	static constexpr double WaitDurationInMsForOpenWaitLoop = 100; //ms
 
 public:
 	void open() throw (SpaceWireRTEPException) {
@@ -240,8 +240,8 @@ public:
 	}
 
 private:
-	static const double ProbabilityOfErrorInjectionNoReply = 0;
-	static const double ProbabilityOfErrorInjectionCRCError = 0;
+	static constexpr double ProbabilityOfErrorInjectionNoReply = 0;
+	static constexpr double ProbabilityOfErrorInjectionCRCError = 0;
 
 private:
 	bool errorInjectionNoReply(SpaceWireRPacket* packet) {

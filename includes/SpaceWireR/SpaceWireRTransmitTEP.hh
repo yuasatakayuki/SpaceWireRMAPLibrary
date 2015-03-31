@@ -66,11 +66,11 @@ public:
 
 	/* --------------------------------------------- */
 public:
-	static const double WaitDurationInMsForClosedLoop = 100; //ms
-	static const double DefaultTimeoutDurationInMilliSec = 1000; //ms
-	static const double WaitDurationInMsForClosingLoop = 100; //ms
-	static const double WaitDurationInMsForEnabledLoop = 100; //ms
-	static const double DefaultTimeoutDurationInMsForOpen = 500; //ms
+	static constexpr double WaitDurationInMsForClosedLoop = 100; //ms
+	static constexpr double DefaultTimeoutDurationInMilliSec = 1000; //ms
+	static constexpr double WaitDurationInMsForClosingLoop = 100; //ms
+	static constexpr double WaitDurationInMsForEnabledLoop = 100; //ms
+	static constexpr double DefaultTimeoutDurationInMsForOpen = 500; //ms
 
 
 private:

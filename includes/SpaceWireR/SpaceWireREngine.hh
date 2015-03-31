@@ -113,7 +113,7 @@ private:
 	CxxUtilities::Mutex sendMutex;
 
 private:
-	static const double TimeoutDurationForStopCondition = 1000;
+	static constexpr double TimeoutDurationForStopCondition = 1000;
 
 public:
 	SpaceWireREngine(SpaceWireIF* spwif) {
@@ -124,7 +124,7 @@ public:
 	}
 
 public:
-	static const double DefaultReceiveTimeoutDurationInMicroSec = 1000000;
+	static constexpr double DefaultReceiveTimeoutDurationInMicroSec = 1000000;
 
 public:
 	void processReceivedSpaceWireRPacket(SpaceWireRPacket* packet) throw (SpaceWireREngineException) {
