@@ -110,6 +110,9 @@ public:
 	static const uint32_t BufferSize = 10 * 1024 * 1024;
 
 private:
+	bool closed = false;
+
+private:
 	CxxUtilities::TCPSocket* datasocket;
 	uint8_t* sendbuffer;
 	uint8_t* receivebuffer;
@@ -146,6 +149,7 @@ public:
 		timecodeaction = NULL;
 		rbuf_index = 0;
 		receivedsize = 0;
+		closed = false;
 	}
 
 public:
@@ -179,6 +183,10 @@ public:
 	 */
 	void send(std::vector<uint8_t>* data, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
+		if(this->closed){
+			sendmutex.unlock();
+			return;
+		}
 		size_t size = data->size();
 		if (eopType == SpaceWireEOPMarker::EOP) {
 			sheader[0] = DataFlag_Complete_EOP;
@@ -211,6 +219,10 @@ public:
 	 */
 	void send(uint8_t* data, size_t length, uint32_t eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireSSDTPException) {
 		sendmutex.lock();
+		if(this->closed){
+			sendmutex.unlock();
+			return;
+		}
 		if (eopType == SpaceWireEOPMarker::EOP) {
 			sheader[0] = DataFlag_Complete_EOP;
 		} else if (eopType == SpaceWireEOPMarker::EEP) {
@@ -258,6 +270,10 @@ public:
 	 */
 	std::vector<uint8_t> receive() throw (SpaceWireSSDTPException) {
 		receivemutex.lock();
+		if(this->closed){
+			receivemutex.unlock();
+			return {};
+		}
 		std::vector<uint8_t> data;
 		uint32_t eopType;
 		receive(&data, eopType);
@@ -313,6 +329,15 @@ public:
 				try {
 //				cout << "#2-2" << endl;
 					while (hsize != 12) {
+						if(this->closed){
+							return 0;
+						}
+						if(this->receiveCanceled){
+							//reset receiveCanceled
+							this->receiveCanceled = false;
+							//return with no data
+							return 0;
+						}
 //					cout << "#2-3" << endl;
 						long result = datasocket->receive(rheader + hsize, 12 - hsize);
 						hsize += result;
@@ -570,6 +595,25 @@ public:
 		}
 		sendmutex.unlock();
 	}
+
+public:
+	/** Finalizes the instance.
+	 * If another thread is waiting in receive(), it will return with 0 (meaning 0 byte received),
+	 * enabling the thread to stop.
+	 */
+	void close(){
+		this->closed=true;
+	}
+
+public:
+	/** Cancels ongoing receive() method if any exist.
+	 */
+	void cancelReceive() {
+		this->receiveCanceled = true;
+	}
+
+private:
+	bool receiveCanceled = false;
 
 public:
 	/* for SSDTP2 */

@@ -18,7 +18,7 @@
 #include <vector>
 
 class RMAPHandler {
-private:
+protected:
 	RMAPTargetNodeDB rmapTargetDB;
 	std::string ipAddress;
 	uint32_t tcpPortNumber;
@@ -64,8 +64,11 @@ public:
 		}
 	}
 
+protected:
+	RMAPHandler(){}
+
 public:
-	~RMAPHandler() {
+	virtual ~RMAPHandler() {
 	}
 
 public:
@@ -74,7 +77,7 @@ public:
 	}
 
 public:
-	bool connectoToSpaceWireToGigabitEther() {
+	virtual bool connectoToSpaceWireToGigabitEther() {
 		using namespace std;
 		if (spwif != NULL) {
 			delete spwif;
@@ -111,7 +114,7 @@ public:
 	}
 
 public:
-	void disconnectSpWGbE() {
+	virtual void disconnectSpWGbE() {
 		_isConnectedToSpWGbE = false;
 
 		using namespace std;
@@ -182,7 +185,7 @@ public:
 	}
 
 public:
-	void read(std::string rmapTargetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t *buffer) {
+	virtual void read(std::string rmapTargetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t *buffer) {
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = rmapTargetDB.getRMAPTargetNode(rmapTargetNodeID);
@@ -193,7 +196,7 @@ public:
 	}
 
 public:
-	void read(std::string rmapTargetNodeID, std::string memoryObjectID, uint8_t *buffer) {
+	virtual void read(std::string rmapTargetNodeID, std::string memoryObjectID, uint8_t *buffer) {
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = rmapTargetDB.getRMAPTargetNode(rmapTargetNodeID);
@@ -205,7 +208,7 @@ public:
 	}
 
 public:
-	void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer) {
+	virtual void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer) {
 		using namespace std;
 		if (rmapInitiator == NULL) {
 			return;
@@ -232,7 +235,7 @@ public:
 	}
 
 public:
-	void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer) {
+	virtual void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer) {
 		if (rmapInitiator == NULL) {
 			return;
 		}
@@ -259,7 +262,7 @@ public:
 	}
 
 public:
-	void write(std::string rmapTargetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length) {
+	virtual void write(std::string rmapTargetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length) {
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = rmapTargetDB.getRMAPTargetNode(rmapTargetNodeID);
@@ -270,7 +273,7 @@ public:
 	}
 
 public:
-	void write(std::string rmapTargetNodeID, std::string memoryObjectID, uint8_t* data) {
+	virtual void write(std::string rmapTargetNodeID, std::string memoryObjectID, uint8_t* data) {
 		RMAPTargetNode* targetNode;
 		try {
 			targetNode = rmapTargetDB.getRMAPTargetNode(rmapTargetNodeID);
@@ -281,7 +284,7 @@ public:
 	}
 
 public:
-	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length) {
+	virtual void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length) {
 		if (rmapInitiator == NULL) {
 			return;
 		}
@@ -310,7 +313,7 @@ public:
 	}
 
 public:
-	void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data) {
+	virtual void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data) {
 		if (rmapInitiator == NULL) {
 			return;
 		}
@@ -349,13 +352,13 @@ public:
 	}
 
 public:
-	void setRegister(uint32_t address, uint16_t data) {
+	virtual void setRegister(uint32_t address, uint16_t data) {
 		uint8_t writeData[2] = { static_cast<uint8_t>(data / 0x100), static_cast<uint8_t>(data % 0x100) };
 		this->write(adcRMAPTargetNode, address, writeData, 2);
 	}
 
 public:
-	uint16_t getRegister(uint32_t address) {
+	virtual uint16_t getRegister(uint32_t address) {
 		uint8_t readData[2];
 		this->read(adcRMAPTargetNode, address, 2, readData);
 		return (uint16_t) (readData[0] * 0x100 + readData[1]);

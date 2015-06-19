@@ -391,6 +391,11 @@ public:
 	}
 
 public:
+	std::map<std::string, RMAPMemoryObject*> getAllMemoryObjects(){
+		return memoryObjects;
+	}
+
+public:
 	std::string toString(int nTabs = 0) {
 		using namespace std;
 		stringstream ss;

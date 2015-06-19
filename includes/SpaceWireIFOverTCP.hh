@@ -324,6 +324,11 @@ public:
 			return false;
 		}
 	}
+
+public:
+	/** Cancels ongoing receive() method if any exist.
+	 */
+	void cancelReceive(){}
 };
 
 /** History

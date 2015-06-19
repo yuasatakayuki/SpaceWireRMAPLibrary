@@ -33,6 +33,9 @@ public:
 	uint32_t AddressOf_DigitalFilterTrigger_ThresholdDeltaRegister;
 	uint32_t AddressOf_DigitalFilterTrigger_WidthRegister;
 	uint32_t AddressOf_DigitalFilterTrigger_HitPattern_FilterCoefficientSelectorRegister;
+	uint32_t AddressOf_Status1Register;
+	uint32_t AddressOf_TriggerCountRegisterL;
+	uint32_t AddressOf_TriggerCountRegisterH;
 
 private:
 	RMAPHandler* rmapHandler;
@@ -59,23 +62,27 @@ public:
 		AddressOf_LivetimeRegisterH = BA + 0x0010;
 		AddressOf_CurrentAdcDataRegister = BA + 0x0012;
 		AddressOf_CPUTriggerRegister = BA + 0x0014;
-		AddressOf_DigitalFilterTrigger_ThresholdDeltaRegister = BA + 0x0018;
-		AddressOf_DigitalFilterTrigger_WidthRegister = BA + 0x001a;
-		AddressOf_DigitalFilterTrigger_HitPattern_FilterCoefficientSelectorRegister = BA + 0x0020;
+		AddressOf_TriggerCountRegisterL = BA + 0x0016;
+		AddressOf_TriggerCountRegisterH = BA + 0x0018;
+		/*
+		 AddressOf_DigitalFilterTrigger_ThresholdDeltaRegister = BA + 0x0018;
+		 AddressOf_DigitalFilterTrigger_WidthRegister = BA + 0x001a;
+		 AddressOf_DigitalFilterTrigger_HitPattern_FilterCoefficientSelectorRegister = BA + 0x0020;
+		 */
 		AddressOf_TriggerBusMaskRegister = BA + 0x0024;
+		AddressOf_Status1Register = BA + 0x0030;
+		AddressOf_TriggerCountRegisterL = AddressOf_TriggerCountRegisterH;
+
 	}
 
 public:
 	void setRegister(uint32_t address, uint16_t data) {
-		std::vector<uint8_t> writeData = { static_cast<uint8_t>(data / 0x100), static_cast<uint8_t>(data % 0x100) };
-		rmapHandler->write(adcRMAPTargetNode, address, &writeData[0], writeData.size());
+		rmapHandler->setRegister(address, data);
 	}
 
 public:
 	uint16_t getRegister(uint32_t address) {
-		std::vector<uint8_t> readData(2);
-		rmapHandler->read(adcRMAPTargetNode, address, 2, &readData[0]);
-		return (uint16_t) (readData[0] * 0x100 + readData[1]);
+		return rmapHandler->getRegister(address);
 	}
 
 public:
@@ -251,6 +258,54 @@ public:
 			cout << hex << setw(4) << setfill('0') << adcvalue << dec << endl;
 		}
 		return adcvalue;
+	}
+
+public:
+	/** Reads Status Register. Result will be returned as string.
+	 * @return stringified status
+	 */
+	std::string getStatus() {
+		using namespace std;
+		uint16_t statusRegister = rmapHandler->getRegister(AddressOf_Status1Register);
+		std::stringstream ss;
+		/*
+		 Status1Register <= (                             --
+		 -- Trigger/Veto status
+		 0      => Veto_internal,                       --1
+		 1      => InternalModule2ChModule.TriggerOut,  --2
+		 2      => '0',                                 --4
+		 3      => ChMgr2ChModule.Veto,                 --8
+		 4      => TriggerModuleVeto,                   --1
+		 5      => AdcPowerDownModeRegister(0),         --2
+		 6      => '1',                                 --4
+		 7      => '1',                                 --8
+		 -- EventBuffer status
+		 8      => BufferNoGood,                        --1
+		 9      => NoRoomForMoreEvent,                  --2
+		 10     => hasEvent,                            --4
+		 others => '1'
+		 );
+		 */
+		ss << "Veto_internal : " << ((statusRegister & 0x0001) >> 0) << endl;
+		ss << "TriggerOut    : " << ((statusRegister & 0x0002) >> 1) << endl;
+		ss << "ChMgr Veto    : " << ((statusRegister & 0x0008) >> 3) << endl;
+		ss << "TrgModuleVeto : " << ((statusRegister & 0x0010) >> 4) << endl;
+		ss << "ADCPowerDown  : " << ((statusRegister & 0x0020) >> 5) << endl;
+		ss << "BufferNoGood  : " << ((statusRegister & 0x0100) >> 8) << endl;
+		ss << "NoRoomForEvt  : " << ((statusRegister & 0x0200) >> 9) << endl;
+		ss << "hasEvent      : " << ((statusRegister & 0x0400) >> 10) << endl;
+
+		return ss.str();
+	}
+
+public:
+	/** Reads TriggerCountRegister.
+	 * @return trigger count
+	 */
+	size_t getTriggerCount() {
+		size_t low = rmapHandler->getRegister(AddressOf_TriggerCountRegisterL);
+		size_t high = rmapHandler->getRegister(AddressOf_TriggerCountRegisterH);
+		return (high << 16) + low;
 	}
 };
 

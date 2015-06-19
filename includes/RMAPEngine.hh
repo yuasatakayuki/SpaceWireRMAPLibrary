@@ -252,7 +252,9 @@ public:
 
 public:
 	~RMAPEngine() {
-
+		if(spwif!=NULL){
+			spwif->cancelReceive();
+		}
 	}
 
 private:
@@ -315,6 +317,7 @@ public:
 		using namespace std;
 		if (stopped == false) {
 			stopped = true;
+			spwif->cancelReceive();
 			do {
 				CxxUtilities::Condition c;
 				c.wait(spwif->getTimeoutDurationInMicroSec() / 1000.0 /* in milli sec */);
