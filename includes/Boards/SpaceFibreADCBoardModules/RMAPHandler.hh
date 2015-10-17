@@ -219,8 +219,9 @@ public:
 				spwif->emitTimecode(0x00, 0x00);
 				break;
 			} catch (RMAPInitiatorException& e) {
-				std::cerr << "Read timed out (address=" << "0x" << hex << right << setw(8) << setfill('0')
-						<< (uint32_t) memoryAddress << " length=" << dec << length << "); trying again..." << std::endl;
+				cerr << "RMAPHandler::read(): RMAPInitiatorException::" << e.toString() << endl;
+				cerr << "Read timed out (address=" << "0x" << hex << right << setw(8) << setfill('0')
+						<< (uint32_t) memoryAddress << " length=" << dec << length << "); trying again..." << endl;
 				if (i == maxNTrials - 1) {
 					if (e.getStatus() == RMAPInitiatorException::Timeout) {
 						throw RMAPHandlerException(RMAPHandlerException::TimeOut);
@@ -236,6 +237,7 @@ public:
 
 public:
 	virtual void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer) {
+		using namespace std;
 		if (rmapInitiator == NULL) {
 			return;
 		}
@@ -245,6 +247,7 @@ public:
 				spwif->emitTimecode(0x00, 0x00);
 				break;
 			} catch (RMAPInitiatorException& e) {
+				cerr << "RMAPHandler::read(): RMAPInitiatorException::" << e.toString() << endl;
 				std::cerr << "Time out; trying again..." << std::endl;
 				if (i == maxNTrials - 1) {
 					if (e.getStatus() == RMAPInitiatorException::Timeout) {
