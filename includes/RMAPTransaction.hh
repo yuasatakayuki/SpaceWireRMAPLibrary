@@ -1,29 +1,29 @@
 /* 
-============================================================================
-SpaceWire/RMAP Library is provided under the MIT License.
-============================================================================
+ ============================================================================
+ SpaceWire/RMAP Library is provided under the MIT License.
+ ============================================================================
 
-Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
+ Copyright (c) 2006-2013 Takayuki Yuasa and The Open-source SpaceWire Project
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject to 
-the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
 
-The above copyright notice and this permission notice shall be included 
-in all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 /*
  * RMAPTransaction.hh
  *
@@ -62,18 +62,26 @@ public:
 public:
 	RMAPTransaction() {
 		timeoutDuration = DefaultTimeoutDuration;
-		transactionIDMode=AutoTransactionID;
-		replyPacket=NULL;
-		commandPacket=NULL;
-		isNonblockingMode=false;
+		transactionIDMode = AutoTransactionID;
+		replyPacket = NULL;
+		commandPacket = NULL;
+		isNonblockingMode = false;
 	}
 
 public:
 	enum {
 		//for RMAPInitiator-related transaction
-		NotInitiated, Initiated, CommandSent, ReplyReceived, Timeout,
+		NotInitiated = 0x00,
+		Initiated = 0x01,
+		CommandSent = 0x02,
+		ReplyReceived = 0x03,
+		Timeout = 0x04,
 		//for RMAPTarget-related transaction
-		CommandPacketReceived, ReplySet, ReplySent, Aborted, ReplyCompleted
+		CommandPacketReceived = 0x10,
+		ReplySet = 0x11,
+		ReplySent = 0x12,
+		Aborted = 0x13,
+		ReplyCompleted = 0x14
 	};
 
 public:
@@ -149,18 +157,18 @@ public:
 		return transactionIDMode;
 	}
 
-	bool isAutoTransactionIDMode(){
-		if(transactionIDMode==AutoTransactionID){
+	bool isAutoTransactionIDMode() {
+		if (transactionIDMode == AutoTransactionID) {
 			return true;
-		}else{
+		} else {
 			return false;
 		}
 	}
 
-	bool isManualTransactionIDMode(){
-		if(transactionIDMode==AutoTransactionID){
+	bool isManualTransactionIDMode() {
+		if (transactionIDMode == AutoTransactionID) {
 			return false;
-		}else{
+		} else {
 			return true;
 		}
 	}
