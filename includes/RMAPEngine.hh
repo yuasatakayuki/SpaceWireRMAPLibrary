@@ -214,7 +214,7 @@ private:
 
 public:
 	static const size_t MaximumTIDNumber = 65536;
-	static constexpr double DefaultReceiveTimeoutDurationInMicroSec = 10000; //1s
+	static constexpr double DefaultReceiveTimeoutDurationInMicroSec = 200000; //200ms
 
 private:
 	SpaceWireIF* spwif;
@@ -385,6 +385,9 @@ public:
 	}
 
 private:
+	CxxUtilities::Condition c;
+
+private:
 	void rmapReplyPacketReceived(RMAPPacket* packet) throw (RMAPEngineException) {
 		using namespace std;
 		try {
@@ -402,6 +405,11 @@ private:
 			//register reply packet to the resolved transaction
 			transaction->replyPacket = packet;
 			//update transaction state
+			/*while(transaction->getState()!=RMAPTransaction::CommandSent and transaction->getState()!=RMAPTransaction::Initiated){
+				cout << "RMAPEngine::rmapReplyPacketReceived(): Waiting" << endl;
+				cout << transaction->getState() << endl;
+				c.wait(100);
+			}*/
 			transaction->setState(RMAPTransaction::ReplyReceived);
 			if (!transaction->isNonblockingMode) {
 				transaction->getCondition()->signal();
