@@ -110,6 +110,22 @@ public:
 	}
 
 public:
+	/** Returns trigger mode.
+	 * See setTrigger() for returned values.
+	 */
+	int getTriggerMode() {
+		using namespace std;
+		if (Debug::channelmodule()) {
+			cout << "channelmodule(" << chNumber << ") getting TriggerMode...";
+		}
+		uint16_t triggerModeInteger = this->getRegister(AddressOf_TriggerModeRegister);
+		if (Debug::channelmodule()) {
+			cout << "done(" << hex << setw(4) << triggerModeInteger << dec << ")" << endl;
+		}
+		return triggerModeInteger;
+	}
+
+public:
 	/** Sets TriggerBusMask which is used in TriggerMode==TriggerBus.
 	 * @param enabledChannels array of enabled trigger bus channels.
 	 */
