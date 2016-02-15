@@ -53,6 +53,17 @@ to build a Ruby SpaceWire/RMAP module.
 
 Download and Install
 --------------------
+### Install using Homebrew
+
+```sh
+brew tap yuasatakayuki/hxisgd
+brew install xerces-c spacewirermaplibrary
+```
+
+SpaceWireRMAPLibrary and related libraries will be installed to ```/usr/local/include```.
+When compiling an application using SpaceWireRMAPLibrary, one needs to include the path
+in header search path by doing e.g. ```-I/usr/local/include```, and include xerces-c by
+providing a linker flag ```-lxerces-c```.
 
 ### Install from Git repository (recommended)
 
@@ -87,7 +98,7 @@ If you are using the Github repository version of SpaceWire RMAP
 Library, you can update to the latest version by just executing “git
 pull” in the folder.
 
-``` {.brush: .bash; .title: .; .notranslate title=""}
+```sh
 #Update SpaceWire RMAP Library
 cd $SPACEWIRERMAPLIBRARY_PATH
 git pull
