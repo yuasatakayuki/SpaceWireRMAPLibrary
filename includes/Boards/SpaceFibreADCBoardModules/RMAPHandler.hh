@@ -101,6 +101,17 @@ public:
 			rmapEngine->setUseDraftECRC(true);
 		}
 		rmapEngine->start();
+		CxxUtilities::Condition c;
+		size_t waitCounter=0;
+		while(!rmapEngine->isStarted()){
+			c.wait(100);//100ms
+			waitCounter++;
+			if(waitCounter==20){//timeout in 2sec
+				cerr << "RMAPHandler::connectoToSpaceWireToGigabitEther() RMAPEngine failed to start." << endl;
+				rmapEngine->stop();
+				return false;
+			}
+		}
 		rmapInitiator = new RMAPInitiator(rmapEngine);
 		rmapInitiator->setInitiatorLogicalAddress(0xFE);
 		rmapInitiator->setVerifyMode(true);
