@@ -1209,6 +1209,7 @@ SpaceWireはパケット長に制限がなく、各パケットはパケット�
 
 === A.1 SSDTP2 パケットの基本構造
 SSDTP2では、カプセル化されたデータは以下のような構造になっています。
+
 *<Flag 1byte> <Reserved 1byte> <Size 10bytes> <Cargo variable length>*
 
 *Flag* はパケットの種別（データか制御か）を指定します．

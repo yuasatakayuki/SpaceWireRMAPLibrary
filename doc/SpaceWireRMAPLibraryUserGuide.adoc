@@ -876,7 +876,7 @@ class RMAPPacket {
 };
 ----
  
- List 18 presents an example of manual packet creation using RMAPPacket excerpted from tutorial _RMAPPacket _creationInterpretation.cc. After setting many options, RMAPPacket::constructPacket() which compiles header, calculates CRCs, and concatenates the header and the data part. Resulting byte sequence can be obtained by calling RMAPPacket::getPacketBufferPointer() as a std::vector pointer. To display an RMAPPacket, RMAPPacket::toString() or toXMLString() can be utilized. An execution result is shown in List 19.
+List 18 presents an example of manual packet creation using RMAPPacket excerpted from tutorial _RMAPPacket _creationInterpretation.cc. After setting many options, RMAPPacket::constructPacket() which compiles header, calculates CRCs, and concatenates the header and the data part. Resulting byte sequence can be obtained by calling RMAPPacket::getPacketBufferPointer() as a std::vector pointer. To display an RMAPPacket, RMAPPacket::toString() or toXMLString() can be utilized. An execution result is shown in List 19.
 
 [source, c++]
 .Listing 18: Sample code for manually constructing an RMAP packet.
@@ -952,7 +952,7 @@ Data CRC                    : 81
 Total data (bytes)          : 73
 ----
 
-List 20 interprets an example byte sequence as an RMAP packet. If RMAPPacket:: interpretAsAnRMAPPacket( uint8_t *packet, size_t length) returns with no exception, the byte sequence is a valid RMAP packet, and inter- preted properties are accessible from the RMAPPacket instance. When an exception is thrown, inspect the status and try to disable CRC checks (if RMAPPacketException::InvalidHeaderCRC or RMAPPacketException::InvalidDataCRC is thrown). is can be done via RMAPPacket:: setHeaderCRCIsChecked( bool) or RMAPPacket:: setDataCRCIs- Checked( bool). By default, validities of header and data CRCs are checked, and an exception will be thrown when either or both of them are invalid. List 21 shows an execution result of List 20.
+List 20 interprets an example byte sequence as an RMAP packet. If RMAPPacket::interpretAsAnRMAPPacket( uint8_t *packet, size_t length) returns with no exception, the byte sequence is a valid RMAP packet, and inter- preted properties are accessible from the RMAPPacket instance. When an exception is thrown, inspect the status and try to disable CRC checks (if RMAPPacketException::InvalidHeaderCRC or RMAPPacketException::InvalidDataCRC is thrown). is can be done via RMAPPacket::setHeaderCRCIsChecked( bool) or RMAPPacket::setDataCRCIsChecked( bool). By default, validities of header and data CRCs are checked, and an exception will be thrown when either or both of them are invalid. List 21 shows an execution result of List 20.
 
 [source, c++]
 .Listing 20: Sample code for manually interpreting an RMAP packet.
@@ -1126,9 +1126,11 @@ public:
 SpaceWire has no limitation of the length of the packet, and each SpaceWire packet is terminated using the end of packet character (EOP) or the error end of packet character (EEP). On the other hand, TCP/IP only provides a simple socket which transfers bytes as a stream, and there is no delimiter to handle the end (or dividing point) of the data being transferred. Therefore an encapsulating protocol should be used to transfer SpaceWire packets over a TCP/IP socket. In SpaceWire-to-GigabitEther, a simple header-followed-by-size-and-data protocol is defined and used. The name of the protocol is SSDTP2. In SpaceWire RMAP Library, SpaceWireSSDTPModule supports this protocol.
 
 === A.1 Basic structure of SSDTP2 packets
- In SSDTP2, encapsulated data have the following structure.
+In SSDTP2, encapsulated data have the following structure.
+
 *<Flag 1byte> <Reserved 1byte> <Size 10bytes> <Cargo variable length>*
-Flag specifies type of the packet; Data or Control. Data encapsulates SpaceWire packet, and Control contains infor- mation needed to control the connection of the SpaceWire-to-TCP/IP converters on both ends of the TCP/IP link (i.e. SpaceWire-to-GigabitEther and a user program on PC). Size contains the size of the Cargo part. The Cargo part can be data or codes which contains control information. Below, the encapsulation structures are described individually.
+
+*Flag* specifies type of the packet; Data or Control. Data encapsulates SpaceWire packet, and Control contains information needed to control the connection of the SpaceWire-to-TCP/IP converters on both ends of the TCP/IP link (i.e. SpaceWire-to-GigabitEther and a user program on PC). *Size* contains the size of the Cargo part. The *Cargo* part can be data or codes which contains control information. Below, the encapsulation structures are described individually.
 
 === A.2 Data packet
 Table 2 presents the structure of Data packets of SSDTP2. When sending complete SpaceWire packets terminated with EOP (EEP), a Flag value of 0x00 (0x01) is used. Listing 27 shows how to fill the size and the data sections. +
