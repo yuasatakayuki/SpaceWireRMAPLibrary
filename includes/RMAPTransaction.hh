@@ -37,38 +37,28 @@
 #include "CxxUtilities/CxxUtilities.hh"
 #include "RMAPPacket.hh"
 
+#include <mutex>
+
 class RMAPTransaction {
 public:
-	uint8_t targetLogicalAddress;
-	uint8_t initiatorLogicalAddress;
-	uint16_t transactionID;
-	uint32_t transactionIDMode;
-	CxxUtilities::Condition condition;
-	double timeoutDuration;
-	uint32_t state;
+	static constexpr double DefaultTimeoutDuration = 1000.0;
 
-public:
+	uint8_t targetLogicalAddress{};
+	uint8_t initiatorLogicalAddress{};
+	uint16_t transactionID{};
+	uint32_t transactionIDMode = AutoTransactionID;
+	CxxUtilities::Condition condition;
+	double timeoutDuration  = DefaultTimeoutDuration;
+	uint32_t state{};
+	std::mutex stateMutex;
+	bool isNonblockingMode = false;
+	RMAPPacket* commandPacket{};
+	RMAPPacket* replyPacket{};
+
 	enum {
 		AutoTransactionID = 0x00, ManualTransactionID = 0x01
 	};
 
-public:
-	bool isNonblockingMode;
-
-public:
-	RMAPPacket* commandPacket;
-	RMAPPacket* replyPacket;
-
-public:
-	RMAPTransaction() {
-		timeoutDuration = DefaultTimeoutDuration;
-		transactionIDMode = AutoTransactionID;
-		replyPacket = NULL;
-		commandPacket = NULL;
-		isNonblockingMode = false;
-	}
-
-public:
 	enum {
 		//for RMAPInitiator-related transaction
 		NotInitiated = 0x00,
@@ -83,9 +73,6 @@ public:
 		Aborted = 0x13,
 		ReplyCompleted = 0x14
 	};
-
-public:
-	static constexpr double DefaultTimeoutDuration = 1000;
 
 public:
 	RMAPPacket* getCommandPacket() const {
