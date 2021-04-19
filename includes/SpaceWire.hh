@@ -41,6 +41,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireIF.hh"
 #include "SpaceWireIFOverTCP.hh"
 #include "SpaceWireIFOverIPClient.hh"
+#include "SpaceWireIFOverSPI.hh"
 #include "SpaceWireProtocol.hh"
 #include "SpaceWireSSDTPModule.hh"
 #include "SpaceWireUtilities.hh"

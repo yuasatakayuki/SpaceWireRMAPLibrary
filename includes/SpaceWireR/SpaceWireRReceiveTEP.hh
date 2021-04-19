@@ -706,24 +706,8 @@ private:
 		cout << "SpaceWireRReceiveTEP::processHeartBeatPacket() nHeartBeat = " << nReceivedHeartBeatPackets
 				<< " sequence number = " << (uint32_t) packet->getSequenceNumber() << endl;
 #endif
-
-		if (insideForwardReceiveSlidingWindow(sequenceNumber)) {
-			if (this->receiveSlidingWindowBuffer[sequenceNumber] == NULL) {
-				replyAckForPacket(packet);
-				this->receiveSlidingWindowBuffer[sequenceNumber] = packet;
-				slideReceiveSlidingWindow();
-			} else {
-				replyAckForPacket(packet);
-				delete packet;
-			}
-		} else if (insideBackwardReceiveSlidingWindow(sequenceNumber)) {
-			replyAckForPacket(packet);
-			delete packet;
-		} else {
-			malfunctioningTransportChannel();
-			nDiscardedHeartBeatPackets++;
-		}
-
+		replyAckForPacket(packet);
+    	delete packet;
 	}
 
 private:

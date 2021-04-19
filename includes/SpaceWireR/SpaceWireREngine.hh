@@ -39,10 +39,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireR/SpaceWireRClassInterfaces.hh"
 
 //#define SpaceWireREngineDumpPacket
-#define DebugSpaceWireREngine
+//#define DebugSpaceWireREngine
 
 #undef SpaceWireREngineDumpPacket
-//#undef DebugSpaceWireREngine
+#undef DebugSpaceWireREngine
 
 
 /*
