@@ -41,9 +41,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireIF.hh"
 #include "SpaceWireIFOverTCP.hh"
 #include "SpaceWireIFOverIPClient.hh"
-#include "SpaceWireIFOverSPI.hh"
 #include "SpaceWireProtocol.hh"
 #include "SpaceWireSSDTPModule.hh"
 #include "SpaceWireUtilities.hh"
+
+#if defined(RASPBERRY_PI)
+#include "SpaceWireIFOverSPI.hh"
+#endif
 
 #endif /* SPACEWIRE_HH_ */
