@@ -36,10 +36,10 @@
 
 #include "SpaceWireR/SpaceWireRTEP.hh"
 
-#define DebugSpaceWireRTransmitTEP
-#define DebugSpaceWireRTransmitTEPDumpCriticalIncidents
-//#undef DebugSpaceWireRTransmitTEP
-//#undef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
+//#define DebugSpaceWireRTransmitTEP
+//#define DebugSpaceWireRTransmitTEPDumpCriticalIncidents
+#undef DebugSpaceWireRTransmitTEP
+#undef DebugSpaceWireRTransmitTEPDumpCriticalIncidents
 
 class SpaceWireRTransmitTEP: public SpaceWireRTEP, public CxxUtilities::StoppableThread {
 

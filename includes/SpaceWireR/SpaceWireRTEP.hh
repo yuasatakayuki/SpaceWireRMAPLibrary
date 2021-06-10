@@ -289,29 +289,29 @@ protected:
 	 bool insideBackwardSlidingWindow(uint8_t sequenceNumber) =0;
 	 */
 
-	/*
+	
 	 private:
 	 bool insideForwardSlidingWindow(uint8_t sequenceNumber) {
-	 uint8_t n = this->slidingWindowFrom;
-	 uint8_t k = this->slidingWindowSize;
-	 if ((uint8_t) (n) < (uint8_t) (n + k - 1)) {
-	 // n -- n + k - 1
-	 if (n <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1)) {
-	 return true;
-	 } else {
-	 return false;
+	    uint8_t n = this->slidingWindowFrom;
+	    uint8_t k = this->slidingWindowSize;
+	    if ((uint8_t) (n) <= (uint8_t) (n + k - 1)) {
+	        // n -- n + k - 1
+	        if (n <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1)) {
+	            return true;
+	        } else {
+	            return false;
+	        }
+	    } else {
+	        // n -- 255, 0 -- n + k - 1
+	        if ((n <= sequenceNumber && sequenceNumber <= 255)
+	        || (0 <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1))) {
+	            return true;
+	        } else {
+	            return false;
+	        }
+	    }
 	 }
-	 } else {
-	 // n -- 255, 0 -- n + k - 1
-	 if ((n <= sequenceNumber && sequenceNumber <= 255)
-	 || (0 <= sequenceNumber && sequenceNumber <= (uint8_t) (n + k - 1))) {
-	 return true;
-	 } else {
-	 return false;
-	 }
-	 }
-	 }
-
+    /*
 	 private:
 	 bool insideBackwardSlidingWindow(uint8_t sequenceNumber) {
 	 uint8_t n = this->slidingWindowFrom;
@@ -506,7 +506,7 @@ protected:
 		this->heartBeatTimer->resetHeartBeatTimer();
 
 		//configure SpaceWireRPacket instance
-		packet->setSequenceNumber(sequenceNumber);
+		packet->setSequenceNumber(specifiedSequenceNumber);
 
 		using namespace std;
 #ifdef DebugSpaceWireRTEP
@@ -533,8 +533,6 @@ protected:
 
 		//update counters
 		retryTimeoutCounters[specifiedSequenceNumber] = 0;
-		specifiedSequenceNumber++;
-		incrementNOfOutstandingPackets();
 
 		//send segment
 		try {
@@ -544,8 +542,6 @@ protected:
 			cout << packet->toString() << endl;
 #endif
 			spwREngine->sendPacket(packet);
-			nSentSegments++;
-			packetHasBeenSent[packet->getSequenceNumber()] = true;
 		} catch (...) {
 			sendMutex.unlock();
 			this->malfunctioningSpaceWireIF();
@@ -635,6 +631,10 @@ protected:
 		if (nOfOutstandingPackets < this->slidingWindowSize) {
 			nOfOutstandingPackets++;
 		} else {
+#ifdef DebugSpaceWireRTEP
+		cout << "SpaceWireRTEP::incrementNOfOutstandingPackets() nOfOutstandingPackets=" << dec << nOfOutstandingPackets 
+            << " is over slidingWindowSize, MALFUNCTION" << endl;
+#endif
 			this->malfunctioningTransportChannel();
 		}
 		mutexForNOfOutstandingPackets.unlock();
@@ -646,6 +646,9 @@ protected:
 		if (nOfOutstandingPackets != 0) {
 			nOfOutstandingPackets--;
 		} else {
+#ifdef DebugSpaceWireRTEP
+		cout << "SpaceWireRTEP::decrementNOfOutstandingPackets() nOfOutstandingPackets=0, MALFUNCTION" << endl;
+#endif
 			this->malfunctioningTransportChannel();
 		}
 		mutexForNOfOutstandingPackets.unlock();
@@ -668,7 +671,7 @@ protected:
 		cout << "SpaceWireRTEP::getAvailablePacketInstance() nOfOutstandingPackets=" << dec << nOfOutstandingPackets
 		<< endl;
 #endif
-		if (nOfOutstandingPackets < this->slidingWindowSize) {
+        if (insideForwardSlidingWindow(this->sequenceNumber)) {
 			SpaceWireRPacket* packet = slidingWindowBuffer[this->sequenceNumber];
 			return packet;
 		} else {
@@ -823,7 +826,7 @@ private:
 		heartBeatPacket->setPacketType(SpaceWireRPacketType::HeartBeatPacket);
 		heartBeatPacket->clearPayload();
 		heartBeatPacket->setCompleteSegmentFlag();
-		sendPacket(heartBeatPacket);
+		sendPacketWithSpecifiedSequenceNumber(heartBeatPacket, 0x00);
 		nTransmittedHeartBeatPackets++;
 #ifdef DebugSpaceWireRTEP
 		cout << "SpaceWireRTEP::emitHeartBeatPacket() HeartBeat packet has been transmitted and acknowledged." << endl;

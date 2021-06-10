@@ -654,8 +654,8 @@ public:
 #endif
 				for (size_t i = 0; i < payloadLengthValue; i++) {
 					payload.push_back(buffer->at(index));
+                    index++;
 				}
-				index += payloadLengthValue;
 			} catch (...) {
 				throw SpaceWireRPacketException(SpaceWireRPacketException::InvalidPayloadLength);
 			}

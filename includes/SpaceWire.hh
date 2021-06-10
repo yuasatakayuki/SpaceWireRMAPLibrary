@@ -45,4 +45,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "SpaceWireSSDTPModule.hh"
 #include "SpaceWireUtilities.hh"
 
+#if defined(RASPBERRY_PI)
+#include "SpaceWireIFOverSPI.hh"
+#endif
+
 #endif /* SPACEWIRE_HH_ */
