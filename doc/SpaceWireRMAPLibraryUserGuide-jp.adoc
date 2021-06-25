@@ -1,0 +1,1405 @@
+= SpaceWire RMAP ライブラリ v2
+:author: Takayuki Yuasa
+:revnumber: 2
+:revdate: 2012/1/10
+:version-label!:
+:toc-title: Contets
+:toc: left
+:toclevels: 3
+:table-caption!:
+:list-caption: リスト
+:sectlinks:
+:sectanchors:
+:imagesdir: figures
+
+SpaceWire RMAP Library v2 ユーザガイド
+
+Takayuki Yuasa
+
+Japan Aerospace Exploration Agency, Institute of Space and Astronautical Science 
+
+yuasa _at_mark_ astro.isas.jaxa.jp
+
+Translator: Mitsutaka Takada
+<<<
+[index]
+<<<
+
+== SpaceWire RMAP ライブラリの概要
+
+SpaceWire RMAP ライブラリは開発者のためのオープンソースの C++ クラスライブラリで tests of SpaceWire ネットワークのテストや RMAP上のデータ転送が行えます. このライブラリは高度にモジュール化されていて、SpaceWireインターフェースとソフトウェアRMAPスタックへのアクセスを容易にします．
+SpaceWireIF クラスは物理的なSpaceWireインタフェースを抽象化し、SpaceWire-over-TCP インターフェースの実装クラスは SpaceWireIFOverTCP として実装されています． RMAPイニシエータ/ターゲット機能は1つのSpaceWireインタフェースで多重化でき、RMAPEngineクラスは RMAPに関連した中心的なエンジンとして機能します．
+RMAP ターゲットノード情報　例えば、ターゲット論理アドレス、ターゲットSpaceWireアドレス、キーなど　は、XML設定ファイルで管理され、大規模なSpaceWireネットワークで複数のターゲットノードを扱うことが容易になります．
+SpaceWire RMAPライブラリは、Mac OS X とLinux(おそらく多少の修正が必要)、そしておそらくWindowsのCygwin環境で使用できます．もしWindowsへライブラリを移植される方がいららソースツリーをフィードバックしてください。SpaceWire RMAPライブラリは以下のライブラリを使用しています．
+
+- https://github.com/yuasatakayuki/CxxUtilities[CxxUtilities]
+- https://github.com/sakuraisoki/XMLUtilities/[XMLUtilities by Soki Sakurai from The University of Tokyo]
+- http://xerces.apache.org/xerces-c/[xerces-c++ by the Apache project]
+
+このうち、CxxUtilities と XMLUtilities はライブラリヘッダのみで、xerces-c++ はSpaceWire RMAPライブラリを使用する前に、ビルドしておく必要があります．
+
+NOTE: 本ソフトウェアは一部のユーザにとって有用なものであることを前提として保証や公式サポートを行わないで無償で配布しており、本ソフトウェアによって生じた損害について、開発者は一切の責任を負いません。
+
+=== SpaceWire RMAP Library v1　からの変更
+
+SpaceWire RMAP Library v1は2006年にリリースされ、多くのアプリケーションや研究機関で利用されています．
+当時RMAPはドラフト段階であったため、v1ではRMAPの実装は前提的なものであり、現在では多くの点で利用されて亡くなっています（命名規則など）．
+SpaceWire RMAP Library v2はv1を完全に置き換えるもので、多くの新機能が追加されてSpaceWireやRMAP機能の柔軟性や制御が向上されています． +
+SpaceWire RMAP Library v1 のコードはv2のフォルダ内に残っているので、v1用に開発したアプリケーションをそのまま利用できるようになっています(SpaceWireRMAPLibrary/classic/　を参照)．
+ですが、v1のコードのメンテナンスは止まっており、開発やv2へ注力しています．
+
+== ユーザガイドについて
+
+ユーザガイドは、ユーザがソフトウェアを使用する上で多少なりとも役立つことを期待して提供しています．
+これはボランティアですので、協力してくれることはいつでも歓迎します．
+コメントのフィードバックやドキュメントの修正など、貢献していただけるとありがたいです．
+文法、語彙、言い回し、構成についてコメントをお待ちしています！
+
+=== 最新情報とフィードバック
+SpaceWire RMAP ライブラリの最新情報は https://galaxy.astro.isas.jaxa.jp/~yuasa/SpaceWire[オープンソースの SpaceWireプロジェクトサイト] から見つけられます。
+
+=== 参照情報
+SpaceWire RMAP ライブラリをよりよく理解するために、以下のドキュメントが参考になります．
+ドキュメントの一部は https://galaxy.astro.isas.jaxa.jp/~yuasa/SpaceWire[オープンソースの SpaceWireプロジェクトサイト] から入手できます。
+
+- SpaceWire-to-GigabitEther User Guide
+- SpaceWire RMAP GUI User Guide
+- ECSS-E-ST-50-12C - ”SpaceWire - Links, nodes, routers and networks” by ECSS
+- ECSS-E-ST-50-52C ”SpaceWire - Remote memory access protocol” by ECSS
+
+=== Revisions
+- 2012-01-10 Takayuki Yuasa. First release.
+
+== ダウンロード、インストール、ユーザアプリケーションとのコンパイル
+SpaceWire RMAP　ライブラリは、オープンソースのSpaceWireプロジェクトサイトでZIPアーカイブで配布されています．
+Gitリポジトリは https://github.com/yuasatakayuki/SpaceWireRMAPLibrary[Github プロジェクト] からクローンすることができます．
+本ライブラリはライブラリヘッダのみであるため、インストールは簡単でアーカイブを解凍し、 _SpaceWireRMAPLibrary_ フォルダを好きな場所へ移動できます．
+例えば、_/Users/username/Documents/workspace/SpaceWireRMAPLibrary_ , _/Users/username/install/SpaceWireRMAPLibrary_ , _/usr/local/SpaceWireRMAPLibrary_ のような場所が可能です． +
+ライブラリをインストールした後は、ユーザアプリケーションのコンパイル時に使用するMakefileを簡略化するために、環境変数として、*SPACEWIRERMAPLIBRARY_PATH* をインストールしたフォルダとして設定してください．
+シェルの初期化ファイル(zshなら.zshrc 、bashなら .bashrc )に以下の行を追加します．
+
+[source,sh]
+.リスト 1: Sample code for filling the size and the data sections.
+----
+export SPACEWIRERMAPLIBRARY_PATH=/Users/yuasa/workspace/SpaceWireRMAPLibrary
+----
+
+インストール先に合わせてパスを変更します． +
+このライブラリは、1章(<<SpaceWire RMAP ライブラリの概要>>)で書いたように他にもいくつかのライブラリを使用しています．
+xerces-c++ はhttp://xerces.apache.org/xerces-c/[プロジェクトページ] からソースアーカイブをダウンロードしてインストールしてください．
+SpaceWire RMAP ライブラリで配布されている Makefile の例では、環境変数 *XERCESDIR* を使用しています．
+シェルの初期化ファイルに *XERCESDIR* を設定します．
+
+[source,sh]
+.Listing 2: Sample code for filling the size and the data sections.
+----
+export XERCESDIR=/Users/yuasa/work/install/xerces-c-3.1.1
+----
+
+CxxUtilities や XMLUtilities もSpaceWire RMAPライブラリでは必要ですが、リリース版のSpaceWire RMAPライブラリには、ユーザの利便性を考慮して、SpaceWireRMAPLibrary/externalLibraries/ にこれらのライブラリヘッダを含めています．
+そのためデフォルトでは、これらのライブラリの環境変数はサンプルのMakefileでは自動的に設定されており、ユーザは再定義する必要はありません．
+CxxUtilities や XMLUtilitiesを自分でインストールして使用したい場合は、ご自身の環境を反映させて *CXXUTILITIES_PATH* と *XMLUTILITIES_PATH* を設定してください．
+表1にSpaceWireRMAPライブラリのMakefileで使用する環境変数の一覧を示します．
+リスト3は、SpaceWireRMAPライブラリと関連ライブラリを使用してユーザアプリケーションをコンパイルするためのMakefileの例です．
+
+[cols=3]
+.Table 1: paceWireRMAPライブラリのMakefileで使用する環境変数の一覧
+|===
+| 名称
+| パスの値
+| 例 
+
+| SPACEWIRERMAPLIBRARY_PATH
+| SpaceWire RMAP Libraryへのパス
+| /Users/yuasa/workspace/SpaceWireRMAPLibrary
+
+| XERCESDIR 
+| インストールした xerces-c++ へのパス 
+| /Users/yuasa/workspace/xerces-c-3.1.1 
+
+| CXXUTILITIES_PATH (optional) 
+| CxxUtilities　へのパス
+| /Users/yuasa/workspace/CxxUtilities 
+
+
+| XMLUTILITIES_PATH (optional)
+| XMLUtilities　へのパス
+| /Users/yuasa/workspace/XMLUtilities
+
+|===
+
+[source, Makefile]
+.Listing 3: Sample Makefile.
+----
+############################################################### 
+#An example Makefile for SpaceWire RMAP Library. ###############################################################
+
+#Note 1:
+#To compile a user application with SpaceWire RMAP Library, 
+#set SPACEWIRERMAPLIBRARY_PATH and XERCESDIR in the shell 
+#initialization file first.
+#
+#Execute below to check if these variables are correctly 
+#set in your shell.
+#
+# > ls $SPACEWIRERMAPLIBRARY_PATH
+# > ls $XERCESDIR
+#
+#If no error is observed, the paths seem valid.
+
+#Note 2:
+#This Makefile assumes a user-application source code named 
+#UserApplication.cc. If other source files, include paths, 
+#and/or linker flags are necessary for compile, add them to 
+#CXXFLAGS and LDFLAGS.
+                       
+###############################################################
+
+
+#Set target (binary names) 
+#See also the rule part below. 
+TARGETS = \
+UserApplication
+
+#Check CxxUtilities
+ifndef $(CXXUTILITIES_PATH)
+CXXUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/CxxUtilities 
+endif
+
+#Check XMLUtilities
+ifndef $(XMLUTILITIES_PATH)
+XMLUTILITIES_PATH = $(SPACEWIRERMAPLIBRARY_PATH)/externalLibraries/XMLUtilities 
+endif
+
+#Set compiler/linker flags
+CXXFLAGS = -I$(SPACEWIRERMAPLIBRARY_PATH)/includes -I$(CXXUTILITIES_PATH)/includes -I$( 
+    XMLUTILITIES_PATH) -I/$(XERCESDIR)/include
+LDFLAGS = -L/$(XERCESDIR)/lib -lxerces-c
+
+TARGETS_OBJECTS = $(addsuffix .o, $(basename $(TARGETS))) 
+TARGETS_SOURCES = $(addsuffix .cc, $(basename $(TARGETS)))
+
+###############################################################
+
+.PHONY : all
+
+all : $(TARGETS)
+
+UserApplication : UserApplication.o
+    $(CXX) -g $(CXXFLAGS) -o $@ $@.cc $(LDFLAGS)
+
+clean :
+    rm -rf $(TARGETS) $(addsuffix .o, $(TARGETS))
+----
+
+== SpaceWire RMAP ライブラリの全体構成
+図1にSpaceWire RMAP ライブラリの構造図を示します．SpaceWireIFは、パケットの送受信やタイムコード送出の標準化する方法を提供している実SpaceWireインタフェースを抽象化したものです．
+SpaceWire層の上には、ソフトウェアRMAPスタックが実装されています．
+両方の階層は、_SpaceWireRMAPLibrary/_ のincludeフォルダ内にフラットなソースツリーに含まれています．
+
+=== フォルダー
+SpaceWire RMAP ライブラリは　以下にあるいくつかのフォルダを含んでいます．
+
+*includes* SpaceWire RMAP ライブラリのヘッダファイルが含まれています．ユーザアプリケーションのMakefileでは、コンパイラフラグにこのフォルダのパスを追加します．
+
+*externalLibraries* 自分でCxxUtilities や XMLUtilities　ライブラリをインストールしていない人向けに外部ライブラリのソースツリーを含んでいます．添付されているMakefileの例では、デフォルトでこれらをバンドルしたライブラリを使用しています．
+
+*exampleMakefile* SpaceWire RMAPライブラリを使用したユーザアプリケーションのMakefileの例が含まれています．必要なコンパイラやりリンカのフラグも記載されています．
+
+*sources* SpaceWire RMAPライブラリを使用して構築された無償のプログラム、チュートリアルのソースコード、テストコード、（メンテナンスはしてませんが）v1のソースツリーを含んでいます．
+
+=== ファイル
+SpaceWire.hh と RMAP.hh は　SpaceWire と RMAP機能のためのトップレベルのヘッダファイルです．
+SpaceWire RMAPライブラリを利用するユーザアプリケーションでは、これらをロード（インクルード）してください．
+5章のチュートリアルでは、sourceフォルダ内のtutorial_XXX.cc　について記述されたコードを説明しています．
+sourceフォルダ内のmain_XXXの詳細については、次の節を参照してください．
+
+.SpaceWire RMAP ライブラリの概要構成
+image::StructureOfApaceWireRMAPLibrary.png[]
+
+test_XXX files contained in the sources folder are test codes written for checking implemented library functions. They are left as they are for Interested users’ inspection.
+
+=== Free-gift programs
+ソース・フォルダには、いくつかのmain_XXX.ccファイルがあります．
+これらのプログラムは、SpaceWire RMAP ライブラリを使ったとてもシンプルなタスクを行います。
+SpaceWire や RMAPを使った地上実験では、このような単純なスタンドアローンのタスクはとてもパワフルなので、開発者はユーザに無償でバンドルをしました．
+
+*main_RMAP_calculateCRC* 入力バイト列のCRCを計算します．
+
+*main_RMAP_instructionToString* 1バイトのRMAPインストラクションフィールド値を解釈し、その意味をダンプします．
+
+*main_RMAP_interpretAsAnRMAPPacket* 指定されたバイト列をRMAPパケットとして解釈しようとします．解釈が成功した場合、パケットのプロパティがテキストとして表示されます．
+
+*main_RMAP_readWriteRMAPTargetNode* 指定されたRMAPターゲットノードへ単純なRMAP リード・ライト　アクセスを行います。
+
+*main_RMAP_replyStatusToString* リプライステータス値を文字列に変換します．
+
+== チュートリアル
+次の章では、多くのユーザにとってもっとも興味のある機能であるRMAPイニシエータであると仮定して、SpaceWire RMAP ライブラリの概要を説明します．
+SpaceWire と RMAPに関連した詳細な使用方法やアプリケーション固有のトピックについては6章で説明します．
+SpaceWireと RMAP層のチュートリアルについては、チュートリアルのソースコードである、sources/tutorial_SpaceWire.cc and sources/tutorial_RMAP.ccを参照してください．
+これらのファイルをコンパイルするためには環境変数を設定し（3章）、SpaceWireRMAPLibrary/source/　フォルダ内でmakeを実行します．
+
+=== SpaceWire RMAP ライブラリの使用
+SpaceWire and the RMAP層に関連された必要なヘッダファイルをロードするために、”SpaceWire.hh” and ”RMAP.hh”をインクルードします．
+SpaceWire RMAP ライブラリの利用用途が限られているアプリケーションのために、個別にヘッダファイルをインクルードすることも可能です．
+例えばRMAPPacketクラスのみを使用するアプリケーションでは、”RMAPPacket.hh”をインクルードすするだけで十分です．
+
+NOTE: 実際には”RMAP.hh”をインクルードすると自動的に”SpaceWire.hh”がインクルードされることに注意してください．
+
+SpaceWire RMAP ライブラリで定義されているクラスは、名前空間で囲まれていません（ルートレベルで宣言されています）．
+ただし、CxxUtilitiesのクラスは”CxxUtilities”名前空間で宣言されているので、使用するには”CxxUtilities::Condition”のようにクラスのフルパスを指定するか、ソースファイルに”using namespace CxxUtilities;”と記述してください．
+スレッドがCxxUtilitiesのメンバである間は、ユーザはスレッドのサブクラスを構築するときに”CxxUtilities::”をつける必要があるかもしれません（”public Thread”ではなく、”public CxxUtilities::Thread”に注意してください）
+
+[source, c++]
+----
+class SubclassOfThread : public CxxUtilities::Thread { 
+public:
+    void run(){
+        ... thread content ...
+    }
+};
+----
+
+=== 仮想SpaceWireインタフェースクラスのまとめ
+リスト4はSpaceWireIFクラスによって提供されたよく使われているユーザサイドインタフェースをまとめたのもです．
+各メソッドの詳細は”SpaceWireIF.hh”を参照してください．
+SpaceWireIFOverTCP- Client.hhなどの仮想メソッドの実装はSpaceWireIFXXX.ccにあります．
+
+[source, C++]
+.リスト4: SpaceWireIFのメソッド定義のまとめ
+----
+class SpaceWireIF { 
+public:
+/* open/close */
+    virtual void open() throw (SpaceWireIFException); 
+    virtual void close() throw (SpaceWireIFException);
+
+/* send methods */
+    virtual void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EPPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException);
+    virtual void send(std::vector<uint8_t>& data, SpaceWireEOPMarker::EPPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException);
+    virtual void send(std::vector<uint8_t>* data, SpaceWireEOPMarker::EPPType eopType = SpaceWireEOPMarker::EOP) throw (SpaceWireIFException);
+
+/* receive methods */ 
+    //fast
+    virtual std::vector<uint8_t>* receive() throw (SpaceWireIFException);
+    //fast
+    virtual void receive(std::vector<uint8_t>* buffer) throw (SpaceWireIFException);
+    //slow; not recommended
+    virtual void receive(uint8_t* buffer, SpaceWireEOPMarker::EPPType& eopType, size_t maxLength, size_t& length) throw (SpaceWireIFException);
+
+/* set receive timeout */
+    virtual void setTimeoutDuration(double microsecond) throw (SpaceWireIFException); /* emit timecode */
+    virtual void emitTimecode(uint8_t timeIn, uint8_t controlFlagIn = 0x00) throw (SpaceWireIFException);
+
+/* Action related to timecode */
+    void addTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action);
+    void registerTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action); void deleteTimecodeAction(SpaceWireIFActionTimecodeScynchronizedAction* action); void clearTimecodeSynchronizedActions();
+
+/* Action related to link close event */
+    void addSpaceWireIFCloseAction(SpaceWireIFActionCloseAction* spacewireIFCloseAction); void deleteSpaceWireIFCloseAction(SpaceWireIFActionCloseAction* spacewireIFCloseAction); void invokeSpaceWireIFCloseActions();
+
+/* EOP/EEP related */
+    bool isTerminatedWithEEP();
+    bool isTerminatedWithEOP();
+    void setReceivedPacketEOPMarkerType(int eopType); int getReceivedPacketEOPMarkerType();
+    void eepShouldBeReportedAsAnException();
+    void eepShouldNotBeReportedAsAnException();
+};
+----
+
+=== SpaceWireインタフェースをオープン・クローズする
+SpaceWire RMAP ライブラリはスーパークラスであるSpaceWireIF.hhで定義された、物理SpaceWireデバイスのための仮想インタフェースを提供します．
+SpaceWireIFXXXXというクラスは、SpaceWire-to-GigabitEtherのような実デバイス用のインタフェース（言い換えるとSpaceWireIFOverTCPClient）を実装します．
+スーパークラスでは実SpaceWireインタフェースクラスをオープンするメソッド名open()を定義し、そのデバイスを使用開始時に呼び出さなければなりません．例えば、SpaceWire-to-GigabitEtherの場合、以下のコードでインスタンスを生成し、デバイスをオープンする．
+現実的にはタイムアウトが発生するとSpaceWireIFOverTCPClientは例外をスローします．以下の例では（指定したIPアドレスを使って）デバイスをオープンしようとして、open()文は接続のオープンに失敗したことを検知するためにtry-catchブロックで囲まれています．
+デフォルトのポート番号は10030ですが、異なるSpaceWire-to-GigabitEtherでは必ずしも適切ではない場合もあります．
+お使いのデバイスのユーザマニュアルを参照してください．（例えば、シマフジのSpaceWire-to-GigabitEtherは、SpaceWire-to-TCP/IPポート追加しても、10031を受け付けることができます）
+
+[source, c++]
+.リスト5: SpaceWire-to-GigabitEtherをオープンするサンプルコード
+----
+/* Open the SpaceWire interface */
+cout << "Opening SpaceWireIF...";
+SpaceWireIF* spwif = new SpaceWireIFOverIPClient("192.168.1.100", 10030); 
+try {
+    spwif->open(); 
+} catch (...) {
+    cerr << "Connection timed out." << endl;
+    exit(-1); 
+}
+cout << "done" << endl;
+
+ ... user process using spwif ... 
+
+/* Close */
+spwif->close();
+----
+
+
+=== SpaceWireパケットの送受信
+3種類の送信メソッドが用意されています．唯一の違いは、データコンテナの種類で、Cの配列か、std::vectorです．
+SpaceWire RMAPライブラリの基本データ型はuint8_tですので、コンテナはunit8_t*またはstd::vector<uint8_t>となります．
+ベクターは参照またはポインタとして渡すことができます．（どちらの方法でも同じ速度が得られます）
+送信メソッドのパラメータはデータ（データの内容と長さ）とend-of-packet (EOP)マーカーです。
+EOPマーカ－はSpaceWireEOPMarker::EOPかSpaceWireEOPMarker::EEPです。
+パケット送信中に例外が発生した時は、sendメソッドはその例外をスローし、ユーザアプリケーションがその状況を処理できるようにします．
+以下の例では、スローされた例外の理由をダンプします．現実的には、ユーザはパケット送信を再試行するか、上位層へ例外を通知することを考えなければなりません．
+
+[source, c++]
+.リスト6: 送信パケットのサンプルコード
+----
+/* Send packet */
+try {
+    cout << "Send packet1" << endl;
+    uint8_t packet1[] = { 0x0a, 0x0b, 0x0c, 0x0d }; 
+    size_t length1 = 4;
+    spwif->send(packet1, length1, SpaceWireIF::EOP);
+    cout << "Send packet2" << endl; 
+    std::vector<uint8_t> packet2; 
+    packet2.push_back(0xe); 
+    packet2.push_back(0xf);
+    packet2.push_back(1); 
+    packet2.push_back(2); 
+    packet2.push_back(3); 
+    spwif->send(packet2, SpaceWireIF::EOP);
+} catch (SpaceWireIFException e) {
+    cerr << "Exception when sending a packet." << endl; 
+    cerr << e.toString() << endl;
+    exit(-1);
+}
+cout << "Send packet done" << endl;
+----
+
+リスト7は受信待ちのタイムアウト時間を設定しています．
+
+NOTE: タイムアウトカウンタの実装は、SpaceWireインタフェースに依存し、精度はマイクロ秒の単位ではないことに注意してください．
+
+[source, c++]
+.Listing 7: Sample code for seing a receive timeout duration.
+----
+/* Set receive timeout */
+spwif->setTimeoutDuration(1e6);//1sec timeout duration
+----
+
+リスト8はパケッの受信方法を示しています．SpaceWireでは基本的にパケットサイズの制約がないため、受信の場合はstd::vector<uint8_t>がデフォルトのデータコンテナ型になります．（std::vectorは可変長のデータ内容をサポートしていますが、C配列はサポートしていません）
+std::vectorとのインタフェース受信メソッドは以下の2つが用意されています．
+最初の例では、パケットを受信すると、新たに構築されたstd::vectorインスタンスへのポインタが返されます．
+パケットの内容を処理した後、ユーザアプリケーションはそのインスタンスを削除しなければなりません（delete packet3を参照）．
+しかしこの例では、インスタンスのための明示的なnewはありません（SpaceWireIFクラスがこのインスタンスを内部で構築しています）
+2つ目の例は単純で、std::vector<uint8_t>のインスタンスがreceiveメソッドに渡されます．
+
+[source, c++]
+.リスト8: パケット受信のサンプルコード
+----
+/* Receive packet */
+cout << "Receive packet3" << endl;
+try {
+    std::vector<uint8_t>* packet3 = spwif->receive();
+    cout << "Receive packet3 done (" << packet3->size() << "bytes)" << endl; 
+    //delete packet3 instance (it was newly constructed by SpaceWireIF internally, 
+    //and user should delete it to avoid memory leak.
+    delete packet3;
+} catch (SpaceWireIFException e) {
+    if (e.getStatus() == SpaceWireIFException::Timeout) { 
+        cerr << "Receive timeout" << endl;
+    } else {
+        cerr << "Exception when receiving a packet." << endl; 
+        cerr << e.toString() << endl;
+        exit(-1);
+    }
+}
+cout << "Receive packet4" << endl; 
+try {
+    std::vector<uint8_t>* packet4 = new std::vector<uint8_t>(); 
+    spwif->receive(packet4);
+    cout << "Receive packet4 done (" << packet4->size() << "bytes)" << endl; 
+    delete packet4;
+} catch (SpaceWireIFException e) {
+    if (e.getStatus() == SpaceWireIFException::Timeout) {
+        cerr << "Receive timeout" << endl; } 
+    else {
+        cerr << "Exception when receiving a packet." << endl;
+        cerr << e.toString() << endl;
+exit(-1); }
+}
+----
+
+=== タイムコードの送出
+パケットの送受信機能に加えて、SpaceWireIFはリスト9に示すようにemitTimecode(uint8_t timeIn, uint8_t controlFlagIn = 0x00)メソッドを用いて、タイムコードを発行することができます．
+timeInパラメータには0-63のタイムコード値を含める必要があります．
+制御フラグはSpaceWireの将来の拡張サポートのために設定可能です．
+この例では、タイムコードを1つ送出してから15.625ms待ちます．タイムコードは63までインクリメントされます．forループが完了するまでに約1秒かかります．
+
+NOTE: これはあくまでも一例であり、タイムコードの周期はSpaceWireネットワークにおいて最も重要なパラメータの1つです．
+周期はアプリケーションに大きく依存するので、SpaceWire-to-GigabitEtherが要求している送出周期の精度とアプリケーションにとって十分に小さなジッタであるかを確認してください．
+SpaceWire-to-GigabitEther と SpaceWireIFOverTCPClientで実現されるタイムコード送出のジッタについて、SpaceWire-to-GigabitEtherのユーザガイドを参照してください．
+
+周期的なタイムコードの送出には、run()メソッドにリスト9と同様のコードを持つスレッドクラスを実装し、起動（start()を呼ぶだけ）をする必要があります．詳細はリスト10の抜粋とtutorial_SpaceWireLayer_periodicTimecodeEmission.ccを参照してください．
+
+
+[source, c++]
+.リスト9: タイムコード送出のサンプルコード
+----
+    /* Emit timecode */
+    cout << "Emit timecode 64times" << endl; 
+    Condition c;
+    try {
+        for (uint8_t timecodeValue = 0; timecodeValue < 64; timecodeValue++) { 
+            cout << "Emitting timecode " << (uint32_t) timecodeValue << endl; 
+            spwif->emitTimecode(timecodeValue);
+            c.wait(1.0 / 64.0); //wait 15.625ms
+        }
+    } catch (SpaceWireIFException e) {
+            cerr << "Exception when receiving a packet." << endl; 
+            cerr << e.toString() << endl;
+            exit(-1);
+    }
+----
+
+[source, c++]
+.リスト10: 周期的なタイムコード送出のサンプルコード
+----
+class TimecodeThread: public CxxUtilities::StoppableThread { 
+private:
+    SpaceWireIF* spwif;
+
+public:
+    const static double TimecodeFrequency = 64; //Hz
+
+public:
+    TimecodeThread(SpaceWireIF* spwif) {
+        this->spwif = spwif;
+    }
+
+public:
+    void run() {
+        uint8_t timecode = 0x00; 
+        while (!isStopped()) {
+            try {
+                spwif->emitTimecode(timecode);
+            } catch (...) {
+                using namespace std;
+                cerr << "Timecode emission failed" << endl;
+            }
+            if (timecode == 63) {
+                timecode = 0; 
+            } else {
+                timecode++; 
+            }
+            sleep(1 / TimecodeFrequency); 
+        }
+    }
+};
+----
+
+=== RMAP関連クラスのまとめ
+RMAP転送の開始には、ユーザアプリケーションはRMAPEngineとRMAPInitiatorを使用できます．RMAPターゲットノードの情報はRMAPTargetNodeインスタンスに含めて処理されます．RMAPコマンドの受信と応答にはRMAPTargetのサブクラスがRMAPEngineで利用できます．図2はSpaceWireRMAPライブラリのSpaceWireとRMAPプロトコルスタックの全体設計を示しています．
+RMAPEngineはユーザアプリケーションのRMAP機能の中心的なエンジンとして動作します．
+RMAPEngineのタスクは、RMAPコマンドパケットの発行、未処理のRMAPトランザクションの管理、RMAPリプライの処理、受信RMAPコマンドの応答などがあります．
+RMAPInitiatorはRMAPEngineとユーザアプリケーションの橋渡しをし、RMAP　リード・ライトアクセスを実現した使いやすいリード・ライトメソッドを提供します．
+RMAPTargetNodeはターゲット論理アドレス、ターゲットSpaceWireアドレス、RMAPターゲットノードへアクセスするキーなどの必要なアクセス情報をRMAPInitiatorのリードライトメソッドに渡すために使用されます．
+
+NOTE:　RMAPTargetNodeはSpaceWire RMAP Library v1で定義されたRMAPDestinationクラスに対応します．ですが、多くの機能がつかされており、特にXML設定ファイルへのインタフェースが追加されています．
+
+リスト11、12、13は各クラスで定義されているメソッドの一部をまとめたものです．あまり使われないメソッドは示していませんので、詳細はRMAPEngine.hhとRMAPInitiator.hhを参照ください．
+
+.SpaceWire RMAP ライブラリのSpaceWire と RMAP プロトコルスタック
+image::ProtocolStackInSpaceWireRMAPLibrary.png[]
+
+[source, c++]
+.リスト11: RMAPEngine メソッド(抜粋).
+----
+class RMAPEngine: public CxxUtilities::Thread { 
+public:
+
+/* constructor */
+    RMAPEngine(SpaceWireIF* spwif);
+
+/* start/stop */
+    virtual void start();
+    void stop();
+    bool isStopped(); 
+    bool isStarted();
+
+/* methods used by RMAPInitiator */
+    void initiateTransaction(RMAPTransaction* transaction) throw (RMAPEngineException); 
+    void cancelTransaction(RMAPTransaction* transaction) throw (RMAPEngineException);
+
+/* raw packet send method which even can be used while RMAPEngine is running */
+    void sendPacket(std::vector<uint8_t>* bytes);
+
+/* methods used when a user application implements an RMAPTarget */
+    void addRMAPTarget(RMAPTarget* rmapTarget);
+    void removeRMAPTarget(RMAPTarget* rmapTarget);
+
+/* accessor for a SpaceWireIF instance */
+    void setSpaceWireIF(SpaceWireIF* spwif);
+    SpaceWireIF* getSpaceWireIF();
+
+/* actions invoked when RMAPEngine is stopped (automatically or manually) */
+    void addRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction);
+    void removeRMAPEngineStoppedAction(RMAPEngineStoppedAction* rmapEngineStoppedAction);
+    CxxUtilities::Actions* getRMAPEngineStoppedActions(); 
+};
+----
+
+[source, c++]
+.リスト12: RMAPInitiator メソッド (抜粋).
+----
+class RMAPInitiator { 
+public:
+/* constructor */
+    RMAPInitiator(RMAPEngine *rmapEngine);
+
+/* RMAP Read methods */ /* fast */
+    void read(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length, uint8_t *buffer, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+
+    /* easy to use, but somewhat slow due to data copy. */
+    /* this methods returns a pointer to a newly constructed std::vector instance */ std::vector<uint8_t>* readConstructingNewVecotrBuffer(std::string targetNodeID,
+        std::string memoryObjectID, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+
+    /* convenient, but somewhat slow due to RMAPTargetNode DB and RMAPMemoryObject DB search */
+    void read(std::string targetNodeID, std::string memoryObjectID, uint8_t* buffer, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+     /* convenient, but somewhat slow due to RMAPTargetNode DB search */
+    void read(std::string targetNodeID, uint32_t memoryAddress, uint32_t length, uint8_t* buffer, double timeoutDuration = DefaultTimeoutDuration)  throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+    /* convenient, but somewhat slow due to RMAPMemoryObject DB search */
+    void read(RMAPTargetNode* rmapTargetNode, std::string memoryObjectID, uint8_t *buffer, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+
+/* RMAP Write methods */
+    /* fast */
+    void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+    /* convenient, but somewhat slow due to RMAPTargetNode DB and RMAPMemoryObject DB search */
+    void write(std::string targetNodeID, std::string memoryObjectID, uint8_t* data, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+    /* convenient, but somewhat slow due to RMAPTargetNode DB search */
+    void write(std::string targetNodeID, uint32_t memoryAddress, uint8_t *data, uint32_t length, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+    /* convenient, but somewhat slow due to RMAPMemoryObject DB search */
+    void write(RMAPTargetNode *rmapTargetNode, std::string memoryObjectID, uint8_t* data, double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException);
+
+/* set/get logical address of this RMAPInitiator */
+    void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress); uint8_t getInitiatorLogicalAddress();
+
+/* accessor for other RMAP options */
+    void setReplyMode(bool replyMode); 
+    void unsetReplyMode();
+    bool isReplyModeSet();
+
+    void setIncrementMode(bool incrementMode); 
+    void unsetIncrementMode();
+    bool isIncrementModeSet();
+
+    void setVerifyMode(bool verifyMode); 
+    void unsetVerifyMode();
+    bool isVerifyModeSet();
+
+    void setTransactionID(uint16_t transactionID); 
+    void unsetTransactionID();
+    uint16_t getTransactionID();
+    bool isTransactionIDSet();
+
+/* accessor for raw packet pointer */
+    RMAPPacket* getCommandPacketPointer(); 
+    RMAPPacket* getReplyPacketPointer();
+
+/* interface for RMAPTargetNodeDB */
+    void setRMAPTargetNodeDB(RMAPTargetNodeDB* targetNodeDB);
+    RMAPTargetNodeDB* getRMAPTargetNodeDB(); 
+};
+----
+
+[source, c++]
+.リスト13: RMAPTargetNode メソッド (抜粋).
+----
+class RMAPTargetNode: public RMAPNode {
+public:
+/* constructor */
+    RMAPTargetNode();
+
+/* interfaces to XML-like configuration file */
+    static std::vector<RMAPTargetNode*> constructFromXMLFile(std::string filename) throw (XMLLoader::XMLLoaderException, RMAPTargetNodeException, RMAPMemoryObjectException);
+
+    static std::vector<RMAPTargetNode*> constructFromXMLFile(XMLNode* topNode) throw (XMLLoader::XMLLoaderException, RMAPTargetNodeException, RMAPMemoryObjectException);
+
+    static RMAPTargetNode* constructFromXMLNode(XMLNode* node) throw (XMLLoader::XMLLoaderException, RMAPTargetNodeException, RMAPMemoryObjectException);
+
+/* accessor for options */
+    uint8_t getDefaultKey();
+    void setDefaultKey(uint8_t defaultKey);
+
+    std::vector<uint8_t> getReplyAddress();
+    void setReplyAddress(std::vector<uint8_t>& replyAddress);
+
+    uint8_t getTargetLogicalAddress();
+    void setTargetLogicalAddress(uint8_t targetLogicalAddress);
+
+    std::vector<uint8_t> getTargetSpaceWireAddress();
+    void setTargetSpaceWireAddress(std::vector<uint8_t>& targetSpaceWireAddress);
+
+    void setInitiatorLogicalAddress(uint8_t initiatorLogicalAddress);
+    void unsetInitiatorLogicalAddress(); 
+    bool isInitiatorLogicalAddressSet(); 
+    uint8_t getInitiatorLogicalAddress();
+
+/* dealing with memory objects available on an RMAPTargetNode */
+    void addMemoryObject(RMAPMemoryObject* memoryObject); 
+    std::map<std::string, RMAPMemoryObject*>* getMemoryObjects();
+
+/* accessor for registered memory objects */
+    RMAPMemoryObject* getMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException);
+    RMAPMemoryObject* findMemoryObject(std::string memoryObjectID) throw (RMAPTargetNodeException);
+
+/* converts an instance to string or XML string */
+    std::string toString(int nTabs = 0); 
+    std::string toXMLString(int nTabs = 0);
+};
+----
+
+=== RMAPEngine と RMAPInitiatorを用いた　RMAPのリード・ライト
+RMAPInitiatorはRMAPEngineで動作するためにまず最初にRMAPEngineインスタンスを構築し、リスト14に示すように動作を開始する必要があります．RMAPEngineはCxxUtilities::Threadのサブクラスであり、新しいスレッドをforkするためにstart()メソッドを持っており、メインスレッド（通常は、ユーザアプリケーションのスレッド）のバックグラウンドでパケットの着信を待っています．RMAPEngineはSpaceWireIFを使用してから、コンストラクタはSpaceWireIFインスタンスへのポインタを許可します．イニシエータ論理アドレスを設定できます（以下の例では、デフォルト値を0xFEで設定していますが、0x20-0xFDであればどの値でも指定できます）．
+
+NOTE: 1つのRMAPEngineから複数のRMAPInitiatorインスタンスが生成可能であることに注意してください．
+これは1つのSpaceWireインタフェースを用いて複数の同時伝送を意味しています．1つのRMAPEngineに登録されたRMAPイニシエータのインスタンス数には実質的には制限はありません．ユーザアプリケーションが多数のRMAPターゲットと通信する場合、基本的には複数のRMAPInitiator因数タンスを生成し、帯域幅の利用（データ転送速度をあげる）を向上するためにリード・ライトトランザクションを同時に実行することを強く推奨します。
+
+[source, c++]
+.リスト14: RMAPEngine/RMAPInitiatorのコンストラクタ実行のサンプルコード
+----
+/* Construct and start RMAP Engine */
+RMAPEngine* rmapEngine = new RMAPEngine(spwif); 
+rmapEngine->start();
+
+/* Construct an RMAP Initiator instance */
+RMAPInitiator* rmapInitiator = new RMAPInitiator(rmapEngine); rmapInitiator->setInitiatorLogicalAddress(0xFE);
+----
+
+リスト15は手動でRMAPTargetNodeインスタンスをコンストラクタ実行してRMAPリード・ライトを実行します．
+リードバッファはC配列かstd::vector<uint8_t>のどちらかになります．ライトデータはC配列を使用して渡されることが期待されています（std::vector<uint8_t>::begin()を使用することもできます）．リード・ライトアクセスを行う際に、タイムアウト時間をパラメータとして渡すことができるため、応答パケットを無限に待つことを避けるられます（ターゲットノード情報が間違っているかRMAPターゲットが動作していない時、応答パケットはRMAPEngineで受信されないので、一般的にはRMAPInitiatorはある時点で待ちを終了しなくてはいけません）．応答モード、検証モード、アドレス増加モードようのなRMAPオプションはRMAPInitiatorメソッド経由で設定できます（リスト12参照）．それらのオプションのデフォルト値はRMAPProtocol.hhにあります（変更しても構いません）
+
+
+[source, c++]
+.リスト15: 手動でコンストラクタ実行されたRMAPTargetNodeインスタンスを使ってRMAPリード・ライトを実行するサンプルコード
+----
+/////////////////////////////////////////////////////////////////////////////////////
+/* Example 1 */
+/* Manually sets RMAPTargetNode information */ 
+cout << "Example 1" << endl;
+
+RMAPTargetNode rmapTargetNode1;
+rmapTargetNode1.setTargetLogicalAddress(0xfe); 
+rmapTargetNode1.setDefaultKey(0x20); 
+std::vector<uint8_t> targetSpaceWireAddress; 
+targetSpaceWireAddress.push_back(0x01);
+targetSpaceWireAddress.push_back(0x0a); 
+targetSpaceWireAddress.push_back(0x05); 
+rmapTargetNode1.setTargetSpaceWireAddress(targetSpaceWireAddress); 
+std::vector<uint8_t> replyAddress;
+replyAddress.push_back(0x08); 
+replyAddress.push_back(0x03); 
+replyAddress.push_back(0x0f); 
+rmapTargetNode1.setReplyAddress(replyAddress);
+cout << rmapTargetNode1.toString() << endl;
+/* RMAP Read/Write with address/length */
+try {
+    //case 1-1 : using C-array as a read buffer
+    uint32_t readLength = 1024;
+    uint8_t* readData = new uint8_t[(size_t) readLength]; 
+    uint32_t readAddress = 0xFF801100;
+    rmapInitiator->
+        read(rmapTargetNode1, readAddress, readLength, readData, readTimeoutDuration);
+
+    //case 1-2 : using std::vector<uint8_t> as a read buffer
+    std::vector<uint8_t> readDataVector; rmapInitiator->
+        read(rmapTargetNode1, readAddress, readLength,
+            (uint8_t*)readDataVector.begin(), readTimeoutDuration);
+
+    //case 1-3 : write using C-array write data
+    uint32_t writeAddress = 0xFF803800;
+    uint32_t writeLength = 4;
+    uint8_t* writeData = new uint8_t[writeLength]; 
+    writeData[0] = 0xAB;
+    writeData[1] = 0xCD;
+    writeData[2] = 0x12; 
+    writeData[3] = 0x34; 
+    rmapInitiator->
+        write(rmapTargetNode1, writeAddress, writeData, writeLength, writeTimeoutDuration);
+    delete readData;
+    delete writeData; 
+    delete rmapTargetNode1;
+
+    cout << "RMAP Read/Write Example1 done" << endl;
+
+} catch (RMAPInitiatorException e) {
+    cerr << "RMAPInitiatorException " << e.toString() << endl;
+    cerr << "Continue to next example" << endl; } catch (RMAPReplyException e) {
+    cerr << "RMAPReplyException " << e.toString() << endl; 
+    cerr << "Continue to next example" << endl;
+ } catch (RMAPEngineException e) {
+    cerr << "RMAPEngineException " << e.toString() << endl; 
+    cerr << "Continue to next example" << endl;
+} catch (...) {
+    cerr << "Unkown error" << endl; 
+    exit(-1);
+}
+/////////////////////////////////////////////////////////////////////////////////////
+----
+
+=== RMAPターゲットノードのIDを指定したRMAPのリード・ライト（RMAPTargetNodeDBを使用）
+RMAPTargetNode　インスタンスはXML設定ファイルに記述されている情報にしたがって生成されます．
+RMAPTargetNodeDBはRMAPTargetNodeインスタンスのコレクションであり、このクラスは全てのRMAPTargetNode定義をロードするところ　ー "RMAPTargetNodeDB::RMAPTargetNodeDB( std::string filename);" - で簡単にコンストラクタ実行を提供します．
+リスト16に設定ファイルをロードする方法を示します．
+
+NOTE: XMLファイルのRMAPTargetNode情報はID,メモリアドレス、長さ、アクセスモード（付録Bを参照）といった、RMAPターゲットノードのメモリマップ情報を含んでいることに注意してください．
+
+RMAPInitiator　インスタンスはRMAPターゲットノードのデータベースとしてRMAPTargetNodeDBのインスタンスを許可し、リード・ライトのメソッドはリスト16で使用したRMAPTargetNodeやメモリオブジェクトの識別子を用いて、呼び出します．
+(RMAPTargetNode と RMAPMemoryObject)のめのデータベースルックアップが発生するため、前節で説明したRMAPTargetNode*、メモリアドレス、長さを直せる使用する方法に比べて、若干遅くなります．
+しかしながら、IDを指定した方法は、再構成性やソースコードもモジュール性が高いため、十分に有用です。たとえ、ネットワーク構成やレジスタマッピングが変更した場合でも、ソースコードを変更する必要がなく、設定ファイルを簡単に更新することができます．
+指定したRMAPTargetNode IDかメモリオブジェクトIDがRMAPTargetNodeDBに見当たらない場合、RMAPInitiatorはRMAPInitiatorException::NoSuchRMAPTargetNode かRMAPInitiatorException::NoSuchRMAPMemoryObjectの状態を持ち、RMAPInitiatorExceptionをスローします．
+
+[source, c++]
+.リスト16: XML設定ファイルからRMAPTargetNodeDBをコンストラクタ実行したRMAPTargetNodeインスタンスを使った、RMAPリード・ライトの実行サンプルコード
+----
+///////////////////////////////////////////////////////////////////////////////////// 
+/* Example 2 */
+/* Use RMAPTargetNodes constructed from an XML-like configuration file. */
+cout << "Example 2" << endl; 
+if (argc < 2) {
+    cerr << "Example2 requires an XML-like configuration file." << endl; 
+    exit(-1);
+ }
+
+//check file existence
+if (!CxxUtilities::File::exists(argv[1])) {
+    cerr << "File " << argv[1] << " does not exist." << endl;
+    exit(-1); 
+}
+
+//construct RMAPTargetNodes from the XML file
+std::string filename(argv[1]);
+cout << "Constructing RMAPTargetNodes from " << filename << endl; 
+RMAPTargetNodeDB* rmapTargetNodeDB;
+try {
+    rmapTargetNodeDB = new RMAPTargetNodeDB(filename);
+    } catch (RMAPTargetNodeDBException e) {
+        cerr << "An exception thrown while loading the XML file " << filename << endl;
+        cerr << e.toString() << endl;
+        exit(-1); 
+    }
+
+//check the number of entries
+if (rmapTargetNodeDB->getSize() == 0) {
+    cerr << "No RMAPTargetNode instance was constructed..." << endl; 
+    exit(-1);
+}
+
+//set the db to RMAPInitiator
+rmapInitiator->setRMAPTargetNodeDB(rmapTargetNodeDB);
+
+/* RMAP Read/Write with address/length */
+try {
+    //case 1-1 : read using C-array as a read buffer 
+    uint32_t readLength = 2;
+    uint8_t* readData = new uint8_t[(size_t) readLength]; 
+    rmapInitiator->
+        read("SpaceWireDigitalIOBoard", "LEDRegister", readData, readTimeoutDuration);
+ 
+    //case 1-2 : read using std::vector<uint8_t> as a read buffer
+    std::vector<uint8_t> readDataVector(readLength); 
+    rmapInitiator->
+        read("SpaceWireDigitalIOBoard", "LEDRegister", &(readDataVector.at(0)), readTimeoutDuration);
+
+    //case 1-3 : write using C-array write data
+    uint32_t writeLength = 2;
+    uint8_t* writeData = new uint8_t[writeLength]; 
+    writeData[0] = 0xFF;
+    writeData[1] = 0xFF;
+    rmapInitiator->
+        write("SpaceWireDigitalIOBoard", "LEDRegister", writeData, writeTimeoutDuration);
+
+    delete readData;
+    delete writeData;
+
+    cout << "RMAP Read/Write Example2 done" << endl; 
+
+} catch (RMAPInitiatorException e) {
+    cerr << "RMAPInitiatorException " << e.toString() << endl;
+    cerr << "Continue to next example" << endl; 
+} catch (RMAPReplyException e) {
+    cerr << "RMAPReplyException " << e.toString() << endl;
+    cerr << "Continue to next example" << endl; 
+} catch (RMAPEngineException e) {
+    cerr << "RMAPEngineException " << e.toString() << endl; 
+    cerr << "Continue to next example" << endl;
+} catch (...) {
+    cerr << "Unkown error" << endl; 
+    exit(-1);
+}
+/////////////////////////////////////////////////////////////////////////////////////
+----
+
+=== RMAP パケットの作成/解釈
+RMAPPacketクラスはRMAPパケットの作成/解釈の統合された機能を提供します．
+List17ではRMAPPacketで利用できる代表的なメソッドをまとめたものです．
+
+[source, c++]
+.リスト17: RMAPパケットを手動でコンストラクタ実行するサンプルコード
+----
+class RMAPPacket {
+    bool getDataCRCIsChecked (); 
+    bool getHeaderCRCIsChecked ();
+    void setDataCRCIsChecked (bool dataCRCIsChecked); 
+    void setHeaderCRCIsChecked (bool headerCRCIsChecked); 
+    void constructHeader ();
+    void calculateDataCRC ();
+    void constructPacket ();
+    std::vector< uint8_t > getPacket ();
+    std::vector< uint8_t > * getPacketBufferPointer ();
+    void interpretAsAnRMAPPacket (uint8_t *packet, size_t length) throw (RMAPPacketException);
+    void interpretAsAnRMAPPacket (std::vector< uint8_t > &data) throw (RMAPPacketException); 
+    void interpretAsAnRMAPPacket (std::vector< uint8_t > *data) throw (RMAPPacketException); 
+    void setRMAPTargetInformation (RMAPTargetNode *rmapTargetNode);
+    void setRMAPTargetInformation (RMAPTargetNode &rmapTargetNode);
+    bool isCommand ();
+    void setCommand (); 
+    bool isReply (); 
+    void setReply (); 
+    bool isWrite ();
+    void setWrite ();
+    bool isRead ();
+    void setRead ();
+    bool isVerifyFlagSet ();
+    void setVerifyFlag (); 
+    void unsetVerifyFlag (); 
+    void setVerifyMode (); 
+    void setNoVerifyMode ();
+    bool isReplyFlagSet (); 
+    void setReplyFlag ();
+    void unsetReplyFlag ();
+    void setReplyMode ();
+    void setNoReplyMode (); 
+    bool isIncrementFlagSet (); 
+    void setIncrementFlag ();
+    void unsetIncrementFlag ();
+    void setIncrementMode ();
+    void setNoIncrementMode ();
+    uint8_t getReplyPathAddressLength ();
+    void setReplyPathAddressLength (uint8_t pathAddressLength); 
+    uint32_t getAddress ();
+    bool hasData ();
+    std::vector< uint8_t > getData ();
+    void getData (uint8_t *buffer, size_t maxLength) throw (RMAPPacketException); 
+    void getData (std::vector< uint8_t > &buffer);
+    void getData (std::vector< uint8_t > *buffer);
+    std::vector< uint8_t > * getDataBuffer ();
+    uint8_t getDataCRC (); 
+    uint32_t getDataLength (); 
+    uint32_t getLength (); 
+    uint8_t getExtendedAddress (); 
+    uint8_t getHeaderCRC ();
+    uint8_t getInitiatorLogicalAddress (); 
+    uint8_t getInstruction ();
+    uint8_t getKey ();
+    uint8_t getProtocolID ();
+    std::vector< uint8_t > getReplyAddress ();
+    uint8_t getTargetLogicalAddress ();
+    std::vector< uint8_t > getTargetSpaceWireAddress (); 
+    uint16_t getTransactionID ();
+    void setAddress (uint32_t address);
+    void setData (std::vector< uint8_t > &data); 
+    void setData (uint8_t *data, size_t length); 
+    void setDataCRC (uint8_t dataCRC);
+    void setDataLength (uint32_t dataLength);
+    void setLength (uint32_t dataLength);
+    void setExtendedAddress (uint8_t extendedAddress);
+    void setHeaderCRC (uint8_t headerCRC);
+    void setInitiatorLogicalAddress (uint8_t initiatorLogicalAddress);
+    void setInstruction (uint8_t instruction);
+    void setKey (uint8_t key);
+    void setProtocolID (uint8_t protocolID);
+    void setReplyAddress (std::vector< uint8_t > replyAddress, bool automaticallySetPathAddressLengthToInstructionField=true); 
+    void setTargetLogicalAddress (uint8_t targetLogicalAddress); 
+    void setTargetSpaceWireAddress (std::vector< uint8_t > targetSpaceWireAddress); 
+    void setTransactionID (uint16_t transactionID);
+    uint8_t getStatus ();
+    void setStatus (uint8_t status);
+    uint32_t getHeaderCRCMode ();
+    void setHeaderCRCMode (uint32_t headerCRCMode);
+    uint32_t getDataCRCMode ();
+    void setDataCRCMode (uint32_t dataCRCMode); 
+    void addData (uint8_t oneByte);
+    void clearData ();
+    void addData (std::vector< uint8_t > array); 
+    std::string toString ();
+    std::string toXMLString ();
+    void toStringInstructionField (std::stringstream &ss); 
+    std::string toXMLStringCommandPacket (int nTabs=0);
+    std::string toXMLStringReplyPacket (int nTabs=0); 
+};
+----
+ 
+リスト18はチュートリアル_RMAPPacket _creationInterpretation.ccから抜粋した、RMAPPacketを使用した
+手動のパケット作成の例を示しています．
+多くのオプションの設定後、RMAPPacket::constructPacket()はヘッダをコンパイルし、CRCを計算し、ヘッダとデータ部分を連結させます．結果のバイト列はRMAPPacket::getPacketBufferPointer()をstd::vectorのポインタとして呼び出すことで取得できます．
+RMAPPacket::toString() や toXMLString()はRMAPPacketを表示するために使用できます．
+実行結果をリスト19に示します。
+
+[source, c++]
+.リスト18: RMAPパケットを構築するサンプルコード
+---- 
+//Example1 : Manually construct an RMAP packet
+vector<uint8_t> targetSpaceWireAddress;
+targetSpaceWireAddress.push_back(3);
+targetSpaceWireAddress.push_back(10); 
+targetSpaceWireAddress.push_back(21); 
+vector<uint8_t> replyAddress; 
+replyAddress.push_back(5);
+replyAddress.push_back(3);
+uint32_t dataLength = 0x31;
+RMAPPacket rmapPacket1; 
+rmapPacket1.setTargetSpaceWireAddress(targetSpaceWireAddress);
+rmapPacket1.setReplyAddress(replyAddress); 
+rmapPacket1.setWrite(); 
+rmapPacket1.setCommand(); 
+rmapPacket1.setIncrementMode();
+rmapPacket1.setNoVerifyMode(); 
+rmapPacket1.setExtendedAddress(0x00); 
+rmapPacket1.setAddress(0xff803800); 
+rmapPacket1.setDataLength(dataLength);
+for (size_t i = 0; i < dataLength; i++) { 
+    rmapPacket1.addData((uint8_t) i);
+} 
+rmapPacket1.constructPacket(); 
+cout << "RMAPPacket1" << endl;
+SpaceWireUtilities::dumpPacket(rmapPacket1.getPacketBufferPointer()); 
+cout << "----------------------------" << endl; 
+rmapPacket1.setHeaderCRCMode(RMAPPacket::AutoCRC); 
+rmapPacket1.constructHeader();
+cout << rmapPacket1.toString() << endl; 
+cout << rmapPacket1.toXMLString() << endl; 
+cout << endl;
+----
+
+[source]
+.リスト19: tutorial_RMAPPacket_creationInterpretation.cc.の実行結果例
+----
+--------- Target SpaceWire Address --------- 
+0x03 0x0a 0x15
+--------- RMAP Header Part --------- 
+Initiator Logical Address   : 0x00
+Target Logic. Address       : 0xfe 
+Protocol ID                 : 0x01
+Instruction                 : 0x65
+------------------------------
+ |Reserved : 0
+ |Packet Type : 1 (Command)
+ |Write/Read : 1 (Write)
+ |Verify Mode : 0 (No Verify) 
+ |Reply Mode : 0 (No Reply) 
+ |Increment : 1 (Increment) 
+ |R.A.L. : 1
+ |(R.A.L. = Reply Address Length)
+------------------------------
+Key                         : 0x20 
+Reply Address               : 0x05 0x03
+Transaction Identifier       : 0x0000
+Extended Address            : 0x00
+Address                     : 0xff803800
+Data Length (bytes)         : 0x000031 (49dec)
+Header CRC                  : 0x8b
+--------- RMAP Data Part ---------
+[data size = 49bytes]
+0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f 
+0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18 0x19 0x1a 0x1b 0x1c 0x1d 0x1e 0x1f
+0x20 0x21 0x22 0x23 0x24 0x25 0x26 0x27 0x28 0x29 0x2a 0x2b 0x2c 0x2d 0x2e 0x2f 
+0x30
+Data CRC                    : 81
+
+Total data (bytes)          : 73
+----
+
+リスト20はバイト列の例をRMAPパケットとして解釈します．
+RMAPPacket::interpretAsAnRMAPPacket( uint8_t *packet, size_t length)が例外なく帰ってきたら、バイト列はRMAPパケットは有効であり、解釈されたプロパティはRMAPPakcetインスタンスからアクセス可能です．
+例外（RMAPPacketException::InvalidHeaderCRCかRMAPPacketException::InvalidDataCRC）がスローされた場合は、ステータスを検査し、CRCチェックを無効にします。
+これはRMAPPacket::setHeaderCRCIsChecked( bool）かRMAPPacket::setDataCRCIsChecked( bool)経由で行うことができます。
+デフォルトでは、ヘッダとデータCRCの正当性がチェックされ、例外はどちらか一方または両方が無効な場合にスローされます．
+リスト21はリスト20の実行結果を示します．
+
+[source, c++]
+.リスト20: RMAPパケットを手動で解釈するサンプルコード
+----
+//Example2 : Interpret a byte sequence as an RMAP packet
+RMAPPacket rmapPacket2; 
+uint8_t bytes[] =
+    { 0x07, 0x0B, 0x06, 0x04, 0xFE, 0x01, 0x4F, 0x91,
+        00, 00, 00, 00, 00, 00, 00, 0x02, 0x0C, 0x0A,
+        0x04, 0x06, 0xFE, 0xAD, 0xDF, 0x00, 0xFF, 0x80, 0x11, 0x00,
+        0x00, 0x00, 0x10, 0x2A };
+try {
+    rmapPacket2.interpretAsAnRMAPPacket(bytes, sizeof(bytes));
+} catch (RMAPPacketException e) {
+    cerr << "RMAPPacketException " << e.toString() << endl;
+    exit(-1); 
+}
+cout << "RMAPPacket2" << endl;
+SpaceWireUtilities::dumpPacket(rmapPacket2.getPacketBufferPointer()); 
+cout << "----------------------------" << endl; 
+rmapPacket2.setHeaderCRCMode(RMAPPacket::AutoCRC); 
+rmapPacket2.constructHeader();
+cout << rmapPacket2.toString() << endl; 
+cout << rmapPacket2.toXMLString() << endl;
+----
+
+[source]
+.リスト21: tutorial_RMAPPacket_creationInterpretation.cc.の例2の結果
+----
+--------- Target SpaceWire Address --------- 
+0x07 0x0b 0x06 0x04
+--------- RMAP Header Part --------- 
+Initiator Logical Address   : 0xfe
+Target Logic. Address       : 0xfe 
+Protocol ID                 : 0x01
+Instruction                 : 0x4f
+------------------------------
+ |Reserved : 0
+ |Packet Type : 1 (Command) 
+ |Write/Read : 0 (Read) 
+ |Verify Mode : 0 (No Verify)
+ |Reply Mode : 1 (Reply) 
+ |Increment : 1 (Increment) 
+ |R.A.L. : 3
+ |(R.A.L. = Reply Address Length)
+------------------------------
+Key                         : 0x91
+Reply Address               : 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x02 0x0c 0x0a 0x04 0x06 
+Transaction Identifier       : 0xaddf
+Extended Address            : 0x00
+Address                     : 0xff801100
+Data Length (bytes)         : 0x000010 (16dec) 
+Header CRC                  : 0x2a
+--------- RMAP Data Part ---------
+--- none ---
+
+Total data (bytes) : 32
+
+<RMAPPacket>
+    <ProtocolID>0x01</ProtocolID> 
+    <InitiatorLogicalAddress>0xfe</InitiatorLogicalAddress>
+    <TargetLogicalAddress>0xfe</TargetLogicalAddress>
+    <TargetSpaceWireAddress>0x07 0x0b 0x06 0x04</TargetSpaceWireAddress> 
+    <ReplyAddress>0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x02 0x0c 0x0a 0x04 0x06</ReplyAddress>
+    <Instruction>0x4f</Instruction>
+    <Key>0x91</Key> 
+    <TransactionIdentifier>0xaddf</TransactionIdentifier> 
+    <ExtendedAddress>0x00</ExtendedAddress> 
+    <Address>0xff801100</Address>
+    <Length>0x10</Length>
+    <HeaderCRC>Auto</HeaderCRC>
+    <!-- HeaderCRC = 0x2a (as long as the header is intact) -->
+</RMAPPacket>
+----
+
+=== マルチスレッドとスレッド間通信
+
+== SpaceWireとRMAP層の詳細使用方法
+このセクションと続くRPAMセクションでは、ユーザからの要望に応じて更新されます．
+SpaceWire RMAPライブライの特定機能について質問やコメントがあれば、お問い合わせください．
+
+=== インタフェース終了イベントの処理
+いくつかの理由（例えば、SpaceWireIFOverTCPClientのTCP/IPソケットの切断）によって、SpaceWireインタフェースはユーザの制御以外で突然切断されることがあります．
+このようなイベントが発生した場合ユーザアプリケーション層に報告して、同じ（切断した）インタフェースをこれ以上使用しないようにします（パケットの送受信をしないようにします。）
+SpaceWireIFはユーザアプリケションにこのようなイベントを通知するためのコールバックフレームワークを使用しています．
+関連するクラスとメソッドには、paceWireIFActionCloseAction, and SpaceWireIF::addSpaceWireIFCloseAction( SpaceWireIFAc- tionCloseAction* spacewireIFCloseAction)があります．
+SpaceWireIFActionCloseActionのサブクラスのインスタンスは、SpaceWireIFインスタンスに登録することができ、インスタンス化して、SpaceWireIFActionCloseAction::doAction (SpaceWireIF*)メソッドは、SpaceWireIF::close()がユーザアプリケーションかバックグランドで実行している他のスレッドによって呼ばれるときに、呼び出されます。
+オープンソースのSpaceWireプロジェクトから入手できる、SpaceWireRMAPGUIはコールバック機構を利用して、SpaceWireIF-closeイベントを検知して、データ転送を停止します．
+SpaceWireRMAPGUIのソースコードはSpaceWire- ViewController.hを参照してください．
+リスト22ではSpaceWireRMAPGUIで定義されているSpaceWireIFActionCloseActionサブクラスの例です。
+
+[source]
+.リスト22: SpaceWireIFActionCloseActionのサブクラスの例
+----
+class SpaceWireViewContollerCloseActionStopContinuousReceive : public SpaceWireIFActionCloseAction {
+private:
+    id spacewireViewController;
+public:
+    SpaceWireViewContollerCloseActionStopContinuousReceive(id spacewireViewController){
+        this->spacewireViewController=spacewireViewController;
+    } 
+public:
+    void doAction(SpaceWireIF* spacewireIF){
+        [spacewireViewController stopContinuousPacketReceive]; 
+        [spacewireViewController stopPeriodicTimecodeEmission];
+    } 
+};
+----
+
+
+=== タイムコード同期　動作
+タイムコード同期アクションは、インターフェイスクローズイベントアクションの前のセクションで説明したように、SpaceWireIFAction TimecodeScynchronizedActionクラス（SpaceWireIF.hh参照）の登録されたインスタンスへのコールバックとしても実装されています。
+ユーザはSpaceWireIFAction TimecodeScynchronizedActionのサブクラスを実装することができ、タイムコードを受信するたびにSpaceWireIF::invokeSpaceWireIFCloseActions()を介してdoAction( un-signed char timecodeValue)メソッドが呼び出されます。タイムコード値のフィルタリングはユーザがメソッド内で行う必要があります。リスト23にあるように、登録されたタイムコード同期アクションは順次起動されるため、doAction( unsigned char timecodeValue)メソッドでは、時間のかかる処理は避けるべきです(時間のかかる処理を行う場合は、アクション内の別のスレッドを起動し、後続のアクションインスタンスにメイン処理をゆだねます)。
+
+
+[source, c++]
+.リスト23: SpaceWireIF:: invokeSpaceWireIFCloseActions()のソースコード.
+----
+void invokeSpaceWireIFCloseActions() {
+    for (size_t i = 0; i < spacewireIFCloseActions.size(); i++) {
+        spacewireIFCloseActions[i]->doAction(this); 
+    }
+}
+----
+
+=== RMAP オプションの変更
+インクリメント、リプライ、ベリファイなどのRMAP関連のオプションは、RMAPInitiatorインスタンスを介して設定することができます。インクリメントモードを考慮すると、例えばRMAPInitiator::setIncrementMode(bool)を使用することができ、このパラメータがtrueの場合は命令フィールドのインクリメントビットを設定(1)し、falseの場合はインクリメントビットをクリア(0)します。デフォルトの設定（RMAPInitiatorで定義されている）に戻すには、RMAPInitiator::unsetIncrementMode()を呼び出すことができます。その他のオプションについては、RMAPInitiator::setVerifyMode(bool)およびRMAPInitiator::setReplyMode(bool)を参照してください。
+
+トランザクションIDは、RMAPInitiator::setTransactionID(uint16_t)でも人為的に設定できる。これが設定されていない場合、RMAPEngineはコマンドパケット発行時に自動的に特定のトランザクションIDを設定し、設定されている場合はその値を使用します。場合によっては、指定したトランザクションIDが既にRMAPEngineで別のトランザクションに使用されていて、要求されたトランザクションがキャンセルされ、RMAPEngineException::SpectigestedTransactionIDIsAlreadyInUseというステータス値を持つ例外が発生します。
+
+=== RMAPEngineでの予期せぬイベントへの対応
+RMAPEngineの実行は、例えばSpaceWire-インターフェース層で致命的なエラーが発生した場合など、バックグラウンドプロセスによって停止されることがあります（実際には、RMAPEngineはSpaceWireIFが利用できないことを検出して停止するために、SpaceWireIFにSpaceWireIFActionCloseActionインスタンスを登録しています（RMAPEngine::RMAPEngineSpaceWireIFActionCloseActionクラスまたはリスト24を参照してください）。RMAPEngineで停止したイベントは、リスト25のRMAPEngineStoppedActionのサブクラスを使用して、SpaceWireIFのクローズイベントと非常に似たメカニズムで処理することができます。+
+RMAPEngineStoppedActionのサブクラスを実装し、addRMAPEngineStoppedAction( RMAPEngineStoppedAction* rmapEngineStoppedAction)でRMAPEngineのインスタンスに登録します。RMAPEngine::stop()が呼び出されると、登録されたアクションが順次呼び出され、ユーザースレッドが停止イベントを処理できるようになります。+
+リスト26には、SpaceWire RMAP GUIで使用されているRMAPEngineStoppedActionのサブクラスの実用例も示されています（ソースアーカイブに含まれるRMAPViewController.hを参照）。+
+このコールバックは、RMAPEngineで検出された別の種類のイベント、例えば、予期しないRMAP応答パケットを受信した場合や、無効なRMAPパケットを受信した場合などに、ユーザアプリケーションに通知するために拡張することができます。コールバックの追加についての要望があれば、開発者にフィードバックしてください。
+
+
+[source, c++]
+.リスト24: RMAPEngine.hhで定義されているRMAPEngine::RMAPEngineSpaceWireIFActionCloseActionのソースコードです。
+----
+class RMAPEngineSpaceWireIFActionCloseAction: public SpaceWireIFActionCloseAction { 
+private:
+    RMAPEngine* rmapEngine;
+public:
+    RMAPEngineSpaceWireIFActionCloseAction(RMAPEngine* rmapEngine) {
+        this->rmapEngine = rmapEngine; 
+    }
+public:
+    void doAction(SpaceWireIF* spwif) {
+        rmapEngine->stop(); 
+    }
+ };
+----
+
+[source, c++]
+.リスト25: RMAPEngine.hh で定義されている RMAPEngine::RMAPEngineSpaceWireIFActionCloseAction のソースコードです。
+----
+class RMAPEngineStoppedAction: public CxxUtilities::Action { 
+public:
+    virtual void doAction(void* rmapEngine) = 0; 
+};
+----
+
+[source, c]
+.リスト26: SpaceWire RMAP GUI で使用される RMAPEngineStoppedAction サブクラスの例。
+----
+class RMAPEngineStoppedActionByRMAPViewController : public RMAPEngineStoppedAction{ 
+private:
+    id rmapViewController; 
+public:
+    RMAPEngineStoppedActionByRMAPViewController(id rmapViewController){ 
+        this->rmapViewController=rmapViewController;
+    }
+    virtual void doAction(void* rmapEngine){
+        [rmapViewController rmapEngineWasStopped];
+    }
+};
+----
+
+== A TCP/IP-SpaceWire パケット転送プロトコル: SSDTP2
+SpaceWireはパケット長に制限がなく、各パケットはパケット終端文字（EOP)またはパケットエラー終端文字(EEP)で終了します．
+一方TCP/IPでは、バイトをストリームとして転送するシンプルなソケットしか提供しておらず、転送されるデータの終端（もしくは分割点）を処理するデリミタはありません．そのためTCP/IPソケットを介してSpaceWireパケットを転送する場合には、カプセル化プロトコルを使用する必要があります。SpaceWire-to-GigabitEtherでは、長さやデータに従ったヘッダ　プロトコルを定義して使用します。
+
+プロトコル名は SSDTP2 です。SpaceWire RMAPライブラリでは、SpaceWireSSDTPModuleがこのプロトコルをサポートしています。
+
+
+=== A.1 SSDTP2 パケットの基本構造
+SSDTP2では、カプセル化されたデータは以下のような構造になっています。
+
+*<Flag 1byte> <Reserved 1byte> <Size 10bytes> <Cargo variable length>*
+
+*Flag* はパケットの種別（データか制御か）を指定します．
+データはSpaceWireパケットをカプセル化して、制御はTCP/IPリンクの両端（SpaceWire-to-GigabitEtherとPC嬢のユーザプログラム）にあるSpaceWire-to-TCP/IPコンバータの接続を制御するために必要な情報を含んでいます。
+
+*Size* はカーゴ部の長さを含んでいます．
+
+*Cargo* 部はデータか制御情報を含むコードです。
+
+以下、個別にカプセル化された構造を説明します。
+
+
+=== A.2 Data packet
+表2にSSDTP2のデータパケット構造を示します。
+EOP(またはEEP)で終端した完全なSpaceWireパケットを送信する場合、フラグは0x00(0x01)を使います。
+リスト27はサイズとデータ部を埋める方法を示しています．
+パケットサイズが1パケットとして扱うには長すぎる場合、ソフトかハードウェアのロジックは複数のセグメントに分割することがあります．そのような場合、カプセル化されたパケット構造は上記と同じで、フラグは0x02に設定し、データは分割されて、パケットの終端はありません．Size部はセグメントされたデータの長さを格納します．いくつかの終端されていないセグメントのあとで、0x00 (EEP) か 0x01 (EEP)を持った終端セグメントが全体のパケットデータを終了させます。
+
+NOTE:　このセグメントはSpaceWire標準とは一切関係がなく、カプセル化プロトコルとその実装ではパケットの長さが無制限になることの難しさに起因しています。
+SpaceWire-to-TCP/IP変換ロジックで利用可能なデータバッファが少ない場合、バッファサイズ以上のSpaceWireパケットはセグメントせずに受信することができません．
+この単純なセグメント化はバッファがいっぱいになったときに、カプセル化されたデータを継続することを指定（EOP/EEPで終端しない）して、TCP/IPへ大きいパケットの一部を送信するロジックになっています．
+EOP/EEPを受信したときは、ロジックはセグメントされたデータを送信完了することができます。
+
+[cols=4]
+.Table 2: SSDTP2のデータパケットの構造
+|===
+| Flag (see text) 
+| Reserved (0x00) 
+| Size[9] 
+| Size[8]
+
+| Size[7]
+| Size[6]
+| Size[5]
+| Size[4]
+
+| Size[3]
+| Size[2]
+| Size[1]
+| Size[0]
+
+| Data[0]
+| Data[1]
+| Data[2]
+| Data[3]
+
+|  ...
+| Data[Size-1]
+|
+|
+
+|===
+
+[source, c]
+.リスト27: サイズ部とデータ部を格納するサンプルコード
+----
+/* Code to restore the size from the byte array. */ 
+/* buffer[] should contain the bytes shown above. */ 
+unsigned int size=0;
+for(unsigned int i=2;i<12;i++){ 
+    size=size*0x100+buffer[i];
+}
+/* Code to set the size to the byte array. */
+/* buffer[] should contain the bytes shown above. */
+unsigned int size=PacketSize; 
+for(unsigned int i=11;i>1;i--){
+    buffer[i]=size%0x100; 
+    size=size/0x100;
+}
+----
+
+=== A.3 制御パケット
+制御パケットはタイムコードを転送し、SpaceWire-to-GigabitEtherの設定を変更するために使用します．
+
+*EncapsulatedTimeCode* 
+SSDTP2はSpaceWireはSpaceWire-to-GigabitEtherデバイスを使って、ユーザプログラムがタイムコードを送出か受信できるようにSpaceWireタイムコードをカプセル化します．
+表3にあるカプセル化した構造はタイムコード情報をカプセル化するために利用します。
+デバイス経由でユーザプログラムからSpaceWireネットワークへタイムコードを送信する場合はフラグは0x30で、デバイスがSpaceWireネットワークからタイムコードを受信したときは0x31になります。
+通常、ユーザプロプログラムはフラグ0x30をデバイスへ送信し、0x31をデバイスから受信しします。
+0x31を受信した場合、ユーザプログラムはタイムコードに関連した処理を実行することができます。Size[0]ha0x02にして、他のSize部(Size[1]-Size[9])ha0x00で埋めます。
+タイムコードはLSB6ビットでタイムコード値（タイムカウンタ値）を格納するために使用します。
+MSB2ビットは標準で予約されており、"b00"となります。
+
+*ChangingSpaceWirelinkspeed* 
+SpaceWire-to-GigabitEtherの送信リンク速度は表4に示す制御パケットで変更が可能です．
+このパケットのフラグは0x38です。
+このパケットで指定するTxDivカウントはTxクロックを生成する125MHzの元のクロックを分割するために使われ、TxクロックはSpaceWire IP Transmitterへ供給される（オープンソースのSpaceWire-to-GigabitEther場合）
+ユーザはSpaceWireIFOverTCPClientクラスのsetTxDivCount(unsigned int)メソッドを呼び出すことで簡単に送信速度を変更することができます．
+
+[cols=4]
+.表3: SSDTP2でのタイムコードのカプセル化.
+|===
+| Flag (see text)
+| Reserved (0x00)
+| Size[9] (0x00)
+| Size[8] (0x00)
+
+| Size[7] (0x00)
+| Size[6] (0x00)
+|  Size[5] (0x00)
+| Size[4] (0x00)
+
+| Size[3] (0x00)
+| Size[2] (0x00)
+| Size[1] (0x00)
+| Size[0] (0x02)
+
+| Timecode value
+| Reserved (0x00)
+|
+|
+
+|===
+
+[cols=4]
+.表4: 送信周波数を変更するSSDTP2 制御パケット
+|===
+| Flag (0x38)
+| Reserved (0x00)
+| Size[9] (0x00)
+| Size[8] (0x00)
+
+| Size[7] (0x00)
+| Size[6] (0x00)
+| Size[5] (0x00)
+| Size[4] (0x00)
+
+| Size[3] (0x00)
+| Size[2] (0x00)
+| Size[1] (0x00)
+| Size[0] (0x02)
+
+| TxDiv count
+| Reserved (0x00)
+|
+|
+
+|===
+
+== B XML設定ファイルのフォーマット
+RMAPターゲットノードの情報とメモリオブジェクトの情報は、XML設定ファイルに格納することができます．
+フォーマットはSpaceWire/RMAPライブラリ、特にRMAPTargetNodeクラスとRMAPMemoryObjectクラスに定義されているので、詳細はSpaceWire/RMAPライブラリユーザガイドを参照ください。
+RMAPTargetNodeとRMAPMemoryObjectの構造については以下の一覧を参照ください。必須のタグがない1つもない場合は、設定ファイルは破棄されます。
+
+*RMAPTargetNode* id (name) 要素は必須
+
+- *TargetLogicalAddress* 必須
+- *TargetSpaceWireAddress* 必須. Array of 0x00-0xFF. (e.g. 0x02 0x0a 0x07 0x01) 
+- *ReplyAddress* 必須. Array of 0x00-0xFF. (e.g. 0x02 0x0a 0x07 0x01)
+- *Key* 必須. 0x00-0xFF. 
+- *InitiatorLogicalAddress* オプション. 0x00-0xFF.
+
+*RMAPMemoryObject* id (name) 要素は必s須.
+
+- *ExtendedAddress* オプション. Default is 0x00. 
+- *Address* 必須. 0x00000000-0xFFFFFFFF. 
+- *Length* 必須. 0x000000-0xFFFFFF. 
+- *Key* オプション. 0x00-0xFF. 設定した場合、親クラスRMAPTargetNodeで定義された値は上書きされる  
+- *AccessMode* オプション　AnyofReadWrite,ReadOnly,WriteOnly,Readable(=ReadOnly),Writable(=WriteOnly).  
+- *IncrementMode* オプション。 Either of Increment or NoIncrement.
+
+XML設定のテンプレート次に示します。
+
+
+NOTE: 1つのファイルで、複数のRMAPTargetNodesが含まれています。そのため、1つのRMAPTargetNodeには複数のメモリオブジェクトが定義できます。
+
+[source, xml]
+.リスト28: RMAPTargetNode と RMAPMemoryObjectの定義タグ.
+----
+<root>
+<RMAPTargetNode id="NameOfTheRMAPTargetNode">
+    <TargetLogicalAddress>0xFE</TargetLogicalAddress>
+    <TargetSpaceWireAddress>0x00</TargetSpaceWireAddress>
+    <ReplyAddress></ReplyAddress>
+    <Key>0x20</Key>
+    <InitiatorLogicalAddress>0x35</InitiatorLogicalAddress> <!-- optional -->
+
+    <RMAPMemoryObject id="NameOfTheMemoryObjectOnTheRMAPTargetNode"> 
+        <ExtendedAddress>0x00</ExtendedAddress> 
+        <Address>0x0000</Address>
+        <Length>0x04</Length>
+        <Key>0x20</Key> <!-- optional -->
+        <IncrementMode>Increment</IncrementMode> 
+    </RMAPMemoryObject>
+
+... other RMAPMemoryObject tags ...
+
+</RMAPTargetNode>
+
+... other RMAPTargetNode tags ...
+
+</root>
+----
