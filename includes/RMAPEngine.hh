@@ -43,6 +43,9 @@
 #include "SpaceWireIF.hh"
 #include "SpaceWireUtilities.hh"
 
+#include <memory>
+#include <mutex>
+
 class RMAPEngineStoppedAction: public CxxUtilities::Action<void> {
 public:
 	virtual ~RMAPEngineStoppedAction() {
@@ -134,19 +137,20 @@ public:
 	class RMAPTargetProcessThread: public CxxUtilities::Thread {
 	private:
 		RMAPTargetAccessAction* rmapTargetAcessAction;
-		RMAPTransaction rmapTransaction;
+		std::unique_ptr<RMAPTransaction> rmapTransaction;
 		RMAPEngine* rmapEngine;
 
 	private:
 		bool isCompleted_;
 
 	public:
-		RMAPTargetProcessThread(RMAPEngine* rmapEngine, RMAPTransaction rmapTransaction,
+		RMAPTargetProcessThread(RMAPEngine* rmapEngine, std::unique_ptr<RMAPTransaction>&& rmapTransaction,
 				RMAPTargetAccessAction* rmapTargetAcessAction) :
-				CxxUtilities::Thread() {
-			this->rmapEngine = rmapEngine;
-			this->rmapTargetAcessAction = rmapTargetAcessAction;
-			this->rmapTransaction = rmapTransaction;
+				CxxUtilities::Thread(),
+				rmapTargetAcessAction(rmapTargetAcessAction),
+				rmapTransaction(std::move(rmapTransaction)),
+				rmapEngine(rmapEngine)
+				{
 			isCompleted_ = false;
 		}
 
@@ -155,28 +159,28 @@ public:
 			using namespace std;
 			isCompleted_ = false;
 			try {
-				rmapTargetAcessAction->processTransaction(&rmapTransaction);
-				rmapTransaction.setState(RMAPTransaction::ReplySet);
+				rmapTargetAcessAction->processTransaction(rmapTransaction.get());
+				rmapTransaction->setState(RMAPTransaction::ReplySet);
 			} catch (...) {
-				delete rmapTransaction.commandPacket;
+				delete rmapTransaction->commandPacket;
 				rmapEngine->receivedCommandPacketDiscarded();
 				isCompleted_ = true;
 				return;
 			}
 			try {
-				rmapTransaction.replyPacket->constructPacket();
-				rmapEngine->sendPacket(rmapTransaction.replyPacket->getPacketBufferPointer());
-				rmapTransaction.setState(RMAPTransaction::ReplySent);
+				rmapTransaction->replyPacket->constructPacket();
+				rmapEngine->sendPacket(rmapTransaction->replyPacket->getPacketBufferPointer());
+				rmapTransaction->setState(RMAPTransaction::ReplySent);
 			} catch (...) {
-				rmapTargetAcessAction->transactionReplyCouldNotBeSent(&rmapTransaction);
+				rmapTargetAcessAction->transactionReplyCouldNotBeSent(rmapTransaction.get());
 				rmapEngine->replyToReceivedCommandPacketCouldNotBeSent();
-				delete rmapTransaction.commandPacket;
+				delete rmapTransaction->commandPacket;
 				isCompleted_ = true;
 				return;
 			}
-			rmapTargetAcessAction->transactionWillComplete(&rmapTransaction);
-			rmapTransaction.setState(RMAPTransaction::ReplyCompleted);
-			delete rmapTransaction.commandPacket;
+			rmapTargetAcessAction->transactionWillComplete(rmapTransaction.get());
+			rmapTransaction->setState(RMAPTransaction::ReplyCompleted);
+			delete rmapTransaction->commandPacket;
 			isCompleted_ = true;
 		}
 
@@ -354,14 +358,15 @@ private:
 		rmapTargetProcessThreads = newRMAPTargetProcessThreads;
 
 		//find an RMAPTarget instance which can accept the accessed address range
-		RMAPTransaction rmapTransaction;
-		rmapTransaction.commandPacket = commandPacket;
-		rmapTransaction.setState(RMAPTransaction::CommandPacketReceived);
+		auto rmapTransaction = std::unique_ptr<RMAPTransaction>(new RMAPTransaction);
+		rmapTransaction->commandPacket = commandPacket;
+		rmapTransaction->setState(RMAPTransaction::CommandPacketReceived);
 		for (size_t i = 0; i < rmapTargets.size(); i++) {
 			RMAPTargetAccessAction* rmapTargetAcessAction = rmapTargets[i]->getCorrespondingRMAPTargetAccessAction(
-					&rmapTransaction);
+					rmapTransaction.get());
 			if (rmapTargetAcessAction != NULL) {
-				RMAPTargetProcessThread* aThread = new RMAPTargetProcessThread(this, rmapTransaction, rmapTargetAcessAction);
+				RMAPTargetProcessThread* aThread =
+						new RMAPTargetProcessThread(this, std::move(rmapTransaction), rmapTargetAcessAction);
 				aThread->start();
 				rmapTargetProcessThreads.push_back(aThread);
 				return;
@@ -405,12 +410,10 @@ private:
 			//register reply packet to the resolved transaction
 			transaction->replyPacket = packet;
 			//update transaction state
-			/*while(transaction->getState()!=RMAPTransaction::CommandSent and transaction->getState()!=RMAPTransaction::Initiated){
-				cout << "RMAPEngine::rmapReplyPacketReceived(): Waiting" << endl;
-				cout << transaction->getState() << endl;
-				c.wait(100);
-			}*/
-			transaction->setState(RMAPTransaction::ReplyReceived);
+			{
+				std::lock_guard<std::mutex> stateGuard(transaction->stateMutex);
+				transaction->setState(RMAPTransaction::ReplyReceived);
+			}
 			if (!transaction->isNonblockingMode) {
 				transaction->getCondition()->signal();
 			}
@@ -537,8 +540,11 @@ public:
 		commandPacket->setTransactionID(transactionID);
 		commandPacket->constructPacket();
 		if (isStarted()) {
-			sendPacket(commandPacket->getPacketBufferPointer());
-			transaction->state = RMAPTransaction::Initiated;
+			{
+				std::lock_guard<std::mutex> stateGuard(transaction->stateMutex);
+				sendPacket(commandPacket->getPacketBufferPointer());
+				transaction->state = RMAPTransaction::Initiated;
+			}
 		} else {
 			throw RMAPEngineException(RMAPEngineException::RMAPEngineIsNotStarted);
 		}

@@ -136,9 +136,8 @@ private:
 	RMAPEngine* rmapEngine;
 	RMAPPacket* commandPacket;
 	RMAPPacket* replyPacket;
-	CxxUtilities::Mutex mutex;
-
-	CxxUtilities::Mutex deleteReplyPacketMutex;
+	std::mutex transactionMutex;
+	std::mutex deleteReplyPacketMutex;
 
 private:
 	//optional DB
@@ -192,27 +191,12 @@ public:
 
 public:
 	void deleteReplyPacket() {
-		deleteReplyPacketMutex.lock();
+		std::lock_guard<std::mutex> guard(deleteReplyPacketMutex);
 		if (replyPacket == NULL) {
-			deleteReplyPacketMutex.unlock();
 			return;
 		}
 		delete replyPacket;
 		replyPacket = NULL;
-		deleteReplyPacketMutex.unlock();
-	}
-
-public:
-	void lock() {
-		using namespace std;
-		//		cout << "RMAPInitiator Locking a mutex." << endl;
-		mutex.lock();
-	}
-
-	void unlock() {
-		using namespace std;
-		//		cout << "RMAPInitiator UnLocking a mutex." << endl;
-		mutex.unlock();
 	}
 
 public:
@@ -300,7 +284,7 @@ public:
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
 		using namespace std;
-		lock();
+		std::lock_guard<std::mutex> guard(transactionMutex);
 		transaction.isNonblockingMode = false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
@@ -330,11 +314,9 @@ public:
 		try {
 			rmapEngine->initiateTransaction(transaction);
 		} catch (RMAPEngineException& e) {
-			unlock();
 			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		} catch (...) {
-			unlock();
 			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		}
@@ -344,20 +326,17 @@ public:
 			transaction.replyPacket = NULL;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				uint8_t replyStatus = replyPacket->getStatus();
-				unlock();
 				transaction.state = RMAPTransaction::NotInitiated;
 				deleteReplyPacket();
 				throw RMAPReplyException(replyStatus);
 			}
 			if (length < replyPacket->getDataBuffer()->size()) {
-				unlock();
 				transaction.state = RMAPTransaction::NotInitiated;
 				deleteReplyPacket();
 				throw RMAPInitiatorException(RMAPInitiatorException::ReadReplyWithInsufficientData);
 			}
 			replyPacket->getData(buffer, length);
 			transaction.state = RMAPTransaction::NotInitiated;
-			unlock();
 			//when successful, replay packet is retained until next transaction for inspection by user application
 			//deleteReplyPacket();
 			return;
@@ -365,7 +344,6 @@ public:
 			//cancel transaction (return transaction ID)
 			rmapEngine->cancelTransaction(&transaction);
 			transaction.state = RMAPTransaction::NotInitiated;
-			unlock();
 			deleteReplyPacket();
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 		}
@@ -427,7 +405,7 @@ public:
 	void nonblockingRead(RMAPTargetNode* rmapTargetNode, uint32_t memoryAddress, uint32_t length)
 			throw (RMAPEngineException, RMAPInitiatorException, RMAPReplyException) {
 		using namespace std;
-		lock();
+		std::lock_guard<std::mutex> guard(transactionMutex);
 		transaction.isNonblockingMode = true;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
@@ -456,15 +434,12 @@ public:
 		}
 		try {
 			rmapEngine->initiateTransaction(transaction);
-			unlock();
 			return;
 		} catch (RMAPEngineException& e) {
 			transaction.state = RMAPTransaction::NotInitiated;
-			unlock();
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		} catch (...) {
 			transaction.state = RMAPTransaction::NotInitiated;
-			unlock();
 			throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 		}
 	}
@@ -589,7 +564,7 @@ public:
 	void write(RMAPTargetNode *rmapTargetNode, uint32_t memoryAddress, uint8_t *data, uint32_t length,
 			double timeoutDuration = DefaultTimeoutDuration) throw (RMAPEngineException, RMAPInitiatorException,
 					RMAPReplyException) {
-		lock();
+		std::lock_guard<std::mutex> guard(transactionMutex);
 		transaction.isNonblockingMode = false;
 		if (replyPacket != NULL) {
 			deleteReplyPacket();
@@ -625,11 +600,9 @@ public:
 		if (!replyMode) { //if reply is not expected
 			if (transaction.state == RMAPTransaction::Initiated) {
 				transaction.state = RMAPTransaction::Initiated;
-				unlock();
 				return;
 			} else {
 				transaction.state = RMAPTransaction::NotInitiated;
-				unlock();
 				//command was not sent successfully
 				throw RMAPInitiatorException(RMAPInitiatorException::RMAPTransactionCouldNotBeInitiated);
 			}
@@ -638,9 +611,9 @@ public:
 
 		//if reply is expected
 		transaction.condition.wait(timeoutDuration);
-		if (transaction.state == RMAPTransaction::CommandSent) {
+		switch(transaction.state){
+		case RMAPTransaction::CommandSent:
 			if (replyMode) {
-				unlock();
 				//cancel transaction (return transaction ID)
 				rmapEngine->cancelTransaction(&transaction);
 				//reply packet is not created, and therefore the line below is not necessary
@@ -649,39 +622,38 @@ public:
 				throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
 			} else {
 				transaction.state = RMAPTransaction::NotInitiated;
-				unlock();
 				return;
 			}
-		} else if (transaction.state == RMAPTransaction::ReplyReceived) {
+			break;
+		case RMAPTransaction::ReplyReceived:
 			replyPacket = transaction.replyPacket;
 			transaction.replyPacket = NULL;
 			if (replyPacket->getStatus() != RMAPReplyStatus::CommandExcecutedSuccessfully) {
 				uint8_t replyStatus = replyPacket->getStatus();
-				unlock();
 				deleteReplyPacket();
 				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPReplyException(replyStatus);
 			}
 			if (replyPacket->getStatus() == RMAPReplyStatus::CommandExcecutedSuccessfully) {
-				unlock();
 				//When successful, replay packet is retained until next transaction for inspection by user application
 				//deleteReplyPacket();
 				transaction.state = RMAPTransaction::NotInitiated;
 				return;
 			} else {
 				uint8_t replyStatus = replyPacket->getStatus();
-				unlock();
 				deleteReplyPacket();
 				transaction.state = RMAPTransaction::NotInitiated;
 				throw RMAPReplyException(replyStatus);
 			}
-		} else if (transaction.state == RMAPTransaction::Timeout) {
-			unlock();
+			break;
+		case RMAPTransaction::Timeout: // fallthrough
+		default:
 			//cancel transaction (return transaction ID)
 			rmapEngine->cancelTransaction(&transaction);
 			deleteReplyPacket();
 			transaction.state = RMAPTransaction::NotInitiated;
 			throw RMAPInitiatorException(RMAPInitiatorException::Timeout);
+			break;
 		}
 	}
 
