@@ -36,24 +36,24 @@ public:
 	static const uint32_t FinalAddressOf_Sdram_EventList = 0x00fffffe;
 
 private:
-	RMAPHandler* rmaphandler;
+	RMAPHandler* rmapHandler_;
 	RMAPTargetNode* adcboxRMAPNode;
-	SemaphoreRegister* writepointersemaphore;
+	SemaphoreRegister* writePointerSemaphore_;
 
 private:
 	//variables for ring buffer control
-	uint32_t readpointer, writepointer;
-	uint32_t nextreadfrom;
-	uint32_t guardbit;
+	uint32_t readPointer_, writePointer_;
+	uint32_t nextReadFrom_;
+	uint32_t guardBit_;
 
 public:
 	/** Constructor.
 	 * @param rmaphandler a pointer to RMAPHandler which is connected to SpaceWire ADC Box
 	 */
 	ConsumerManager(RMAPHandler* handler) {
-		this->rmaphandler = handler;
+		this->rmapHandler_ = handler;
 		adcboxRMAPNode = handler->getRMAPTargetNode("ADCBox");
-		writepointersemaphore = new SemaphoreRegister(this->rmaphandler,
+		writePointerSemaphore_ = new SemaphoreRegister(this->rmapHandler_,
 				ConsumerManager::AddressOf_Writepointer_Semaphore_Register);
 		initialize();
 	}
@@ -66,10 +66,10 @@ public:
 	 */
 	virtual  void initialize() {
 		//ringbuffer pointers
-		readpointer = 0;
-		writepointer = 0;
-		nextreadfrom = 0;
-		guardbit = 0;
+		readPointer_ = 0;
+		writePointer_ = 0;
+		nextReadFrom_ = 0;
+		guardBit_ = 0;
 	}
 
 public:
@@ -85,15 +85,15 @@ public:
 			cout << "ConsumerManager::getWritePointer()...";
 		}
 		//semaphore request
-		writepointersemaphore->request();
+		writePointerSemaphore_->request();
 		std::vector<uint8_t> readdata;
 		readdata.resize(4, 0);
-		rmaphandler->read(adcboxRMAPNode, AddressOf_WritePointerRegister_High, 4, &readdata[0]);
+		rmapHandler_->read(adcboxRMAPNode, AddressOf_WritePointerRegister_High, 4, &readdata[0]);
 		writepointer = readdata[1] * 0x01000000 + readdata[0] * 0x00010000 + readdata[3] * 0x00000100
 				+ readdata[2] * 0x00000001;
 		writepointer += ConsumerManager::InitialAddressOf_Sdram_EventList;
 		//semaphore release
-		writepointersemaphore->release();
+		writePointerSemaphore_->release();
 
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
@@ -107,7 +107,7 @@ public:
 	 * @return address of SDRAM which corresponds to ReadPointer of the ring buffer.
 	 */
 	virtual  uint32_t getReadPointer() {
-		return readpointer;
+		return readPointer_;
 	}
 
 public:
@@ -124,7 +124,7 @@ public:
 			cout << "ConsumerManager::setReadPointer()...";
 			std::vector<uint8_t> readdata;
 			readdata.resize(4, 0);
-			rmaphandler->read(adcboxRMAPNode, AddressOf_ReadPointerRegister_High, 4, &readdata[0]);
+			rmapHandler_->read(adcboxRMAPNode, AddressOf_ReadPointerRegister_High, 4, &readdata[0]);
 			readpointer_tmp = readdata[1] * 0x01000000 + readdata[0] * 0x00010000 + readdata[3] * 0x0100
 					+ readdata[2] * 0x0001;
 		}
@@ -139,12 +139,12 @@ public:
 		writedata.push_back(addressH[1]);
 		writedata.push_back(addressL[0]);
 		writedata.push_back(addressL[1]);
-		rmaphandler->write(adcboxRMAPNode, AddressOf_ReadPointerRegister_High, &writedata[0], 4);
+		rmapHandler_->write(adcboxRMAPNode, AddressOf_ReadPointerRegister_High, &writedata[0], 4);
 
 		writedata.clear();
 		writedata.push_back(0x01);
 		writedata.push_back(0x02);
-		rmaphandler->write(adcboxRMAPNode, AddressOf_AddressUpdateGoRegister, &writedata[0], 2);
+		rmapHandler_->write(adcboxRMAPNode, AddressOf_AddressUpdateGoRegister, &writedata[0], 2);
 
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
@@ -165,7 +165,7 @@ public:
 		}
 		std::vector<uint8_t> readdata;
 		readdata.resize(2, 0);
-		rmaphandler->read(adcboxRMAPNode, AddressOf_GuardBitRegister, 2, &readdata[0]);
+		rmapHandler_->read(adcboxRMAPNode, AddressOf_GuardBitRegister, 2, &readdata[0]);
 		uint32_t guardbit = readdata[0];
 
 		if (Debug::consumermanager()) {
@@ -185,7 +185,7 @@ public:
 		vector<uint8_t> writedata;
 		writedata.push_back(0x01);
 		writedata.push_back(0x00);
-		rmaphandler->write(adcboxRMAPNode, AddressOf_ConsumerMgr_ResetRegister, &writedata[0], 2);
+		rmapHandler_->write(adcboxRMAPNode, AddressOf_ConsumerMgr_ResetRegister, &writedata[0], 2);
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
 		}
@@ -206,41 +206,41 @@ public:
 		uint32_t addressFrom, addressTo;
 
 		//if readpointer==writepointer, then update writepointer.
-		if (readpointer == writepointer) {
+		if (readPointer_ == writePointer_) {
 			if (Debug::ringbuffer()) {
 				cout << "ConsumerManager::read() writepointer is updated" << endl;
 			}
-			writepointer = getWritePointer();
+			writePointer_ = getWritePointer();
 			if (Debug::ringbuffer()) {
 				cout << "ConsumerManager::read() guardbit is updated" << endl;
 			}
-			guardbit = getGuardBit();
+			guardBit_ = getGuardBit();
 		} else {
 //			cout << "Catching up.." << endl;
 		}
 
 		//read data stored in ring buffer
 		if (Debug::ringbuffer()) {
-			cout << "nextreadfrom:" << setfill('0') << setw(8) << hex << nextreadfrom << endl;
-			cout << "writepointer:" << setfill('0') << setw(8) << hex << writepointer << endl;
-			cout << "guardbit:" << guardbit << endl;
+			cout << "nextreadfrom:" << setfill('0') << setw(8) << hex << nextReadFrom_ << endl;
+			cout << "writepointer:" << setfill('0') << setw(8) << hex << writePointer_ << endl;
+			cout << "guardbit:" << guardBit_ << endl;
 		}
 
-		if (writepointer <= nextreadfrom && guardbit == 0) {
+		if (writePointer_ <= nextReadFrom_ && guardBit_ == 0) {
 			//there is no data to be read out from SDRAM
 //			cout << "NO DATA" << endl;
-		} else if (writepointer >= nextreadfrom) {
+		} else if (writePointer_ >= nextReadFrom_) {
 			//there is still remaining data to be read out
 			if (Debug::ringbuffer()) {
 				cout << "read mode : (writepointer>=nextreadfrom)" << endl;
 			}
-			addressFrom = (nextreadfrom);
-			if (nextreadfrom + maximumsize < writepointer) {
-				addressTo = (nextreadfrom + maximumsize);
-				readpointer = addressTo;
+			addressFrom = (nextReadFrom_);
+			if (nextReadFrom_ + maximumsize < writePointer_) {
+				addressTo = (nextReadFrom_ + maximumsize);
+				readPointer_ = addressTo;
 			} else {
-				addressTo = (writepointer);
-				readpointer = writepointer;
+				addressTo = (writePointer_);
+				readPointer_ = writePointer_;
 			}
 			if (Debug::ringbuffer()) {
 				cout << setfill('0') << setw(8) << hex << addressFrom << "-" << setfill('0') << setw(8) << hex << addressTo
@@ -250,15 +250,15 @@ public:
 			returneddata.resize((addressTo - addressFrom + 2), 0);
 //			cout << "SOME DATA..." << hex << addressFrom << " " <<  (addressTo - addressFrom + 2);
 			try {
-				rmaphandler->read(adcboxRMAPNode, addressFrom, (addressTo - addressFrom + 2), &returneddata[0]);
+				rmapHandler_->read(adcboxRMAPNode, addressFrom, (addressTo - addressFrom + 2), &returneddata[0]);
 //				cerr << hex << (uint32_t)addressFrom << " " << (uint32_t)(addressTo - addressFrom + 2) << endl;
-				nextreadfrom = increment_address(readpointer);
+				nextReadFrom_ = increment_address(readPointer_);
 			} catch (...) {
 				cerr << "Reading 0 banchi" << endl;
-				rmaphandler->read(adcboxRMAPNode, 0, 2, &returneddata[0]);
+				rmapHandler_->read(adcboxRMAPNode, 0, 2, &returneddata[0]);
 				cerr << hex << (uint32_t) returneddata[0] << " " << (uint32_t) returneddata[1] << endl;
 				cerr << "Could not retrieve... Try later." << endl;
-				rmaphandler->read(adcboxRMAPNode, addressFrom, 2, &returneddata[0]);
+				rmapHandler_->read(adcboxRMAPNode, addressFrom, 2, &returneddata[0]);
 				cerr << hex << (uint32_t) addressFrom << " " << (uint32_t) (addressTo - addressFrom + 2) << endl;
 			}
 //			cout << "DONE";
@@ -266,13 +266,13 @@ public:
 			if (Debug::ringbuffer()) {
 				cout << "read mode : (writepointer<nextreadfrom && guardbit==1)" << endl;
 			}
-			addressFrom = (nextreadfrom);
-			if (nextreadfrom + maximumsize < FinalAddressOf_Sdram_EventList) {
-				addressTo = (nextreadfrom + maximumsize);
-				readpointer = addressTo;
+			addressFrom = (nextReadFrom_);
+			if (nextReadFrom_ + maximumsize < FinalAddressOf_Sdram_EventList) {
+				addressTo = (nextReadFrom_ + maximumsize);
+				readPointer_ = addressTo;
 			} else {
 				addressTo = (FinalAddressOf_Sdram_EventList);
-				readpointer = FinalAddressOf_Sdram_EventList;
+				readPointer_ = FinalAddressOf_Sdram_EventList;
 			}
 			if (Debug::ringbuffer()) {
 				cout << setfill('0') << setw(8) << hex << addressFrom << "-" << setfill('0') << setw(8) << hex << addressTo
@@ -282,21 +282,21 @@ public:
 			try {
 //				cout << "rmaphandler->read()ing." << endl;
 				returneddata.resize((addressTo - addressFrom + 2), 0);
-				rmaphandler->read(adcboxRMAPNode, addressFrom, (addressTo - addressFrom + 2), &returneddata[0]);
+				rmapHandler_->read(adcboxRMAPNode, addressFrom, (addressTo - addressFrom + 2), &returneddata[0]);
 			} catch (...) {
 				cout << "caught error when rmaphandler->read()ing." << endl;
 			}
-			nextreadfrom = increment_address(readpointer);
+			nextReadFrom_ = increment_address(readPointer_);
 		}
 		//read data stored in ring buffer
 		if (Debug::ringbuffer()) {
-			cout << "nextreadfrom:" << setfill('0') << setw(8) << hex << nextreadfrom << endl;
-			cout << "writepointer:" << setfill('0') << setw(8) << hex << writepointer << endl;
-			cout << "guardbit:" << guardbit << endl;
+			cout << "nextreadfrom:" << setfill('0') << setw(8) << hex << nextReadFrom_ << endl;
+			cout << "writepointer:" << setfill('0') << setw(8) << hex << writePointer_ << endl;
+			cout << "guardbit:" << guardBit_ << endl;
 			cout.flush();
 		}
-		if ((returneddata.size() != 0 && readpointer == writepointer) || readpointer == FinalAddressOf_Sdram_EventList) {
-			setReadPointer(readpointer);
+		if ((returneddata.size() != 0 && readPointer_ == writePointer_) || readPointer_ == FinalAddressOf_Sdram_EventList) {
+			setReadPointer(readPointer_);
 		}
 		return returneddata;
 	}
@@ -313,7 +313,7 @@ public:
 		vector<uint8_t> writedata;
 		writedata.push_back((uint8_t) numberofsamples);
 		writedata.push_back(0x00);
-		rmaphandler->write(adcboxRMAPNode, AddressOf_NumberOf_BaselineSample_Register, &writedata[0], 2);
+		rmapHandler_->write(adcboxRMAPNode, AddressOf_NumberOf_BaselineSample_Register, &writedata[0], 2);
 
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
@@ -332,13 +332,13 @@ public:
 		vector<uint8_t> writedata;
 		writedata.push_back((uint8_t) (numberofsamples << 24 >> 24));
 		writedata.push_back((uint8_t) (numberofsamples << 16 >> 24));
-		rmaphandler->write(adcboxRMAPNode, AddressOf_EventPacket_NumberOfWaveform_Register, &writedata[0], 2);
+		rmapHandler_->write(adcboxRMAPNode, AddressOf_EventPacket_NumberOfWaveform_Register, &writedata[0], 2);
 
 		if (Debug::consumermanager()) {
 			cout << "done" << endl;
 			std::vector<uint8_t> readdata;
 			readdata.resize(2, 0);
-			rmaphandler->read(adcboxRMAPNode, AddressOf_EventPacket_NumberOfWaveform_Register, 2, &readdata[0]);
+			rmapHandler_->read(adcboxRMAPNode, AddressOf_EventPacket_NumberOfWaveform_Register, 2, &readdata[0]);
 			cout << "readdata[0]:" << (uint32_t) readdata[0] << endl;
 		}
 	}

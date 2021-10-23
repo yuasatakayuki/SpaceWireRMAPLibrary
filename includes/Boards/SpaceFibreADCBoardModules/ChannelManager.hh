@@ -38,18 +38,18 @@ public:
 	static constexpr double LivetimeCounterInterval = 1e-2; //s (=10ms)
 
 private:
-	RMAPHandler* rmapHandler;
-	RMAPTargetNode* adcRMAPTargetNode;
-	SemaphoreRegister* startStopSemaphore;
+	RMAPHandler* rmapHandler_;
+	RMAPTargetNode* rmapNode_;
+	SemaphoreRegister* startStopSemaphore_;
 
 public:
 	/** Constructor.
 	 * @param rmapHandler a pointer to RMAPHandler which is connected to SpaceWire ADC Box
 	 */
 	ChannelManager(RMAPHandler* handler, RMAPTargetNode* adcRMAPTargetNode) {
-		this->rmapHandler = handler;
-		this->adcRMAPTargetNode = adcRMAPTargetNode;
-		startStopSemaphore = new SemaphoreRegister(this->rmapHandler, this->adcRMAPTargetNode,
+		this->rmapHandler_ = handler;
+		this->rmapNode_ = adcRMAPTargetNode;
+		startStopSemaphore_ = new SemaphoreRegister(this->rmapHandler_, this->rmapNode_,
 				ChannelManager::AddressOf_StartStopSemaphoreRegister);
 	}
 
@@ -74,9 +74,9 @@ public:
 			tmp = tmp * 2;
 		}
 		//write the StartStopRegister (semaphore is needed)
-		startStopSemaphore->request();
-		rmapHandler->write(adcRMAPTargetNode, ChannelManager::AddressOf_StartStopRegister, &writeData[0], writeData.size());
-		startStopSemaphore->release();
+		startStopSemaphore_->request();
+		rmapHandler_->write(rmapNode_, ChannelManager::AddressOf_StartStopRegister, &writeData[0], writeData.size());
+		startStopSemaphore_->release();
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -92,7 +92,7 @@ public:
 			cout << "ChannelManager::isAcquisitionCompleted()...";
 		}
 		std::vector<uint8_t> readData(2);
-		rmapHandler->read(adcRMAPTargetNode, ChannelManager::AddressOf_StartStopRegister, 2, &readData[0]);
+		rmapHandler_->read(rmapNode_, ChannelManager::AddressOf_StartStopRegister, 2, &readData[0]);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -113,7 +113,7 @@ public:
 			cout << "ChannelManager::isAcquisitionCompleted(" << chNumber << ")...";
 		}
 		std::vector<uint8_t> readData(2);
-		rmapHandler->read(adcRMAPTargetNode, ChannelManager::AddressOf_StartStopRegister, 2, &readData[0]);
+		rmapHandler_->read(rmapNode_, ChannelManager::AddressOf_StartStopRegister, 2, &readData[0]);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -140,9 +140,9 @@ public:
 			cout << "ChannelManager::stopAcquisition()...";
 		}
 		vector<uint8_t> writeData = { 0x00, 0x00 };
-		startStopSemaphore->request();
-		rmapHandler->write(adcRMAPTargetNode, ChannelManager::AddressOf_StartStopRegister, &writeData[0], 2);
-		startStopSemaphore->release();
+		startStopSemaphore_->request();
+		rmapHandler_->write(rmapNode_, ChannelManager::AddressOf_StartStopRegister, &writeData[0], 2);
+		startStopSemaphore_->release();
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -163,7 +163,7 @@ public:
 			cout << "ChannelManager::setPresetMode()...";
 		}
 		vector<uint8_t> writeData = { 0x00, static_cast<uint8_t>(presetmode) };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetModeRegister, &writeData[0], 2);
+		rmapHandler_->write(rmapNode_, AddressOf_PresetModeRegister, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -181,7 +181,7 @@ public:
 		if (Debug::channelmanager()) {
 			cout << "ChannelManager::setAdcClock(" << static_cast<uint16_t>(adcClockFrequency) / 100 << "MHz)...";
 		}
-		rmapHandler->setRegister(AddressOf_ADCClock_Register, static_cast<uint16_t>(adcClockFrequency));
+		rmapHandler_->setRegister(AddressOf_ADCClock_Register, static_cast<uint16_t>(adcClockFrequency));
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -199,11 +199,11 @@ public:
 		vector<uint8_t> writeData;
 		writeData.push_back(livetimeIn10msUnit << 16 >> 24);
 		writeData.push_back(livetimeIn10msUnit << 24 >> 24);
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
+		rmapHandler_->write(rmapNode_, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
 		writeData.clear();
 		writeData.push_back(livetimeIn10msUnit >> 24);
 		writeData.push_back(livetimeIn10msUnit << 8 >> 24);
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterH, &writeData[0], 2);
+		rmapHandler_->write(rmapNode_, AddressOf_PresetLivetimeRegisterH, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -219,7 +219,7 @@ public:
 			cout << "ChannelManager::getRealtime()...";
 		}
 		std::vector<uint8_t> readData(6);
-		rmapHandler->read(adcRMAPTargetNode, AddressOf_RealtimeRegisterL, 6, &readData[0]);
+		rmapHandler_->read(rmapNode_, AddressOf_RealtimeRegisterL, 6, &readData[0]);
 		double low = (double) (readData[0]) * 0x100 + (double) (readData[1]);
 		double mid = (double) (readData[2]) * 0x1000000 + (double) (readData[3]) * 0x10000;
 		double high = ((double) (readData[4]) * 0x1000000 + (double) (readData[5]) * 0x10000) * 0x10000;
@@ -240,7 +240,7 @@ public:
 			cout << "ChannelManager::reset()...";
 		}
 		vector<uint8_t> writeData = { 0x00, 0x01 };
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_ResetRegister, &writeData[0], 2);
+		rmapHandler_->write(rmapNode_, AddressOf_ResetRegister, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -261,7 +261,7 @@ public:
 						static_cast<uint8_t>(nEvents >> 24), //
 						static_cast<uint8_t>(nEvents << 8 >> 24) //
 				};
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 4);
+		rmapHandler_->write(rmapNode_, AddressOf_PresetLivetimeRegisterL, &writeData[0], 4);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}
@@ -285,7 +285,7 @@ public:
 				static_cast<uint8_t>(adcClockCounter / 0x100), //
 						static_cast<uint8_t>(adcClockCounter % 0x100) //
 				};
-		rmapHandler->write(adcRMAPTargetNode, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
+		rmapHandler_->write(rmapNode_, AddressOf_PresetLivetimeRegisterL, &writeData[0], 2);
 		if (Debug::channelmanager()) {
 			cout << "done" << endl;
 		}

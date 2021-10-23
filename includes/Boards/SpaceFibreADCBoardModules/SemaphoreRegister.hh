@@ -16,9 +16,9 @@
  */
 class SemaphoreRegister {
 private:
-	RMAPHandler* rmaphandler;
-	RMAPTargetNode* adcboxRMAPNode;
-	uint32_t address;
+	RMAPHandler* rmaphandler_;
+	RMAPTargetNode* rmapNode_;
+	uint32_t address_;
 
 public:
 	/** Constructor.
@@ -27,14 +27,14 @@ public:
 	 */
 	SemaphoreRegister(RMAPHandler* handler, RMAPTargetNode* adcboxRMAPNode, uint32_t address) {
 		using namespace std;
-		this->rmaphandler = handler;
-		this->address = address;
-		this->adcboxRMAPNode = adcboxRMAPNode;
+		this->rmaphandler_ = handler;
+		this->address_ = address;
+		this->rmapNode_ = adcboxRMAPNode;
 		if (Debug::semaphore()) {
 			std::vector<uint8_t> data;
 			data.push_back(0);
 			data.push_back(0);
-			rmaphandler->read(adcboxRMAPNode, address, 2, &data[0]);
+			rmaphandler_->read(adcboxRMAPNode, address, 2, &data[0]);
 			cout << "Semaphore::Semaphore(): semaphore (0x" << setw(8) << setfill('0') << hex << address
 					<< ") was created, and value is " << data[1] * 0x100 + data[0] << endl << dec;
 		}
@@ -54,7 +54,7 @@ public:
 	void request() {
 		using namespace std;
 		if (Debug::semaphore()) {
-			cout << "Semaphore::request(): request semaphore(0x" << hex << setw(8) << setfill('0') << address << ")..."
+			cout << "Semaphore::request(): request semaphore(0x" << hex << setw(8) << setfill('0') << address_ << ")..."
 					<< endl;
 		}
 
@@ -64,10 +64,10 @@ public:
 				cout << "Semaphore::request(): trying to get semaphore" << endl;
 			}
 			vector<uint8_t> writeData = { 0xff, 0xff };
-			rmaphandler->write(adcboxRMAPNode, address, &writeData[0], 2);
+			rmaphandler_->write(rmapNode_, address_, &writeData[0], 2);
 
 			vector<uint8_t> readData(2);
-			rmaphandler->read(adcboxRMAPNode, address, 2, &readData[0]);
+			rmaphandler_->read(rmapNode_, address_, 2, &readData[0]);
 			if (Debug::semaphore()) {
 				cout << "Semaphore::request(): semaphore value = " << (uint32_t) readData[0] << (uint32_t) readData[1] << endl;
 			}
@@ -91,14 +91,14 @@ public:
 		bool flag = true;
 		do {
 			if (Debug::semaphore()) {
-				cout << "Semaphore::release(): release semaphore(" << hex << setw(4) << setfill('0') << address << ")..."
+				cout << "Semaphore::release(): release semaphore(" << hex << setw(4) << setfill('0') << address_ << ")..."
 						<< endl;
 			}
 			vector<uint8_t> writeData = { 0x00, 0x00 };
-			rmaphandler->write(adcboxRMAPNode, address, &writeData[0], 2);
+			rmaphandler_->write(rmapNode_, address_, &writeData[0], 2);
 
 			vector<uint8_t> readData(2);
-			rmaphandler->read(adcboxRMAPNode, address, 2, &readData[0]);
+			rmaphandler_->read(rmapNode_, address_, 2, &readData[0]);
 			if (Debug::semaphore()) {
 				cout << "Semaphore::release(): semaphore value = " << (uint32_t) readData[0] << (uint32_t) readData[1] << endl;
 			}
