@@ -1,7 +1,25 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 
-PROJECT(SpaceWireRMAPLibrary CXX)
+project(SpaceWireRMAPLibrary CXX)
 
-INSTALL(DIRECTORY includes/ DESTINATION include/SpaceWireRMAPLibrary)
+set(CMAKE_CXX_STANDARD 17)
 
-message (STATUS "${PROJECT_NAME} will be installed to ${CMAKE_INSTALL_PREFIX} (give -DCMAKE_INSTALL_PREFIX=path to cmake to modify this)")
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
+
+set(SPW_SOURCE_FILES
+src/spacewire/spacewiressdtpmodule.cc
+src/spacewire/spacewireutil.cc
+)
+set(RMAP_SOURCE_FILES
+src/rmap/rmapengine.cc
+src/rmap/rmapinitiator.cc
+src/rmap/rmappacket.cc
+src/rmap/rmapreplystatus.cc
+)
+
+include_directories(include)
+add_library(spw STATIC ${SPW_SOURCE_FILES})
+add_library(rmap STATIC ${RMAP_SOURCE_FILES})
+
+
