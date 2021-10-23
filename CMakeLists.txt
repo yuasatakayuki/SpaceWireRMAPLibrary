@@ -23,3 +23,4 @@ add_library(spw STATIC ${SPW_SOURCE_FILES})
 add_library(rmap STATIC ${RMAP_SOURCE_FILES})
 
 
+add_subdirectory(test)
