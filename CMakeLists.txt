@@ -17,10 +17,15 @@ src/rmap/rmapinitiator.cc
 src/rmap/rmappacket.cc
 src/rmap/rmapreplystatus.cc
 )
+set(CLI_SOURCE_FILES
+src/cli/rmap_packet.cc
+)
 
 include_directories(include)
 add_library(spw STATIC ${SPW_SOURCE_FILES})
 add_library(rmap STATIC ${RMAP_SOURCE_FILES})
 
+add_executable(rmap-packet src/cli/rmap_packet.cc)
+target_link_libraries(rmap-packet spw rmap)
 
-add_subdirectory(test)
+# add_subdirectory(test)

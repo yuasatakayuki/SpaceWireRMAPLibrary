@@ -84,7 +84,7 @@ class RMAPPacket : public SpaceWirePacket {
 
   void clearData() { data_.clear(); }
 
-  std::string toString() { return isCommand() ? toStringCommandPacket() : toStringReplyPacket(); }
+  std::string toString() const { return isCommand() ? toStringCommandPacket() : toStringReplyPacket(); }
 
   void setTargetLogicalAddress(u8 targetLogicalAddress) { targetLogicalAddress_ = targetLogicalAddress; }
   void setTargetSpaceWireAddress(const std::vector<u8>& targetSpaceWireAddress) {
@@ -107,8 +107,8 @@ class RMAPPacket : public SpaceWirePacket {
 
  private:
   static std::vector<u8> removeLeadingZerosInReplyAddress(std::vector<u8> replyAddress);
-  std::string toStringCommandPacket();
-  std::string toStringReplyPacket();
+  std::string toStringCommandPacket() const;
+  std::string toStringReplyPacket() const;
   void toStringInstructionField(std::stringstream& ss) const;
 
   static constexpr u8 BIT_MASK_RESERVED = 0x80;
