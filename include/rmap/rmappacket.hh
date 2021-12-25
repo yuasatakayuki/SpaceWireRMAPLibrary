@@ -41,20 +41,14 @@ class RMAPPacket : public SpaceWirePacket {
   bool isIncrementFlagSet() const { return (instruction_ & RMAPPacket::BIT_MASK_INCREMENT_FLAG) != 0; }
 
   u8 getReplyPathAddressLength() const { return instruction_ & RMAPPacket::BIT_MASK_REPLY_PATH_ADDRESS_LENGTH; }
-
   u32 getAddress() const { return address_; }
-
-  bool hasData() const { return !data_.empty() || (isCommand() && isWrite()) || (isReply() && isRead()); }
-
   void getData(u8* buffer, size_t maxLength) const;
-
   void getData(std::vector<u8>* buffer) const { *buffer = data_; }
-
   std::vector<u8>* getDataBuffer() { return &data_; }
+  bool hasData() const { return !data_.empty() || (isCommand() && isWrite()) || (isReply() && isRead()); }
 
   u8 getDataCRC() const { return dataCRC_; }
   u32 getDataLength() const { return dataLength_; }
-  // u32 getLength() const { return dataLength_; }
   u8 getExtendedAddress() const { return extendedAddress_; }
   u8 getHeaderCRC() const { return headerCRC_; }
   u8 getInitiatorLogicalAddress() const { return initiatorLogicalAddress_; }
