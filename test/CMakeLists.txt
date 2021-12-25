@@ -18,6 +18,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 set(TEST_SRC_FILES
+src/spacewire/testspacewireif.cc
 src/rmap/testrmappacket.cc
 )
 
