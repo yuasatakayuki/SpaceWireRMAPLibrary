@@ -84,7 +84,7 @@ void commandConstruct(const RMAPPacketOption& params, std::ostream& ost) {
   }
 
   packet.setKey(toU8(params.key));
-  packet.setReplyAddress(toU8Array(params.replyAddress));
+  packet.setReplyAddress(toU8Array(params.replyAddress), false);
   packet.setAddress(toU32(params.memoryAddress));
   packet.setDataLength(std::stoul(params.dataLength));
   const auto data = toU8Array(params.data);

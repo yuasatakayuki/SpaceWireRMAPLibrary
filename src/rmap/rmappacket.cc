@@ -1,5 +1,9 @@
 #include "rmap/rmappacket.hh"
 
+namespace {
+static constexpr size_t replyAddressChunkBytes = 4;
+}
+
 RMAPPacket::RMAPPacket() : SpaceWirePacket(RMAPProtocol::ProtocolIdentifier) {}
 
 void RMAPPacket::constructHeader() {
@@ -12,13 +16,11 @@ void RMAPPacket::constructHeader() {
     header_.push_back(key_);
     std::vector<u8> tmpvector;
     u8 tmporaryCounter = replyAddress_.size();
-    while (tmporaryCounter % 4 != 0) {
+    while (tmporaryCounter % replyAddressChunkBytes != 0) {
       header_.push_back(0x00);
       tmporaryCounter++;
     }
-    for (size_t i = 0; i < replyAddress_.size(); i++) {
-      header_.push_back(replyAddress_.at(i));
-    }
+    header_.insert(header_.end(), replyAddress_.begin(), replyAddress_.end());
     header_.push_back(initiatorLogicalAddress_);
     header_.push_back((transactionID_ & 0xff00) >> 8);
     header_.push_back((transactionID_ & 0x00ff) >> 0);
@@ -109,12 +111,12 @@ void RMAPPacket::interpretAsAnRMAPPacket(const u8* packet, size_t length, bool s
     setTargetLogicalAddress(packet[rmapIndex]);
     setKey(packet[rmapIndex + 3]);
     std::vector<u8> temporaryReplyAddress{};
-    constexpr size_t chunkBytes = 4;
-    for (u8 i = 0; i < replyPathAddressLength * chunkBytes; i++) {
-      temporaryReplyAddress.push_back(packet[rmapIndex + chunkBytes + i]);
+    for (u8 i = 0; i < replyPathAddressLength * replyAddressChunkBytes; i++) {
+      temporaryReplyAddress.push_back(packet[rmapIndex + replyAddressChunkBytes + i]);
     }
     setReplyAddress(temporaryReplyAddress);
-    rmapIndexAfterSourcePathAddress = rmapIndex + chunkBytes + replyPathAddressLength * chunkBytes;
+    rmapIndexAfterSourcePathAddress =
+        rmapIndex + replyAddressChunkBytes + replyPathAddressLength * replyAddressChunkBytes;
     setInitiatorLogicalAddress(packet[rmapIndexAfterSourcePathAddress + 0]);
 
     const u16 uppertid = packet[rmapIndexAfterSourcePathAddress + 1];
@@ -300,27 +302,29 @@ void RMAPPacket::getData(u8* buffer, size_t maxLength) const {
   if (maxLength < length) {
     throw RMAPPacketException("insufficient buffer size");
   }
-  for (size_t i = 0; i < length; i++) {
-    buffer[i] = data_[i];
-  }
+  std::copy(data_.begin(), data_.end(), buffer);
 }
 
 void RMAPPacket::setData(const u8* data, size_t length) {
-  data_.clear();
-  for (size_t i = 0; i < length; i++) {
-    data_.push_back(data[i]);
-  }
+  data_.assign(data, data + length);
   dataLength_ = length;
 }
 
 void RMAPPacket::setReplyAddress(const std::vector<u8>& replyAddress,  //
                                  bool automaticallySetPathAddressLengthToInstructionField) {
-  replyAddress_ = replyAddress;
+  replyAddress_.clear();
+  while ((replyAddress_.size() + replyAddress.size()) % replyAddressChunkBytes != 0) {
+    replyAddress_.push_back(0x00);
+  }
+  replyAddress_.insert(replyAddress_.end(), replyAddress.begin(), replyAddress.end());
+
   if (automaticallySetPathAddressLengthToInstructionField) {
-    if (replyAddress.size() % 4 == 0) {
-      instruction_ = (instruction_ & (~BIT_MASK_REPLY_PATH_ADDRESS_LENGTH)) + replyAddress.size() / 4;
+    if (replyAddress.size() % replyAddressChunkBytes == 0) {
+      instruction_ =
+          (instruction_ & (~BIT_MASK_REPLY_PATH_ADDRESS_LENGTH)) + replyAddress.size() / replyAddressChunkBytes;
     } else {
-      instruction_ = (instruction_ & (~BIT_MASK_REPLY_PATH_ADDRESS_LENGTH)) + (replyAddress.size() + 4) / 4;
+      instruction_ = (instruction_ & (~BIT_MASK_REPLY_PATH_ADDRESS_LENGTH)) +
+                     (replyAddress.size() + replyAddressChunkBytes) / replyAddressChunkBytes;
     }
   }
 }
@@ -349,12 +353,12 @@ RMAPPacket* RMAPPacket::constructReplyForCommand(RMAPPacket* commandPacket, u8 s
 std::vector<u8> RMAPPacket::removeLeadingZerosInReplyAddress(std::vector<u8> replyAddress) {
   bool nonZeroValueHasAppeared = false;
   std::vector<u8> result;
-  for (size_t i = 0; i < replyAddress.size(); i++) {
-    if (!nonZeroValueHasAppeared && replyAddress[i] != 0x00) {
+  for (const auto replyAddressEntry : replyAddress) {
+    if (!nonZeroValueHasAppeared && replyAddressEntry != 0x00) {
       nonZeroValueHasAppeared = true;
     }
     if (nonZeroValueHasAppeared) {
-      result.push_back(replyAddress[i]);
+      result.push_back(replyAddressEntry);
     }
   }
   return result;
@@ -404,7 +408,8 @@ std::string RMAPPacket::toStringCommandPacket() const {
      << dataLength_ << "dec)" << endl;
   ss << "Header CRC                : 0x" << right << setw(2) << setfill('0') << hex << (u32)(headerCRC_);
   if (headerCRC_ != clonedPacket.headerCRC_) {
-    ss << " (Header CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0') << static_cast<u32>(clonedPacket.headerCRC_);
+    ss << " (Header CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0')
+       << static_cast<u32>(clonedPacket.headerCRC_);
   }
   ss << endl;
   // Data Part
@@ -414,7 +419,8 @@ std::string RMAPPacket::toStringCommandPacket() const {
     spacewire::util::dumpPacket(&ss, data_.data(), data_.size(), 1, 16);
     ss << "Data CRC                  : " << right << setw(2) << setfill('0') << hex << (u32)(dataCRC_);
     if (dataCRC_ != clonedPacket.dataCRC_) {
-      ss << " (Data CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0') << static_cast<u32>(clonedPacket.dataCRC_);
+      ss << " (Data CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0')
+         << static_cast<u32>(clonedPacket.dataCRC_);
     }
     ss << endl;
   } else {
@@ -460,45 +466,21 @@ std::string RMAPPacket::toStringReplyPacket() const {
   // Status
   std::string statusstring;
   switch (status_) {
-    case 0x00:
-      statusstring = "Successfully Executed";
-      break;
-    case 0x01:
-      statusstring = "General Error";
-      break;
-    case 0x02:
-      statusstring = "Unused RMAP Packet Type or Command Code";
-      break;
-    case 0x03:
-      statusstring = "Invalid Target Key";
-      break;
-    case 0x04:
-      statusstring = "Invalid Data CRC";
-      break;
-    case 0x05:
-      statusstring = "Early EOP";
-      break;
-    case 0x06:
-      statusstring = "Cargo Too Large";
-      break;
-    case 0x07:
-      statusstring = "EEP";
-      break;
-    case 0x08:
-      statusstring = "Reserved";
-      break;
-    case 0x09:
-      statusstring = "Verify Buffer Overrun";
-      break;
-    case 0x0a:
-      statusstring = "RMAP Command Not Implemented or Not Authorized";
-      break;
-    case 0x0b:
-      statusstring = "Invalid Target Logical Address";
-      break;
-    default:
-      statusstring = "Reserved";
-      break;
+    // clang-format off
+    case 0x00: statusstring = "Successfully Executed"; break;
+    case 0x01: statusstring = "General Error"; break;
+    case 0x02: statusstring = "Unused RMAP Packet Type or Command Code"; break;
+    case 0x03: statusstring = "Invalid Target Key"; break;
+    case 0x04: statusstring = "Invalid Data CRC"; break;
+    case 0x05: statusstring = "Early EOP"; break;
+    case 0x06: statusstring = "Cargo Too Large"; break;
+    case 0x07: statusstring = "EEP"; break;
+    case 0x08: statusstring = "Reserved"; break;
+    case 0x09: statusstring = "Verify Buffer Overrun"; break;
+    case 0x0a: statusstring = "RMAP Command Not Implemented or Not Authorized"; break;
+    case 0x0b: statusstring = "Invalid Target Logical Address"; break;
+    default:   statusstring = "Reserved"; break;
+      // clang-format on
   }
   ss << "Status                    : 0x" << right << setw(2) << setfill('0') << hex << (u32)(status_) << " ("
      << statusstring << ")" << endl;
@@ -509,7 +491,8 @@ std::string RMAPPacket::toStringReplyPacket() const {
   }
   ss << "Header CRC                : 0x" << right << setw(2) << setfill('0') << hex << (u32)(headerCRC_);
   if (headerCRC_ != clonedPacket.headerCRC_) {
-    ss << " (Header CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0') << static_cast<u32>(clonedPacket.headerCRC_);
+    ss << " (Header CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0')
+       << static_cast<u32>(clonedPacket.headerCRC_);
   }
   ss << endl;
 
@@ -520,7 +503,8 @@ std::string RMAPPacket::toStringReplyPacket() const {
     spacewire::util::dumpPacket(&ss, data_.data(), data_.size(), 1, 128);
     ss << "Data CRC    : 0x" << right << setw(2) << setfill('0') << hex << (u32)(dataCRC_);
     if (dataCRC_ != clonedPacket.dataCRC_) {
-      ss << " (Data CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0') << static_cast<u32>(clonedPacket.dataCRC_);
+      ss << " (Data CRC error. Correct CRC is 0x" << right << setw(2) << setfill('0')
+         << static_cast<u32>(clonedPacket.dataCRC_);
     }
     ss << endl;
   } else {

@@ -28,4 +28,4 @@ add_library(rmap STATIC ${RMAP_SOURCE_FILES})
 add_executable(rmap-packet src/cli/rmap_packet.cc)
 target_link_libraries(rmap-packet spw rmap)
 
-# add_subdirectory(test)
+add_subdirectory(test)
