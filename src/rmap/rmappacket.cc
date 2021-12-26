@@ -84,6 +84,7 @@ void RMAPPacket::interpretAsAnRMAPPacket(const u8* packet, size_t length, bool s
   size_t rmapIndexAfterSourcePathAddress = 0;
   size_t dataIndex = 0;
   temporaryPathAddress_.clear();
+  data_.clear();
   while (packet[i] < 0x20) {
     temporaryPathAddress_.push_back(packet[i]);
     i++;
@@ -147,15 +148,11 @@ void RMAPPacket::interpretAsAnRMAPPacket(const u8* packet, size_t length, bool s
       headerCRC_ = temporaryHeaderCRC;
     }
     dataIndex = rmapIndexAfterSourcePathAddress + 12;
-    data_.clear();
     if (isWrite()) {
-      for (u32 i = 0; i < lengthSpecifiedInPacket; i++) {
-        if ((dataIndex + i) < (length - 1)) {
-          data_.push_back(packet[dataIndex + i]);
-        } else {
-          throw(RMAPPacketException("data length mismatch"));
-        }
+      if ((dataIndex + lengthSpecifiedInPacket) != (length - 1)) {
+        throw(RMAPPacketException("data length mismatch"));
       }
+      data_.assign(packet + dataIndex, packet + dataIndex + lengthSpecifiedInPacket);
 
       // length check for DataCRC
       u8 temporaryDataCRC = 0x00;
@@ -213,16 +210,6 @@ void RMAPPacket::interpretAsAnRMAPPacket(const u8* packet, size_t length, bool s
         headerCRC_ = temporaryHeaderCRC;
       }
       dataIndex = rmapIndex + 12;
-      data_.clear();
-      data_.reserve(lengthSpecifiedInPacket);
-      for (u32 i = 0; i < lengthSpecifiedInPacket; i++) {
-        if ((dataIndex + i) < (length - 1)) {
-          data_.push_back(packet[dataIndex + i]);
-        } else {
-          dataCRC_ = 0x00;  // initialized
-          throw(RMAPPacketException("data length mismatch"));
-        }
-      }
 
       // length check for DataCRC
       u8 temporaryDataCRC = 0x00;
@@ -231,6 +218,7 @@ void RMAPPacket::interpretAsAnRMAPPacket(const u8* packet, size_t length, bool s
       } else {
         throw(RMAPPacketException("data length mismatch"));
       }
+      data_.assign(packet + dataIndex, packet + dataIndex + lengthSpecifiedInPacket);
       dataCRC_ = RMAPUtilities::calculateCRC(data_.data(), data_.size());
       if (dataCRCIsChecked_) {
         if (dataCRC_ != temporaryDataCRC) {
